@@ -1,0 +1,30 @@
+# Render Blueprint — deploy from repo root or set "Root Directory" to backend in the dashboard.
+services:
+  - type: web
+    name: employee-management-api
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: OFFICE_START_TIME
+        value: "09:30"
+      - key: OFFICE_END_TIME
+        value: "18:00"
+      - key: UPLOAD_DIR
+        value: uploads
+      - key: MAX_FILE_SIZE_MB
+        value: "5"
+      - key: GEOCODING_PROVIDER
+        value: osm

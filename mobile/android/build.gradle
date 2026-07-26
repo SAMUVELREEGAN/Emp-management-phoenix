@@ -1,0 +1,32 @@
+buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 35
+        targetSdkVersion = 34
+        ndkVersion = "27.1.12297006"
+        kotlinVersion = "1.9.24"
+        // Must match react-native-maps; geolocation-service defaults to 18.x and crashes at runtime.
+        googlePlayServicesVersion = "21.0.1"
+        playServicesLocationVersion = "21.0.1"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+subprojects { subproject ->
+    subproject.configurations.configureEach { configuration ->
+        configuration.resolutionStrategy.force(
+            "com.google.android.gms:play-services-location:21.0.1",
+        )
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"

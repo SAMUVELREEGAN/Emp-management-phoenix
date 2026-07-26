@@ -1,0 +1,15 @@
+pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+  // Avoid `npx` from Gradle ProcessBuilder (often fails on Windows/nvm with exit code 1).
+  // Call the CLI through node directly with a stable working directory.
+  def mobileRoot = settings.rootDir.parentFile
+  def cliBin = new File(mobileRoot, "node_modules/@react-native-community/cli/build/bin.js")
+  ex.autolinkLibrariesFromCommand(
+    ["cmd", "/c", "node", cliBin.absolutePath, "config"],
+    mobileRoot
+  )
+}
+rootProject.name = 'EmployeeManagement'
+include ':app'
+includeBuild('../node_modules/@react-native/gradle-plugin')
