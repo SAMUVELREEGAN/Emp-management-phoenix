@@ -12,6 +12,8 @@
     "start": "node dist/server.js",
     "seed": "tsx src/seeds/seedAdmin.ts",
     "seed:prod": "node dist/seeds/seedAdmin.js",
+    "reset:demo": "tsx src/seeds/resetDemoData.ts",
+    "reset:demo:prod": "node dist/seeds/resetDemoData.js",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],

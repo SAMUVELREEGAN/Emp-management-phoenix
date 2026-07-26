@@ -37,6 +37,11 @@ const envSchema = z.object({
   GOOGLE_MAPS_API_KEY: z.string().optional(),
   /** osm = OpenStreetMap only, google = Google only, auto = Google then OSM fallback */
   GEOCODING_PROVIDER: z.enum(['osm', 'google', 'auto']).optional(),
+  /** One-time demo reset on startup. Set to true in Render, redeploy, then remove. */
+  RESET_DEMO_DATA: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
 });
 
 const parsed = envSchema.safeParse(process.env);
