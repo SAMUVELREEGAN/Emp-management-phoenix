@@ -18,15 +18,21 @@ function loadNativeConfig(): EnvConfig {
 
 const nativeConfig = loadNativeConfig();
 
+const PRODUCTION_API_BASE_URL =
+  'https://employee-management-app-epy7.onrender.com/api';
+
 // 10.0.2.2 = Android emulator loopback to host machine
-// Physical devices must use your PC's LAN IP
-const DEFAULT_API_BASE_URL =
+// Physical devices on same Wi-Fi use your PC LAN IP during development
+const DEV_API_BASE_URL =
   Platform.OS === 'android'
     ? 'http://192.168.29.254:5000/api'
     : 'http://localhost:5000/api';
 
-export const API_BASE_URL = nativeConfig.API_BASE_URL || DEFAULT_API_BASE_URL;
+export const API_BASE_URL =
+  nativeConfig.API_BASE_URL ||
+  (__DEV__ ? DEV_API_BASE_URL : PRODUCTION_API_BASE_URL);
 
 export const UPLOADS_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
-export const REQUEST_TIMEOUT = 15000;
+// Render free tier can take ~30-60s to wake from sleep
+export const REQUEST_TIMEOUT = __DEV__ ? 15000 : 60000;
