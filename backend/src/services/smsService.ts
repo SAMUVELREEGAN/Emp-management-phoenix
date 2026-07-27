@@ -13,10 +13,6 @@ function isSmsConfigured(): boolean {
   );
 }
 
-export function isSmsOtpConfigured(): boolean {
-  return isSmsConfigured();
-}
-
 let smsClient: ReturnType<typeof twilio> | null = null;
 
 function getSmsClient() {
@@ -32,7 +28,7 @@ export async function sendOtpSms(
   fullName: string,
 ): Promise<void> {
   if (!isSmsConfigured()) {
-    logger.warn(`[SMS OTP - not configured] To: ${phone} | Code: ${code}`);
+    logger.info(`[SMS OTP - not configured] To: ${phone} | Code: ${code}`);
     return;
   }
 

@@ -10,10 +10,6 @@ function isEmailConfigured(): boolean {
   );
 }
 
-export function isEmailOtpConfigured(): boolean {
-  return isEmailConfigured();
-}
-
 let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter {
@@ -37,7 +33,7 @@ export async function sendOtpEmail(
   fullName: string,
 ): Promise<void> {
   if (!isEmailConfigured()) {
-    logger.warn(`[EMAIL OTP - not configured] To: ${email} | Code: ${code}`);
+    logger.info(`[EMAIL OTP - not configured] To: ${email} | Code: ${code}`);
     return;
   }
 

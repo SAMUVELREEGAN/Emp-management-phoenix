@@ -9,8 +9,9 @@ import {
 import { ApiError } from '../utils/ApiError';
 import { logger } from '../utils/logger';
 import { maskEmail, maskPhone } from '../utils/phoneHelpers';
-import { sendOtpEmail, isEmailOtpConfigured } from './emailService';
-import { sendOtpSms, isSmsOtpConfigured } from './smsService';
+import { sendOtpEmail } from './emailService';
+import { sendOtpSms } from './smsService';
+import { isOtpDeliveryConfigured } from '../utils/otpConfig';
 
 const generateCode = (): string =>
   crypto.randomInt(100000, 999999).toString();
@@ -39,39 +40,33 @@ export const sendVerificationCode = async (
     attempts: 0,
   });
 
-  if (channel === 'email') {
-    if (isEmailOtpConfigured()) {
+  if (isOtpDeliveryConfigured(channel)) {
+    if (channel === 'email') {
       await sendOtpEmail(user.email, code, user.fullName);
     } else {
-      logger.warn(
-        `Email OTP delivery not configured; include code in API for ${user.employeeId}`,
-      );
+      await sendOtpSms(user.phone, code, user.fullName);
     }
-  } else if (isSmsOtpConfigured()) {
-    await sendOtpSms(user.phone, code, user.fullName);
   } else {
     logger.warn(
-      `SMS OTP delivery not configured; include code in API for ${user.employeeId}`,
+      `${channel.toUpperCase()} OTP delivery is not configured; login code included in API response for demo use`,
     );
   }
 
   const maskedDestination =
     channel === 'email' ? maskEmail(user.email) : maskPhone(user.phone);
 
-  const deliveryConfigured =
-    channel === 'email' ? isEmailOtpConfigured() : isSmsOtpConfigured();
-
   logger.info(
     `Verification code sent to ${channel} for user ${user.employeeId}`,
   );
+
+  const includeDevCode =
+    env.NODE_ENV === 'development' || !isOtpDeliveryConfigured(channel);
 
   return {
     channel,
     maskedDestination,
     expiresInMinutes: env.OTP_EXPIRY_MINUTES,
-    ...(env.NODE_ENV === 'development' || !deliveryConfigured
-      ? { devCode: code }
-      : {}),
+    ...(includeDevCode ? { devCode: code } : {}),
   };
 };
 

@@ -125,7 +125,7 @@ export const createEmployee = async (
     address: data.address || '',
     profilePhoto: profilePhoto || '',
     role: data.role || 'employee',
-    status: 'active',
+    status: data.status || 'active',
     isVerified: true,
   });
 
@@ -134,8 +134,8 @@ export const createEmployee = async (
     title: 'Welcome aboard',
     message:
       employee.role === 'hr'
-        ? 'Your HR account has been created. Log in with your email or mobile number and the password set by your administrator.'
-        : 'Your employee account has been created. Log in with your email or mobile number and the password set by your administrator.',
+        ? 'Your HR account has been created. Log in with your email or mobile number and the password set by admin.'
+        : 'Your employee account has been created. Log in with your email or mobile number and the password set by admin.',
     type: 'employee',
     relatedId: employee._id,
   });
