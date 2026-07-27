@@ -1,6 +1,5 @@
 import twilio from 'twilio';
 import { env } from '../config/env';
-import { ApiError } from '../utils/ApiError';
 import { logger } from '../utils/logger';
 import { toE164Phone } from '../utils/phoneHelpers';
 
@@ -12,6 +11,10 @@ function isSmsConfigured(): boolean {
       env.TWILIO_AUTH_TOKEN &&
       env.TWILIO_PHONE_NUMBER,
   );
+}
+
+export function isSmsOtpConfigured(): boolean {
+  return isSmsConfigured();
 }
 
 let smsClient: ReturnType<typeof twilio> | null = null;
@@ -29,10 +32,7 @@ export async function sendOtpSms(
   fullName: string,
 ): Promise<void> {
   if (!isSmsConfigured()) {
-    logger.info(`[SMS OTP - not configured] To: ${phone} | Code: ${code}`);
-    if (env.NODE_ENV === 'production') {
-      throw ApiError.internal('SMS OTP service is not configured');
-    }
+    logger.warn(`[SMS OTP - not configured] To: ${phone} | Code: ${code}`);
     return;
   }
 

@@ -48,7 +48,7 @@ export default function LoginScreen({ navigation }: Props) {
 
       if ('requiresVerification' in data && data.requiresVerification) {
         if (data.devCode) {
-          Alert.alert('Dev verification code', data.devCode);
+          Alert.alert('Verification code', data.devCode);
         }
 
         navigation.navigate('VerifyCode', {

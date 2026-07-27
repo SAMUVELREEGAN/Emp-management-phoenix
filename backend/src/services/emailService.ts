@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env';
-import { ApiError } from '../utils/ApiError';
 import { logger } from '../utils/logger';
 
 const APP_NAME = 'Employee Management';
@@ -9,6 +8,10 @@ function isEmailConfigured(): boolean {
   return Boolean(
     env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS && env.SMTP_FROM,
   );
+}
+
+export function isEmailOtpConfigured(): boolean {
+  return isEmailConfigured();
 }
 
 let transporter: nodemailer.Transporter | null = null;
@@ -34,10 +37,7 @@ export async function sendOtpEmail(
   fullName: string,
 ): Promise<void> {
   if (!isEmailConfigured()) {
-    logger.info(`[EMAIL OTP - not configured] To: ${email} | Code: ${code}`);
-    if (env.NODE_ENV === 'production') {
-      throw ApiError.internal('Email OTP service is not configured');
-    }
+    logger.warn(`[EMAIL OTP - not configured] To: ${email} | Code: ${code}`);
     return;
   }
 

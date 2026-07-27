@@ -9,8 +9,8 @@ import {
 import { ApiError } from '../utils/ApiError';
 import { logger } from '../utils/logger';
 import { maskEmail, maskPhone } from '../utils/phoneHelpers';
-import { sendOtpEmail } from './emailService';
-import { sendOtpSms } from './smsService';
+import { sendOtpEmail, isEmailOtpConfigured } from './emailService';
+import { sendOtpSms, isSmsOtpConfigured } from './smsService';
 
 const generateCode = (): string =>
   crypto.randomInt(100000, 999999).toString();
@@ -40,13 +40,26 @@ export const sendVerificationCode = async (
   });
 
   if (channel === 'email') {
-    await sendOtpEmail(user.email, code, user.fullName);
-  } else {
+    if (isEmailOtpConfigured()) {
+      await sendOtpEmail(user.email, code, user.fullName);
+    } else {
+      logger.warn(
+        `Email OTP delivery not configured; include code in API for ${user.employeeId}`,
+      );
+    }
+  } else if (isSmsOtpConfigured()) {
     await sendOtpSms(user.phone, code, user.fullName);
+  } else {
+    logger.warn(
+      `SMS OTP delivery not configured; include code in API for ${user.employeeId}`,
+    );
   }
 
   const maskedDestination =
     channel === 'email' ? maskEmail(user.email) : maskPhone(user.phone);
+
+  const deliveryConfigured =
+    channel === 'email' ? isEmailOtpConfigured() : isSmsOtpConfigured();
 
   logger.info(
     `Verification code sent to ${channel} for user ${user.employeeId}`,
@@ -56,7 +69,9 @@ export const sendVerificationCode = async (
     channel,
     maskedDestination,
     expiresInMinutes: env.OTP_EXPIRY_MINUTES,
-    ...(env.NODE_ENV === 'development' ? { devCode: code } : {}),
+    ...(env.NODE_ENV === 'development' || !deliveryConfigured
+      ? { devCode: code }
+      : {}),
   };
 };
 

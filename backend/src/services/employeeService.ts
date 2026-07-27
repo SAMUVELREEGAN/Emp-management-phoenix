@@ -125,8 +125,8 @@ export const createEmployee = async (
     address: data.address || '',
     profilePhoto: profilePhoto || '',
     role: data.role || 'employee',
-    status: 'inactive',
-    isVerified: false,
+    status: 'active',
+    isVerified: true,
   });
 
   await createNotification({
@@ -134,8 +134,8 @@ export const createEmployee = async (
     title: 'Welcome aboard',
     message:
       employee.role === 'hr'
-        ? 'Your HR account has been created. Log in with your email or mobile number and password, then verify with the code sent to you.'
-        : 'Your employee account has been created. Log in with your email or mobile number and password, then verify with the code sent to you.',
+        ? 'Your HR account has been created. Log in with your email or mobile number and the password set by your administrator.'
+        : 'Your employee account has been created. Log in with your email or mobile number and the password set by your administrator.',
     type: 'employee',
     relatedId: employee._id,
   });
