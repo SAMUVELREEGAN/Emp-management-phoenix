@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "android": "node scripts/run-android.js",
+    "android:release": "node scripts/build-android-release.js",
     "android:clean": "node scripts/clean-android-native.js",
     "ios": "react-native run-ios",
     "lint": "eslint .",
