@@ -9,7 +9,7 @@ export const settingsApi = {
     return response.data;
   },
 
-  updateOfficeHours: async (payload: OfficeHours) => {
+  updateOfficeHours: async (payload: Partial<OfficeHours>) => {
     const response = await apiClient.put<ApiResponse<{ officeHours: OfficeHours }>>(
       '/settings/office-hours',
       payload,

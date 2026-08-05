@@ -230,6 +230,11 @@ export interface CheckInOutPayload {
 export interface OfficeHours {
   officeStartTime: string;
   officeEndTime: string;
+  geofenceEnabled?: boolean;
+  officeLatitude?: number;
+  officeLongitude?: number;
+  geofenceRadiusMeters?: number;
+  officeLocationName?: string;
 }
 
 export interface TodayAttendanceData {

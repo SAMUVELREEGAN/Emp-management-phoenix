@@ -10,6 +10,7 @@ import {
   LiveTrackingCard,
   LoadingIndicator,
   OfficeHoursSettingsCard,
+  OfficeGeofenceSettingsCard,
   QuickAccessGrid,
   WorkReportCard,
 } from '../../components';
@@ -198,6 +199,7 @@ export default function AdminDashboardScreen() {
           <QuickAccessGrid items={quickAccessItems} />
 
           {!isHr ? <OfficeHoursSettingsCard /> : null}
+          {!isHr ? <OfficeGeofenceSettingsCard /> : null}
 
           <Text style={styles.sectionTitle}>Recent Attendance</Text>
           {data?.recentAttendance.length ? (

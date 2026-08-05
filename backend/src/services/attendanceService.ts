@@ -17,6 +17,10 @@ import { findActiveAdmins, findActiveManagers } from '../utils/roleHelpers';
 import { resolveLocationAddress } from '../utils/geocoding';
 import { getOfficeHours } from './officeSettingsService';
 import { startRouteSession, endRouteSession } from './routeService';
+import {
+  evaluateGeofence,
+  formatDistanceMeters,
+} from '../utils/geofence';
 
 interface ListFilters {
   page: number;
@@ -74,6 +78,26 @@ async function enrichLocation(location: LocationPayload): Promise<LocationPayloa
   return resolveLocationAddress(location);
 }
 
+async function assertWithinOfficeGeofence(
+  location: LocationPayload,
+  action: 'check-in' | 'check-out',
+): Promise<void> {
+  const officeSettings = await getOfficeHours();
+  const geofence = evaluateGeofence(location, officeSettings);
+
+  if (!geofence.enforced || geofence.within) {
+    return;
+  }
+
+  const officeLabel = officeSettings.officeLocationName?.trim() || 'office';
+  const distanceLabel = formatDistanceMeters(geofence.distanceMeters ?? 0);
+  const placeLabel = location.address?.trim() || 'your current location';
+
+  throw ApiError.badRequest(
+    `You are outside the allowed ${officeLabel} area (${distanceLabel} away). ${action === 'check-in' ? 'Check-in' : 'Check-out'} is only allowed inside the geofence.\n\nYour current location:\n${placeLabel}`,
+  );
+}
+
 async function notifyAttendanceEvent(
   actor: IUser,
   action: 'check-in' | 'check-out',
@@ -129,6 +153,8 @@ export const checkIn = async (
   }
 
   const resolvedLocation = await enrichLocation(location);
+  await assertWithinOfficeGeofence(resolvedLocation, 'check-in');
+
   const now = deviceTimestamp ? new Date(deviceTimestamp) : new Date();
   if (Number.isNaN(now.getTime())) {
     throw ApiError.badRequest('Invalid device timestamp');
@@ -200,6 +226,8 @@ export const checkOut = async (
   }
 
   const resolvedLocation = await enrichLocation(location);
+  await assertWithinOfficeGeofence(resolvedLocation, 'check-out');
+
   const now = deviceTimestamp ? new Date(deviceTimestamp) : new Date();
   if (Number.isNaN(now.getTime())) {
     throw ApiError.badRequest('Invalid device timestamp');

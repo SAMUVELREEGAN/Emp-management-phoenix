@@ -98,13 +98,52 @@ export const officeHoursSchema = z
     officeEndTime: z
       .string()
       .regex(/^\d{2}:\d{2}$/, 'Office end time must be HH:mm'),
+    geofenceEnabled: z.boolean().optional().default(false),
+    officeLatitude: z.coerce.number().min(-90).max(90).optional(),
+    officeLongitude: z.coerce.number().min(-180).max(180).optional(),
+    geofenceRadiusMeters: z.coerce
+      .number()
+      .min(25, 'Minimum geofence radius is 25 meters')
+      .max(5000, 'Maximum geofence radius is 5000 meters')
+      .optional()
+      .default(200),
+    officeLocationName: z.string().trim().optional().default(''),
   })
   .refine(
     (data) =>
       parseTimeToMinutes(data.officeStartTime) <
       parseTimeToMinutes(data.officeEndTime),
     'Office start time must be before office end time',
-  );
+  )
+  .refine(
+    (data) =>
+      !data.geofenceEnabled ||
+      (data.officeLatitude != null && data.officeLongitude != null),
+  {
+    message: 'Office latitude and longitude are required when geofencing is enabled',
+    path: ['officeLatitude'],
+  });
+
+/** Partial update — merges with existing settings on the server. */
+export const updateOfficeSettingsSchema = z.object({
+  officeStartTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/, 'Office start time must be HH:mm')
+    .optional(),
+  officeEndTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/, 'Office end time must be HH:mm')
+    .optional(),
+  geofenceEnabled: z.boolean().optional(),
+  officeLatitude: z.number().min(-90).max(90).optional(),
+  officeLongitude: z.number().min(-180).max(180).optional(),
+  geofenceRadiusMeters: z
+    .number()
+    .min(25, 'Minimum geofence radius is 25 meters')
+    .max(5000, 'Maximum geofence radius is 5000 meters')
+    .optional(),
+  officeLocationName: z.string().trim().optional(),
+});
 
 function parseTimeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);

@@ -1,17 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { AppButton } from './AppButton';
 import { TimePickerField } from './TimePickerField';
 import { theme } from '../constants/theme';
 import { settingsApi } from '../api/settingsApi';
 import { getErrorMessage } from '../utils/errors';
 import { formatOfficeTime12Hour, parseTimeToMinutes } from '../utils/dates';
+import { normalizeOfficeHours } from '../utils/officeHours';
 import type { OfficeHours } from '../types';
 
 export function OfficeHoursSettingsCard() {
   const [officeHours, setOfficeHours] = useState<OfficeHours>({
     officeStartTime: '09:30',
     officeEndTime: '18:00',
+    geofenceEnabled: false,
+    geofenceRadiusMeters: 200,
+    officeLocationName: 'Office',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -22,7 +27,7 @@ export function OfficeHoursSettingsCard() {
     setError('');
     try {
       const response = await settingsApi.getOfficeHours();
-      setOfficeHours(response.data.officeHours);
+      setOfficeHours(normalizeOfficeHours(response.data.officeHours));
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -33,6 +38,12 @@ export function OfficeHoursSettingsCard() {
   useEffect(() => {
     fetchOfficeHours();
   }, [fetchOfficeHours]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void fetchOfficeHours();
+    }, [fetchOfficeHours]),
+  );
 
   const handleSave = async () => {
     if (
@@ -45,8 +56,13 @@ export function OfficeHoursSettingsCard() {
 
     setSaving(true);
     try {
-      const response = await settingsApi.updateOfficeHours(officeHours);
-      setOfficeHours(response.data.officeHours);
+      const response = await settingsApi.updateOfficeHours({
+        officeStartTime: officeHours.officeStartTime,
+        officeEndTime: officeHours.officeEndTime,
+      });
+      setOfficeHours(current =>
+        normalizeOfficeHours({ ...current, ...response.data.officeHours }),
+      );
       Alert.alert('Saved', 'Office hours updated successfully.');
     } catch (err) {
       Alert.alert('Error', getErrorMessage(err));

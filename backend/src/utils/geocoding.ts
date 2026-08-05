@@ -3,12 +3,15 @@ import { env } from '../config/env';
 import { logger } from './logger';
 
 interface NominatimAddress {
+  house_number?: string;
+  building?: string;
   road?: string;
   neighbourhood?: string;
   suburb?: string;
   city?: string;
   town?: string;
   village?: string;
+  county?: string;
   state?: string;
   postcode?: string;
   country?: string;
@@ -37,6 +40,11 @@ const formatAddressParts = (address?: NominatimAddress): string => {
     return '';
   }
 
+  const street = [address.house_number, address.building, address.road]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
   const locality =
     address.neighbourhood ||
     address.suburb ||
@@ -44,7 +52,15 @@ const formatAddressParts = (address?: NominatimAddress): string => {
     address.town ||
     address.village;
 
-  const parts = [address.road, locality, address.state, address.country].filter(Boolean);
+  const parts = [
+    street,
+    locality,
+    address.county,
+    address.state,
+    address.postcode,
+    address.country,
+  ].filter(Boolean);
+
   return parts.join(', ');
 };
 

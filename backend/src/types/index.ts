@@ -6,7 +6,8 @@ export type AttendanceStatus =
   | 'late'
   | 'absent'
   | 'half_day'
-  | 'on_leave';
+  | 'on_leave'
+  | 'wfh';
 
 export type WorkReportStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
 

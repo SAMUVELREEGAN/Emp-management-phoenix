@@ -6,15 +6,24 @@ import { geocodeApi } from '../api/geocodeApi';
 
 const ATTENDANCE_LOCATION_ATTEMPTS: GeoOptions[] = [
   {
-    enableHighAccuracy: false,
-    timeout: 20000,
-    maximumAge: 600000,
+    enableHighAccuracy: true,
+    timeout: 35000,
+    maximumAge: 0,
     showLocationDialog: true,
-    forceRequestLocation: false,
+    forceRequestLocation: true,
+    accuracy: { android: 'high', ios: 'best' },
   },
   {
     enableHighAccuracy: true,
-    timeout: 30000,
+    timeout: 25000,
+    maximumAge: 60000,
+    showLocationDialog: true,
+    forceRequestLocation: false,
+    accuracy: { android: 'high', ios: 'best' },
+  },
+  {
+    enableHighAccuracy: false,
+    timeout: 20000,
     maximumAge: 120000,
     showLocationDialog: true,
     forceRequestLocation: false,
@@ -284,9 +293,25 @@ export function formatLocationLabel(location?: LocationPayload): string {
     return 'Location unavailable';
   }
 
-  if (location.address?.trim()) {
-    return location.address.trim();
+  const address = location.address?.trim();
+  if (address && !looksLikeCoordinates(address)) {
+    return address;
   }
 
-  return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
+  return `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
+}
+
+export function formatLocationWithCoords(location?: LocationPayload): string {
+  if (!location) {
+    return 'Location unavailable';
+  }
+
+  const address = formatLocationLabel(location);
+  const coords = `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
+
+  if (looksLikeCoordinates(address)) {
+    return coords;
+  }
+
+  return `${address}\n(${coords})`;
 }

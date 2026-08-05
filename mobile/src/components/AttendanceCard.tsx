@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { theme } from '../constants/theme';
 import { formatDate, formatLateDuration, formatTime } from '../utils/dates';
-import { formatLocationLabel } from '../utils/location';
+import { formatLocationWithCoords } from '../utils/location';
 import { useLiveWorkingHours } from '../hooks/useLiveWorkingHours';
 import type { Attendance, UserRole, UserSummary } from '../types';
 import { StatusBadge } from './StatusBadge';
@@ -91,7 +91,7 @@ export function AttendanceCard({ attendance, onPress, showEmployee = false }: At
       {attendance.checkInLocation ? (
         <View style={styles.locationRow}>
           <MaterialCommunityIcons name="map-marker-outline" size={16} color={theme.colors.textMuted} />
-          <Text style={styles.locationText}>{formatLocationLabel(attendance.checkInLocation)}</Text>
+          <Text style={styles.locationText}>{formatLocationWithCoords(attendance.checkInLocation)}</Text>
         </View>
       ) : null}
       <View style={styles.row}>
@@ -102,7 +102,7 @@ export function AttendanceCard({ attendance, onPress, showEmployee = false }: At
       {attendance.checkOutLocation ? (
         <View style={styles.locationRow}>
           <MaterialCommunityIcons name="map-marker-outline" size={16} color={theme.colors.textMuted} />
-          <Text style={styles.locationText}>{formatLocationLabel(attendance.checkOutLocation)}</Text>
+          <Text style={styles.locationText}>{formatLocationWithCoords(attendance.checkOutLocation)}</Text>
         </View>
       ) : null}
       <View style={styles.row}>

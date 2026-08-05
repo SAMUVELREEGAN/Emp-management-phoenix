@@ -21,6 +21,8 @@ export { HrSectionTabs } from './HrSectionTabs';
 export type { HrSectionTab } from './HrSectionTabs';
 export { EarlyCheckoutModal } from './EarlyCheckoutModal';
 export { OfficeHoursSettingsCard } from './OfficeHoursSettingsCard';
+export { OfficeGeofenceSettingsCard } from './OfficeGeofenceSettingsCard';
+export { OfficeGeofenceSettingsCard } from './OfficeGeofenceSettingsCard';
 export { TimePickerField } from './TimePickerField';
 export { DatePickerField } from './DatePickerField';
 export { AttendanceExportModal } from './AttendanceExportModal';

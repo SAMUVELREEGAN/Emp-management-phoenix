@@ -27,6 +27,7 @@ import MoreHubScreen from '../screens/common/MoreHubScreen';
 import ProfileScreen from '../screens/common/ProfileScreen';
 import ChangePasswordScreen from '../screens/common/ChangePasswordScreen';
 import { ChatStackNavigator } from './ChatStackNavigator';
+import { moreTabScreenOptions } from './moreTabOptions';
 
 const Tab = createBottomTabNavigator<EmployeeTabParamList>();
 const AttendanceStack = createNativeStackNavigator<EmployeeAttendanceStackParamList>();
@@ -116,7 +117,7 @@ export function EmployeeNavigator() {
       <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />
       <Tab.Screen name="Chat" component={ChatStackNavigator} options={{ title: 'Chat' }} />
       <Tab.Screen name="Reports" component={ReportsStackNavigator} />
-      <Tab.Screen name="More" component={MoreStackNavigator} options={{ title: 'More' }} />
+      <Tab.Screen name="More" component={MoreStackNavigator} options={moreTabScreenOptions} />
     </Tab.Navigator>
   );
 }

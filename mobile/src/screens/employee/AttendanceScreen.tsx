@@ -16,7 +16,12 @@ import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
-import { formatLocationLabel, getLocationForAttendance } from '../../utils/location';
+import { formatLocationLabel, formatLocationWithCoords, getLocationForAttendance } from '../../utils/location';
+import {
+  buildOutsideGeofenceMessage,
+  getGeofenceStatus,
+} from '../../utils/geofenceStatus';
+import { formatDistanceMeters } from '../../utils/geofence';
 import { useRouteRecorder } from '../../hooks/useRouteRecorder';
 import {
   formatLateDuration,
@@ -36,17 +41,16 @@ interface AttendanceScreenProps {
   embedded?: boolean;
 }
 
-const defaultOfficeHours: OfficeHours = {
-  officeStartTime: '09:30',
-  officeEndTime: '18:00',
-};
+import { normalizeOfficeHours } from '../../utils/officeHours';
 
 export default function AttendanceScreen({ embedded = false }: AttendanceScreenProps) {
   const navigation = useNavigation<NativeStackNavigationProp<AttendanceStackParamList>>();
   const userRole = useAuthStore(state => state.user?.role);
   const isHr = userRole === 'hr';
   const [attendance, setAttendance] = useState<Attendance | null>(null);
-  const [officeHours, setOfficeHours] = useState<OfficeHours>(defaultOfficeHours);
+  const [officeHours, setOfficeHours] = useState<OfficeHours>(
+    normalizeOfficeHours(),
+  );
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,6 +58,8 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   const [pendingCheckoutLocation, setPendingCheckoutLocation] = useState<LocationPayload | null>(
     null,
   );
+  const [previewLocation, setPreviewLocation] = useState<LocationPayload | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchToday = useCallback(async () => {
     setLoading(true);
@@ -61,7 +67,9 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     try {
       const response = await attendanceApi.today();
       setAttendance(response.data.attendance);
-      setOfficeHours(response.data.officeHours || defaultOfficeHours);
+      setOfficeHours(
+        normalizeOfficeHours(response.data.officeHours),
+      );
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -115,6 +123,59 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   const canCheckIn = !attendance?.checkInTime;
   const canCheckOut = !!attendance?.checkInTime && !attendance?.checkOutTime;
 
+  const refreshLocationPreview = useCallback(async () => {
+    if (!officeHours.geofenceEnabled) {
+      setPreviewLocation(null);
+      return;
+    }
+
+    setPreviewLoading(true);
+    try {
+      const location = await getLocationForAttendance();
+      setPreviewLocation(location);
+    } catch {
+      setPreviewLocation(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [officeHours.geofenceEnabled]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (officeHours.geofenceEnabled) {
+        void refreshLocationPreview();
+      }
+    }, [officeHours.geofenceEnabled, refreshLocationPreview]),
+  );
+
+  const previewGeofenceStatus = previewLocation
+    ? getGeofenceStatus(
+        previewLocation.latitude,
+        previewLocation.longitude,
+        officeHours,
+      )
+    : null;
+
+  const validateGeofenceForAttendance = (
+    location: LocationPayload,
+    action: 'check-in' | 'check-out',
+  ): boolean => {
+    const status = getGeofenceStatus(location.latitude, location.longitude, officeHours);
+    if (!status.enforced || status.within) {
+      return true;
+    }
+
+    Alert.alert(
+      'Outside office area',
+      buildOutsideGeofenceMessage(
+        status,
+        formatLocationWithCoords(location),
+        action,
+      ),
+    );
+    return false;
+  };
+
   const handleCheckIn = async () => {
     if (actionLoading) {
       return;
@@ -124,6 +185,10 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     try {
       const location = await getLocationForAttendance();
       if (!location) {
+        return;
+      }
+      if (!validateGeofenceForAttendance(location, 'check-in')) {
+        setPreviewLocation(location);
         return;
       }
       const response = await attendanceApi.checkIn({
@@ -138,9 +203,10 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
         checkedIn?.attendanceStatus === 'late' && lateLabel
           ? `You checked in late by ${lateLabel}.`
           : 'Checked in on time.';
-      const placeLabel = formatLocationLabel(checkedIn?.checkInLocation ?? location);
+      const placeLabel = formatLocationWithCoords(checkedIn?.checkInLocation ?? location);
 
       setAttendance(checkedIn);
+      setPreviewLocation(checkedIn?.checkInLocation ?? location);
 
       Alert.alert(
         'Checked In',
@@ -178,7 +244,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     pendingRouteAfterCheckInRef.current = false;
     Alert.alert(
       'Checked Out',
-      `You checked out from:\n${formatLocationLabel(response.data.attendance.checkOutLocation ?? location)}`,
+      `You checked out from:\n${formatLocationWithCoords(response.data.attendance.checkOutLocation ?? location)}`,
     );
   };
 
@@ -191,6 +257,10 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     try {
       const location = await getLocationForAttendance();
       if (!location) {
+        return;
+      }
+      if (!validateGeofenceForAttendance(location, 'check-out')) {
+        setPreviewLocation(location);
         return;
       }
 
@@ -259,6 +329,68 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
               {formatOfficeTime(officeHours.officeEndTime)}
             </Text>
           </View>
+
+          {officeHours.geofenceEnabled ? (
+            <View
+              style={[
+                styles.geofenceCard,
+                previewGeofenceStatus?.within === false && styles.geofenceCardOutside,
+                previewGeofenceStatus?.within === true && styles.geofenceCardInside,
+              ]}>
+              <View style={styles.geofenceHeader}>
+                <MaterialCommunityIcons
+                  name={
+                    previewGeofenceStatus?.within === false
+                      ? 'map-marker-alert-outline'
+                      : 'map-marker-check-outline'
+                  }
+                  size={20}
+                  color={
+                    previewGeofenceStatus?.within === false
+                      ? theme.colors.error
+                      : theme.colors.success
+                  }
+                />
+                <Text style={styles.geofenceTitle}>
+                  {previewGeofenceStatus?.within === false
+                    ? 'You are outside the office area'
+                    : previewGeofenceStatus?.within === true
+                      ? 'You are inside the office area'
+                      : 'Office geofence is active'}
+                </Text>
+              </View>
+              <Text style={styles.geofenceMeta}>
+                {officeHours.officeLocationName || 'Office'} · Allowed radius:{' '}
+                {officeHours.geofenceRadiusMeters ?? 200} m
+              </Text>
+              {previewGeofenceStatus?.within === false &&
+              previewGeofenceStatus.distanceMeters != null ? (
+                <Text style={styles.geofenceDistance}>
+                  Distance from office: {formatDistanceMeters(previewGeofenceStatus.distanceMeters)}
+                </Text>
+              ) : null}
+              {previewLocation ? (
+                <Text style={styles.geofenceLocation}>
+                  Current location:{'\n'}
+                  {formatLocationWithCoords(previewLocation)}
+                </Text>
+              ) : (
+                <Text style={styles.geofenceLocation}>
+                  {previewLoading
+                    ? 'Detecting your current location...'
+                    : 'Tap Refresh Location to check if you are inside the office area.'}
+                </Text>
+              )}
+              <AppButton
+                title={previewLoading ? 'Refreshing...' : 'Refresh Location'}
+                variant="outline"
+                onPress={refreshLocationPreview}
+                loading={previewLoading}
+                disabled={actionLoading}
+                style={styles.refreshButton}
+              />
+            </View>
+          ) : null}
 
           <View style={styles.statusCard}>
             <Text style={styles.statusLabel}>Today's Status</Text>
@@ -344,6 +476,54 @@ const styles = StyleSheet.create({
     fontSize: theme.fonts.sizes.md,
     fontWeight: theme.fonts.weights.semibold,
     color: theme.colors.primary,
+  },
+  geofenceCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  geofenceCardInside: {
+    borderColor: theme.colors.success,
+    backgroundColor: theme.colors.successLight,
+  },
+  geofenceCardOutside: {
+    borderColor: theme.colors.error,
+    backgroundColor: theme.colors.errorLight,
+  },
+  geofenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  geofenceTitle: {
+    flex: 1,
+    fontSize: theme.fonts.sizes.sm,
+    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.text,
+  },
+  geofenceMeta: {
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.xs,
+  },
+  geofenceDistance: {
+    fontSize: theme.fonts.sizes.sm,
+    color: theme.colors.error,
+    fontWeight: theme.fonts.weights.semibold,
+    marginBottom: theme.spacing.xs,
+  },
+  geofenceLocation: {
+    fontSize: theme.fonts.sizes.sm,
+    color: theme.colors.text,
+    lineHeight: 20,
+    marginBottom: theme.spacing.sm,
+  },
+  refreshButton: {
+    marginBottom: 0,
   },
   statusCard: {
     backgroundColor: theme.colors.white,
