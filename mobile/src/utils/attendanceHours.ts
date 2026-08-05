@@ -1,5 +1,5 @@
 import type { Attendance } from '../types';
-import { formatWorkingHours } from './dates';
+import { formatLateDuration, formatWorkingHours } from './dates';
 
 type AttendanceTiming = Pick<
   Attendance,
@@ -59,4 +59,46 @@ export function formatAttendanceWorkingHours(
   }
 
   return formatted;
+}
+
+export function getAttendanceStatusPresentation(attendance?: Attendance | null): {
+  status: string;
+  label: string;
+} {
+  if (!attendance?.checkInTime) {
+    return {
+      status: attendance?.attendanceStatus || 'absent',
+      label: 'Not Marked',
+    };
+  }
+
+  if (attendance.checkOutTime) {
+    const hoursLabel = formatAttendanceWorkingHours(attendance);
+    const status =
+      attendance.attendanceStatus === 'late' ? 'late' : 'present';
+
+    return {
+      status,
+      label: hoursLabel,
+    };
+  }
+
+  if (attendance.attendanceStatus === 'late' && attendance.lateMinutes) {
+    return {
+      status: 'late',
+      label: `Late (${formatLateDuration(attendance.lateMinutes)})`,
+    };
+  }
+
+  if (attendance.attendanceStatus === 'half_day') {
+    return {
+      status: 'present',
+      label: formatAttendanceWorkingHours(attendance),
+    };
+  }
+
+  return {
+    status: attendance.attendanceStatus || 'present',
+    label: attendance.attendanceStatus === 'late' ? 'Late' : 'Present',
+  };
 }

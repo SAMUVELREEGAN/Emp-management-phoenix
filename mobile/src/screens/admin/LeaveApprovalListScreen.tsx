@@ -14,7 +14,7 @@ import { leaveApi } from '../../api/leaveApi';
 import { getErrorMessage } from '../../utils/errors';
 import type { LeaveRequest } from '../../types';
 import type { AdminLeaveStackParamList } from '../../navigation/types';
-import { useMoreHubBack } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function LeaveApprovalListScreen() {
   const navigation =
@@ -24,7 +24,8 @@ export default function LeaveApprovalListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const { handleBack, isLeaving } = useMoreHubBack({
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    moreHubFallback: true,
     onBeforeBack: () => setLeaves([]),
   });
 
@@ -54,8 +55,8 @@ export default function LeaveApprovalListScreen() {
       <AppHeader
         title="Leave Approval"
         subtitle="Review employee leave requests"
-        showBack
-        onBack={handleBack}
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
       />
       {loading || isLeaving ? (
         <LoadingIndicator fullScreen />

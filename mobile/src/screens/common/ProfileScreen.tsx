@@ -17,7 +17,7 @@ import type {
   HrTabParamList,
   ProfileStackParamList,
 } from '../../navigation/types';
-import { useMoreHubBack } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 type Props = CompositeScreenProps<
   NativeStackScreenProps<ProfileStackParamList, 'ProfileMain'>,
@@ -29,7 +29,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const setLoggingOut = useAuthStore(state => state.setLoggingOut);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
-  const { handleBack } = useMoreHubBack();
+  const { showBack, handleBack } = useQuickAccessBack({ moreHubFallback: true });
 
   const handleConfirmLogout = useCallback(() => {
     setShowLogoutConfirm(false);
@@ -51,7 +51,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container} collapsable={false}>
-      <AppHeader title="Profile" subtitle={getRoleLabel(user.role)} showBack onBack={handleBack} />
+      <AppHeader title="Profile" subtitle={getRoleLabel(user.role)} showBack={showBack} onBack={showBack ? handleBack : undefined} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profileCard}>
           {photoUri ? (

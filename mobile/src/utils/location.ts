@@ -2,7 +2,6 @@ import { Alert, Linking, PermissionsAndroid, Platform } from 'react-native';
 import Geolocation, { PositionError, type GeoPosition } from 'react-native-geolocation-service';
 import type { GeoOptions } from 'react-native-geolocation-service';
 import type { LocationPayload } from '../types';
-import { geocodeApi } from '../api/geocodeApi';
 
 const ATTENDANCE_LOCATION_ATTEMPTS: GeoOptions[] = [
   {
@@ -56,32 +55,15 @@ function looksLikeCoordinates(value: string): boolean {
   return /^-?\d+\.\d+\s*,\s*-?\d+\.\d+$/.test(value.trim());
 }
 
-async function resolvePlaceName(
-  coordinates: LocationPayload,
-): Promise<LocationPayload> {
-  try {
-    const response = await geocodeApi.reverse(
-      coordinates.latitude,
-      coordinates.longitude,
-    );
-    const address = response.data.location.address?.trim();
-    if (address && !looksLikeCoordinates(address)) {
-      return {
-        ...coordinates,
-        address,
-      };
-    }
-  } catch {
-    // Fall back to coordinates-only; check-in API will retry geocoding server-side.
-  }
-
-  return coordinates;
-}
-
 function toLocationPayload(position: GeoPosition): LocationPayload {
+  const accuracy = position.coords.accuracy;
   return {
     latitude: position.coords.latitude,
     longitude: position.coords.longitude,
+    accuracy:
+      accuracy != null && Number.isFinite(accuracy) && accuracy > 0
+        ? Math.round(accuracy)
+        : undefined,
   };
 }
 
@@ -217,7 +199,96 @@ export async function requestBackgroundLocationPermission(options?: {
   return false;
 }
 
+function watchBestPosition(
+  options: GeoOptions,
+  maxWaitMs: number,
+  targetAccuracyM: number,
+): Promise<LocationPayload> {
+  return new Promise((resolve, reject) => {
+    let best: LocationPayload | null = null;
+    let watchId: number | undefined;
+    let settled = false;
+
+    const cleanup = () => {
+      if (watchId !== undefined) {
+        Geolocation.clearWatch(watchId);
+      }
+      clearTimeout(timeoutId);
+    };
+
+    const finish = (payload: LocationPayload) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      resolve(payload);
+    };
+
+    const fail = (error: Error) => {
+      if (settled) {
+        return;
+      }
+      if (best) {
+        finish(best);
+        return;
+      }
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    const timeoutId = setTimeout(() => {
+      if (best) {
+        finish(best);
+        return;
+      }
+      fail(
+        new Error(
+          getLocationErrorMessage({
+            code: PositionError.TIMEOUT,
+            message: 'Location timeout',
+          }),
+        ),
+      );
+    }, maxWaitMs);
+
+    watchId = Geolocation.watchPosition(
+      position => {
+        const payload = toLocationPayload(position);
+        const accuracy = payload.accuracy ?? 9999;
+
+        if (!best || accuracy < (best.accuracy ?? 9999)) {
+          best = payload;
+        }
+
+        if (accuracy <= targetAccuracyM) {
+          finish(payload);
+        }
+      },
+      error => fail(new Error(getLocationErrorMessage(error))),
+      {
+        ...options,
+        enableHighAccuracy: true,
+        distanceFilter: 0,
+        maximumAge: 0,
+        showLocationDialog: true,
+        forceRequestLocation: true,
+      },
+    );
+  });
+}
+
 async function getAttendanceCoordinates(): Promise<LocationPayload> {
+  try {
+    return await watchBestPosition(ATTENDANCE_LOCATION_ATTEMPTS[0], 15000, 25);
+  } catch (error) {
+    // Fall through to single-shot attempts below.
+    if (error instanceof Error && !error.message.includes('permission')) {
+      // keep trying
+    }
+  }
+
   let lastError: Error | null = null;
 
   for (const options of ATTENDANCE_LOCATION_ATTEMPTS) {
@@ -269,7 +340,7 @@ export async function getLocationForAttendance(): Promise<LocationPayload | null
       }
 
       const coordinates = await getAttendanceCoordinates();
-      return await resolvePlaceName(coordinates);
+      return coordinates;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to get your location.';
@@ -288,17 +359,22 @@ export async function getLocationForAttendance(): Promise<LocationPayload | null
   });
 }
 
-export function formatLocationLabel(location?: LocationPayload): string {
+export function formatGpsCoordinates(location?: LocationPayload): string {
   if (!location) {
     return 'Location unavailable';
   }
 
-  const address = location.address?.trim();
-  if (address && !looksLikeCoordinates(address)) {
-    return address;
+  const coords = `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
+
+  if (location.accuracy != null && Number.isFinite(location.accuracy) && location.accuracy > 0) {
+    return `${coords} (±${Math.round(location.accuracy)}m)`;
   }
 
-  return `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
+  return coords;
+}
+
+export function formatLocationLabel(location?: LocationPayload): string {
+  return formatGpsCoordinates(location);
 }
 
 export function formatLocationWithCoords(location?: LocationPayload): string {
@@ -306,12 +382,12 @@ export function formatLocationWithCoords(location?: LocationPayload): string {
     return 'Location unavailable';
   }
 
-  const address = formatLocationLabel(location);
-  const coords = `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
+  const gps = formatGpsCoordinates(location);
+  const address = location.address?.trim();
 
-  if (looksLikeCoordinates(address)) {
-    return coords;
+  if (address && !looksLikeCoordinates(address)) {
+    return `GPS: ${gps}\nNear: ${address}`;
   }
 
-  return `${address}\n(${coords})`;
+  return `GPS: ${gps}`;
 }

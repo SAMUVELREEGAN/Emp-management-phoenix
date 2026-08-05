@@ -22,18 +22,30 @@ interface NominatimResponse {
   address?: NominatimAddress;
 }
 
+interface GoogleGeocodeResult {
+  formatted_address?: string;
+  geometry?: {
+    location_type?: string;
+  };
+}
+
 interface GoogleGeocodeResponse {
   status?: string;
   error_message?: string;
-  results?: Array<{
-    formatted_address?: string;
-  }>;
+  results?: GoogleGeocodeResult[];
 }
 
 const geocodingHttpsAgent = new https.Agent({
   // Windows dev machines with antivirus SSL inspection often fail Node fetch TLS.
   rejectUnauthorized: env.NODE_ENV === 'production',
 });
+
+const GOOGLE_PRECISION_RANK: Record<string, number> = {
+  ROOFTOP: 4,
+  RANGE_INTERPOLATED: 3,
+  GEOMETRIC_CENTER: 2,
+  APPROXIMATE: 1,
+};
 
 const formatAddressParts = (address?: NominatimAddress): string => {
   if (!address) {
@@ -65,7 +77,7 @@ const formatAddressParts = (address?: NominatimAddress): string => {
 };
 
 function coordinateFallback(latitude: number, longitude: number): string {
-  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 }
 
 function httpsGetJson<T>(
@@ -121,6 +133,30 @@ function getGeocodingProvider(): 'osm' | 'google' | 'auto' {
   return env.NODE_ENV === 'development' ? 'osm' : 'auto';
 }
 
+function pickBestGoogleAddress(results?: GoogleGeocodeResult[]): string | null {
+  if (!results?.length) {
+    return null;
+  }
+
+  let best: { rank: number; address: string } | null = null;
+
+  for (const result of results) {
+    const address = result.formatted_address?.trim();
+    if (!address) {
+      continue;
+    }
+
+    const locationType = result.geometry?.location_type ?? 'APPROXIMATE';
+    const rank = GOOGLE_PRECISION_RANK[locationType] ?? 0;
+
+    if (!best || rank > best.rank) {
+      best = { rank, address };
+    }
+  }
+
+  return best?.address ?? results[0]?.formatted_address?.trim() ?? null;
+}
+
 async function googleReverseGeocode(
   latitude: number,
   longitude: number,
@@ -136,14 +172,16 @@ async function googleReverseGeocode(
       latlng: `${latitude},${longitude}`,
       key: apiKey,
       language: 'en',
+      result_type: 'street_address|premise|subpremise|route',
     });
 
     const data = await httpsGetJson<GoogleGeocodeResponse>(
       `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`,
     );
 
-    if (data.status === 'OK' && data.results?.[0]?.formatted_address?.trim()) {
-      return data.results[0].formatted_address.trim();
+    const address = pickBestGoogleAddress(data.results);
+    if (address) {
+      return address;
     }
 
     logger.warn('Google reverse geocoding returned no usable address', {
@@ -166,7 +204,7 @@ async function nominatimReverseGeocode(
       format: 'json',
       lat: String(latitude),
       lon: String(longitude),
-      zoom: '18',
+      zoom: '19',
       addressdetails: '1',
     });
 
@@ -178,8 +216,13 @@ async function nominatimReverseGeocode(
     );
 
     const formatted = formatAddressParts(data.address);
+    const displayName = data.display_name?.trim();
 
-    return data.display_name?.trim() || formatted.trim() || null;
+    if (formatted) {
+      return formatted;
+    }
+
+    return displayName || null;
   } catch (error) {
     logger.warn('OpenStreetMap reverse geocoding failed', error);
     return null;
@@ -220,23 +263,20 @@ export async function resolveLocationAddress(location: {
   latitude: number;
   longitude: number;
   address?: string;
-}): Promise<{ latitude: number; longitude: number; address: string }> {
-  const trimmedAddress = location.address?.trim();
-
-  if (trimmedAddress && !looksLikeCoordinates(trimmedAddress)) {
-    return {
-      latitude: location.latitude,
-      longitude: location.longitude,
-      address: trimmedAddress,
-    };
-  }
-
+  accuracy?: number;
+}): Promise<{
+  latitude: number;
+  longitude: number;
+  address: string;
+  accuracy?: number;
+}> {
   const address = await reverseGeocode(location.latitude, location.longitude);
 
   return {
     latitude: location.latitude,
     longitude: location.longitude,
     address,
+    accuracy: location.accuracy,
   };
 }
 

@@ -3,6 +3,7 @@ import { Attendance } from '../models/Attendance';
 import { User } from '../models/User';
 import { ApiError } from '../utils/ApiError';
 import {
+  calculateOvertimeMinutes,
   calculateWorkingMinutes,
   eachDayInRange,
   endOfDay,
@@ -11,6 +12,7 @@ import {
   parseDateOnly,
   toDateKey,
 } from '../utils/dateHelpers';
+import { getOfficeHours } from './officeSettingsService';
 
 const PRESENT_STATUSES = new Set(['present', 'late', 'half_day']);
 
@@ -44,40 +46,70 @@ function getWorkingMinutes(record?: {
   return 0;
 }
 
-function getDayCellLabel(record?: {
-  checkInTime?: Date;
-  checkOutTime?: Date;
-  attendanceStatus?: string;
-  totalWorkingMinutes?: number;
-}): { label: string; isPresent: boolean; workingMinutes: number } {
+function getOvertimeMinutes(
+  record?: {
+    checkOutTime?: Date;
+    overtimeMinutes?: number;
+  },
+  officeEndTime?: string,
+): number {
+  if (!record?.checkOutTime) {
+    return 0;
+  }
+
+  if (record.overtimeMinutes != null && record.overtimeMinutes >= 0) {
+    return record.overtimeMinutes;
+  }
+
+  if (!officeEndTime) {
+    return 0;
+  }
+
+  return calculateOvertimeMinutes(new Date(record.checkOutTime), officeEndTime);
+}
+
+function getDayCellLabel(
+  record?: {
+    checkInTime?: Date;
+    checkOutTime?: Date;
+    attendanceStatus?: string;
+    totalWorkingMinutes?: number;
+    overtimeMinutes?: number;
+  },
+  officeEndTime?: string,
+): {
+  label: string;
+  isPresent: boolean;
+  workingMinutes: number;
+  overtimeMinutes: number;
+} {
   if (!isPresentRecord(record)) {
-    return { label: 'Absent', isPresent: false, workingMinutes: 0 };
+    return { label: 'Absent', isPresent: false, workingMinutes: 0, overtimeMinutes: 0 };
   }
 
   const minutes = getWorkingMinutes(record);
+  const overtimeMinutes = getOvertimeMinutes(record, officeEndTime);
   const hoursLabel = formatWorkingHours(minutes);
+  const overtimeLabel = formatWorkingHours(overtimeMinutes);
   const status = record?.attendanceStatus;
+
+  const overtimeSuffix =
+    overtimeMinutes > 0 ? ` | OT ${overtimeLabel}` : '';
 
   if (status === 'late') {
     return {
-      label: `Late (${hoursLabel})`,
+      label: `Late (${hoursLabel}${overtimeSuffix})`,
       isPresent: true,
       workingMinutes: minutes,
-    };
-  }
-
-  if (status === 'half_day') {
-    return {
-      label: `Half Day (${hoursLabel})`,
-      isPresent: true,
-      workingMinutes: minutes,
+      overtimeMinutes,
     };
   }
 
   return {
-    label: `Present (${hoursLabel})`,
+    label: `Present (${hoursLabel}${overtimeSuffix})`,
     isPresent: true,
     workingMinutes: minutes,
+    overtimeMinutes,
   };
 }
 
@@ -98,6 +130,9 @@ export const exportAttendanceReport = async (
     throw ApiError.badRequest('Date range cannot exceed 366 days');
   }
 
+  const officeHours = await getOfficeHours();
+  const officeEndTime = officeHours.officeEndTime;
+
   const employees = await User.find({
     role: staffRole,
     status: 'active',
@@ -110,7 +145,9 @@ export const exportAttendanceReport = async (
   const records = await Attendance.find({
     date: { $gte: fromDate, $lte: endOfDay(toDate) },
     employee: { $in: employeeIds },
-  }).select('employee date checkInTime checkOutTime attendanceStatus totalWorkingMinutes');
+  }).select(
+    'employee date checkInTime checkOutTime attendanceStatus totalWorkingMinutes overtimeMinutes',
+  );
 
   const recordMap = new Map<string, Map<string, (typeof records)[number]>>();
   for (const record of records) {
@@ -136,6 +173,7 @@ export const exportAttendanceReport = async (
     'Total Present',
     'Total Absent',
     'Total Working Hours',
+    'Total OT Hours',
   ];
 
   const headerRow = sheet.addRow(headers);
@@ -147,6 +185,7 @@ export const exportAttendanceReport = async (
     let totalPresent = 0;
     let totalAbsent = 0;
     let totalWorkingMinutes = 0;
+    let totalOvertimeMinutes = 0;
     const rowValues: (string | number)[] = [
       employee.employeeId,
       employee.fullName,
@@ -156,17 +195,23 @@ export const exportAttendanceReport = async (
     for (const day of days) {
       const dateKey = toDateKey(day);
       const record = employeeRecords?.get(dateKey);
-      const cell = getDayCellLabel(record);
+      const cell = getDayCellLabel(record, officeEndTime);
       if (cell.isPresent) {
         totalPresent += 1;
       } else {
         totalAbsent += 1;
       }
       totalWorkingMinutes += cell.workingMinutes;
+      totalOvertimeMinutes += cell.overtimeMinutes;
       rowValues.push(cell.label);
     }
 
-    rowValues.push(totalPresent, totalAbsent, formatWorkingHours(totalWorkingMinutes));
+    rowValues.push(
+      totalPresent,
+      totalAbsent,
+      formatWorkingHours(totalWorkingMinutes),
+      formatWorkingHours(totalOvertimeMinutes),
+    );
     sheet.addRow(rowValues);
   }
 
@@ -174,16 +219,19 @@ export const exportAttendanceReport = async (
     { width: 14 },
     { width: 24 },
     { width: 16 },
-    ...days.map(() => ({ width: 14 })),
+    ...days.map(() => ({ width: 18 })),
     { width: 14 },
     { width: 14 },
     { width: 18 },
+    { width: 16 },
   ];
 
   sheet.views = [{ state: 'frozen', ySplit: 1, xSplit: 3 }];
 
   const roleLabel = staffRole === 'hr' ? 'HR' : 'Employee';
-  sheet.getCell('A1').note = `${roleLabel} attendance from ${fromDateInput} to ${toDateInput}`;
+  sheet.getCell('A1').note =
+    `${roleLabel} attendance from ${fromDateInput} to ${toDateInput}. ` +
+    `Office hours end: ${officeEndTime}. OT = time worked after office end.`;
 
   const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
   const filename = `${staffRole}-attendance-${fromDateInput}-to-${toDateInput}.xlsx`;

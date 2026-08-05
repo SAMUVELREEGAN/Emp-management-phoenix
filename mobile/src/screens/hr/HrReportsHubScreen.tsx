@@ -4,12 +4,13 @@ import { AppHeader, HrSectionTabs, LoadingIndicator, type HrSectionTab } from '.
 import AdminWorkReportListScreen from '../admin/AdminWorkReportListScreen';
 import HrAttendanceReportScreen from './HrAttendanceReportScreen';
 import { theme } from '../../constants/theme';
-import { useMoreHubBack } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function HrReportsHubScreen() {
   const [tab, setTab] = useState<HrSectionTab>('left');
   const [contentKey, setContentKey] = useState(0);
-  const { handleBack, isLeaving } = useMoreHubBack({
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    moreHubFallback: true,
     onBeforeBack: () => {
       setTab('left');
       setContentKey(prev => prev + 1);
@@ -25,8 +26,8 @@ export default function HrReportsHubScreen() {
             ? 'Review employee daily work reports'
             : 'Submit employee attendance summary to admin'
         }
-        showBack
-        onBack={handleBack}
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
       />
       {isLeaving ? (
         <LoadingIndicator fullScreen />

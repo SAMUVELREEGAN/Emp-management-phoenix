@@ -15,7 +15,7 @@ import { taskApi } from '../../api/taskApi';
 import { getErrorMessage } from '../../utils/errors';
 import type { Task } from '../../types';
 import type { AdminTasksStackParamList } from '../../navigation/types';
-import { useMoreHubBack } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function AdminTaskListScreen() {
   const navigation =
@@ -25,7 +25,8 @@ export default function AdminTaskListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const { handleBack, isLeaving } = useMoreHubBack({
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    moreHubFallback: true,
     onBeforeBack: () => setTasks([]),
   });
 
@@ -55,8 +56,8 @@ export default function AdminTaskListScreen() {
       <AppHeader
         title="Tasks"
         subtitle="Assign and review employee tasks"
-        showBack
-        onBack={handleBack}
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
         rightAction={
           <Pressable onPress={() => navigation.navigate('TaskAssign')} hitSlop={8}>
             <MaterialCommunityIcons name="plus" size={28} color={theme.colors.white} />

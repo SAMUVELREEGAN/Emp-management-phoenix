@@ -63,6 +63,21 @@ export const isEarlyCheckout = (
   return getMinutesFromDate(checkOutTime) < parseTimeToMinutes(officeEndTime);
 };
 
+/** Minutes worked after office end time on the same day (0 if checkout is on time or early). */
+export const calculateOvertimeMinutes = (
+  checkOutTime: Date,
+  officeEndTime: string,
+): number => {
+  const checkoutMinutes = getMinutesFromDate(checkOutTime);
+  const officeEndMinutes = parseTimeToMinutes(officeEndTime);
+
+  if (checkoutMinutes <= officeEndMinutes) {
+    return 0;
+  }
+
+  return checkoutMinutes - officeEndMinutes;
+};
+
 export const determineAttendanceStatus = async (
   checkInTime: Date,
 ): Promise<{ status: 'present' | 'late'; lateMinutes: number }> => {

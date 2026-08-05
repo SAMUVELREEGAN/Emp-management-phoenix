@@ -45,6 +45,7 @@ export interface LocationPayload {
   latitude: number;
   longitude: number;
   address?: string;
+  accuracy?: number;
 }
 
 export interface User {
@@ -84,6 +85,7 @@ export interface Attendance {
   checkInLocation?: LocationPayload;
   checkOutLocation?: LocationPayload;
   totalWorkingMinutes: number;
+  overtimeMinutes?: number;
   lateMinutes?: number;
   isEarlyCheckout?: boolean;
   earlyCheckoutRemark?: string;

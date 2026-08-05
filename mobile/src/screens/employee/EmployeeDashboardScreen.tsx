@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 import {
   AttendanceCard,
   DashboardHeader,
@@ -19,9 +20,11 @@ import { useUnreadNotificationCount } from '../../hooks/useUnreadNotificationCou
 import { getErrorMessage } from '../../utils/errors';
 import type { EmployeeDashboardData } from '../../types';
 import type { EmployeeTabParamList } from '../../navigation/types';
+import { RETURN_TO_HOME_PARAMS } from '../../navigation/dashboardNavigation';
 
 export default function EmployeeDashboardScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<EmployeeTabParamList>>();
+  const rootNavigation = navigation as NavigationProp<ParamListBase>;
   const user = useAuthStore(state => state.user);
   const { unreadCount } = useUnreadNotificationCount();
   const [data, setData] = useState<EmployeeDashboardData | null>(null);
@@ -61,9 +64,22 @@ export default function EmployeeDashboardScreen() {
 
   const goMore = useCallback(
     (screen: 'Tasks' | 'Leave' | 'Notifications' | 'Profile') => {
-      navigation.navigate('More', { screen });
+      const nestedParams: Record<
+        typeof screen,
+        { screen: string; params?: typeof RETURN_TO_HOME_PARAMS }
+      > = {
+        Tasks: { screen: 'MyTasks', params: RETURN_TO_HOME_PARAMS },
+        Leave: { screen: 'LeaveList', params: RETURN_TO_HOME_PARAMS },
+        Notifications: { screen: 'NotificationsMain', params: RETURN_TO_HOME_PARAMS },
+        Profile: { screen: 'ProfileMain', params: RETURN_TO_HOME_PARAMS },
+      };
+
+      rootNavigation.navigate('More', {
+        screen,
+        params: nestedParams[screen],
+      });
     },
-    [navigation],
+    [rootNavigation],
   );
 
   const quickAccessItems = useMemo<QuickAccessItem[]>(
@@ -74,7 +90,11 @@ export default function EmployeeDashboardScreen() {
         icon: 'calendar-clock',
         color: theme.colors.info,
         iconBg: theme.colors.infoLight,
-        onPress: () => navigation.navigate('Attendance'),
+        onPress: () =>
+          rootNavigation.navigate('Attendance', {
+            screen: 'AttendanceMain',
+            params: RETURN_TO_HOME_PARAMS,
+          }),
       },
       {
         key: 'leave',
@@ -98,7 +118,11 @@ export default function EmployeeDashboardScreen() {
         icon: 'chart-bar',
         color: theme.colors.warning,
         iconBg: theme.colors.warningLight,
-        onPress: () => navigation.navigate('Reports'),
+        onPress: () =>
+          rootNavigation.navigate('Reports', {
+            screen: 'WorkReportList',
+            params: RETURN_TO_HOME_PARAMS,
+          }),
       },
       {
         key: 'chat',
@@ -106,7 +130,11 @@ export default function EmployeeDashboardScreen() {
         icon: 'chat-outline',
         color: theme.colors.purple,
         iconBg: theme.colors.purpleLight,
-        onPress: () => navigation.navigate('Chat'),
+        onPress: () =>
+          rootNavigation.navigate('Chat', {
+            screen: 'ChatHub',
+            params: RETURN_TO_HOME_PARAMS,
+          }),
       },
       {
         key: 'notifications',
@@ -118,7 +146,7 @@ export default function EmployeeDashboardScreen() {
         onPress: () => goMore('Notifications'),
       },
     ],
-    [goMore, navigation, unreadCount],
+    [goMore, rootNavigation, unreadCount],
   );
 
   const firstName = user?.fullName?.split(' ')[0] || 'Employee';

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { BackHandler, InteractionManager } from 'react-native';
-import { CommonActions, useFocusEffect, useNavigation } from '@react-navigation/native';
-import type { NavigationProp, ParamListBase } from '@react-navigation/native';
+import { CommonActions, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import type { NavigationProp, ParamListBase, RouteProp } from '@react-navigation/native';
 
 type ResetRoute = {
   name: string;
@@ -156,7 +156,7 @@ export function useMoreHubBack(
 
 export function useTabBack(
   tabName: string,
-  options?: Pick<FabricSafeBackOptions, 'onBeforeBack' | 'delayMs'>,
+  options?: Pick<FabricSafeBackOptions, 'onBeforeBack' | 'delayMs' | 'enabled'>,
 ) {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const tabNavigation = navigation.getParent();
@@ -164,12 +164,14 @@ export function useTabBack(
   const [isLeaving, setIsLeaving] = useState(false);
   const onBeforeBackRef = useRef(options?.onBeforeBack);
   const delayRef = useRef(options?.delayMs ?? DEFAULT_BACK_DELAY_MS);
+  const enabledRef = useRef(options?.enabled !== false);
 
   onBeforeBackRef.current = options?.onBeforeBack;
   delayRef.current = options?.delayMs ?? DEFAULT_BACK_DELAY_MS;
+  enabledRef.current = options?.enabled !== false;
 
   const handleBack = useCallback(() => {
-    if (leavingRef.current || !tabNavigation) {
+    if (!enabledRef.current || leavingRef.current || !tabNavigation) {
       return;
     }
 
@@ -178,12 +180,19 @@ export function useTabBack(
     onBeforeBackRef.current?.();
 
     void waitForUiUnmount(delayRef.current).then(() => {
+      if (!enabledRef.current) {
+        return;
+      }
       tabNavigation.navigate(tabName);
     });
   }, [tabNavigation, tabName]);
 
   useFocusEffect(
     useCallback(() => {
+      if (!enabledRef.current) {
+        return;
+      }
+
       leavingRef.current = false;
       setIsLeaving(false);
 
@@ -200,4 +209,37 @@ export function useTabBack(
   );
 
   return { handleBack, leavingRef, isLeaving };
+}
+
+type QuickAccessBackOptions = Pick<FabricSafeBackOptions, 'onBeforeBack' | 'delayMs' | 'enabled'> & {
+  /** When true, back goes to More hub if not opened from dashboard quick access. */
+  moreHubFallback?: boolean;
+};
+
+export function useQuickAccessBack(options: QuickAccessBackOptions = {}) {
+  const route = useRoute<RouteProp<Record<string, { returnToHome?: boolean } | undefined>>>();
+  const returnToHome = route.params?.returnToHome === true;
+  const screenEnabled = options.enabled !== false;
+  const useMoreHub = options.moreHubFallback === true && !returnToHome;
+
+  const tabBack = useTabBack('Home', {
+    onBeforeBack: options.onBeforeBack,
+    delayMs: options.delayMs,
+    enabled: screenEnabled && returnToHome,
+  });
+
+  const moreHubBack = useMoreHubBack({
+    onBeforeBack: options.onBeforeBack,
+    delayMs: options.delayMs,
+    enabled: screenEnabled && useMoreHub,
+  });
+
+  const showBack = returnToHome || useMoreHub;
+
+  return {
+    showBack,
+    handleBack: returnToHome ? tabBack.handleBack : moreHubBack.handleBack,
+    isLeaving: returnToHome ? tabBack.isLeaving : moreHubBack.isLeaving,
+    leavingRef: returnToHome ? tabBack.leavingRef : moreHubBack.leavingRef,
+  };
 }

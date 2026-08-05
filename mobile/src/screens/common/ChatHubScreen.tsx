@@ -18,6 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import type { ChatGroup } from '../../types';
 import type { ChatStackParamList } from '../../navigation/types';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 import { ChatThreadPanel } from './ChatThreadPanel';
 
 interface ActiveThread {
@@ -34,6 +35,10 @@ export default function ChatHubScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [activeThread, setActiveThread] = useState<ActiveThread | null>(null);
+
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    onBeforeBack: () => setGroups([]),
+  });
 
   const fetchGroups = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -119,6 +124,8 @@ export default function ChatHubScreen() {
       <AppHeader
         title="Communication"
         subtitle="Team chat & groups"
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
         rightAction={
           isAdmin ? (
             <Pressable
@@ -131,7 +138,7 @@ export default function ChatHubScreen() {
         }
       />
 
-      {loading ? (
+      {loading || isLeaving ? (
         <LoadingIndicator fullScreen />
       ) : error ? (
         <View style={styles.center}>

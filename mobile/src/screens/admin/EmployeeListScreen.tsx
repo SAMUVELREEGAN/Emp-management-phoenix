@@ -18,6 +18,7 @@ import { getErrorMessage } from '../../utils/errors';
 import { canManageStaff } from '../../utils/roles';
 import type { User } from '../../types';
 import type { AdminEmployeesStackParamList, HrEmployeesStackParamList } from '../../navigation/types';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 type ListMode = 'employee' | 'hr';
 
@@ -34,6 +35,10 @@ export default function EmployeeListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    onBeforeBack: () => setEmployees([]),
+  });
 
   const activeRole: ListMode = isAdmin ? listMode : 'employee';
 
@@ -93,6 +98,8 @@ export default function EmployeeListScreen() {
       <AppHeader
         title={title}
         subtitle={subtitle}
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
         rightAction={
           isAdmin ? (
             <Pressable onPress={openCreateForm} hitSlop={8}>
@@ -133,7 +140,7 @@ export default function EmployeeListScreen() {
         />
       </View>
 
-      {loading ? (
+      {loading || isLeaving ? (
         <LoadingIndicator fullScreen />
       ) : error ? (
         <View style={styles.center}>

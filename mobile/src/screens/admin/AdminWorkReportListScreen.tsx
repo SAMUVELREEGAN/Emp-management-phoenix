@@ -16,7 +16,7 @@ import { workReportApi } from '../../api/workReportApi';
 import { getErrorMessage } from '../../utils/errors';
 import type { WorkReport, WorkReportStatus } from '../../types';
 import type { AdminReportsStackParamList, HrReportsStackParamList } from '../../navigation/types';
-import { useMoreHubBack } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 const FILTERS: Array<{ label: string; value?: WorkReportStatus }> = [
   { label: 'All', value: undefined },
@@ -46,7 +46,8 @@ export default function AdminWorkReportListScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const { handleBack, isLeaving } = useMoreHubBack({
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    moreHubFallback: true,
     enabled: !embedded,
     onBeforeBack: () => {
       setReports([]);
@@ -103,8 +104,8 @@ export default function AdminWorkReportListScreen({
         <AppHeader
           title="Work Reports"
           subtitle={`Review ${tabLabel.toLowerCase()} daily work reports`}
-          showBack
-          onBack={handleBack}
+          showBack={showBack}
+          onBack={showBack ? handleBack : undefined}
         />
       ) : null}
 

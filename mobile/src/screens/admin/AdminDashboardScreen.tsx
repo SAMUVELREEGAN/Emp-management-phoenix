@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 import {
   AttendanceCard,
   DashboardHeader,
@@ -22,11 +23,13 @@ import { useUnreadNotificationCount } from '../../hooks/useUnreadNotificationCou
 import { getErrorMessage } from '../../utils/errors';
 import type { AdminDashboardData } from '../../types';
 import type { AdminTabParamList, HrTabParamList } from '../../navigation/types';
+import { RETURN_TO_HOME_PARAMS } from '../../navigation/dashboardNavigation';
 
 type DashboardNav = BottomTabNavigationProp<AdminTabParamList | HrTabParamList>;
 
 export default function AdminDashboardScreen() {
   const navigation = useNavigation<DashboardNav>();
+  const rootNavigation = navigation as NavigationProp<ParamListBase>;
   const user = useAuthStore(state => state.user);
   const userRole = user?.role;
   const isHr = userRole === 'hr';
@@ -71,9 +74,24 @@ export default function AdminDashboardScreen() {
 
   const goMore = useCallback(
     (screen: 'Tasks' | 'Leave' | 'Track' | 'Reports' | 'Notifications' | 'Profile') => {
-      navigation.navigate('More', { screen });
+      const nestedParams: Record<
+        typeof screen,
+        { screen: string; params?: typeof RETURN_TO_HOME_PARAMS }
+      > = {
+        Tasks: { screen: 'AdminTaskList', params: RETURN_TO_HOME_PARAMS },
+        Leave: { screen: 'LeaveApprovalList', params: RETURN_TO_HOME_PARAMS },
+        Track: { screen: 'TrackEmployees', params: RETURN_TO_HOME_PARAMS },
+        Reports: { screen: 'AdminWorkReportList', params: RETURN_TO_HOME_PARAMS },
+        Notifications: { screen: 'NotificationsMain', params: RETURN_TO_HOME_PARAMS },
+        Profile: { screen: 'ProfileMain', params: RETURN_TO_HOME_PARAMS },
+      };
+
+      rootNavigation.navigate('More', {
+        screen,
+        params: nestedParams[screen],
+      });
     },
-    [navigation],
+    [rootNavigation],
   );
 
   const quickAccessItems = useMemo<QuickAccessItem[]>(() => {
@@ -84,7 +102,11 @@ export default function AdminDashboardScreen() {
         icon: 'calendar-clock',
         color: theme.colors.info,
         iconBg: theme.colors.infoLight,
-        onPress: () => navigation.navigate('Attendance'),
+        onPress: () =>
+          rootNavigation.navigate('Attendance', {
+            screen: isHr ? 'AttendanceMain' : 'AttendanceOverview',
+            params: RETURN_TO_HOME_PARAMS,
+          }),
       },
       {
         key: 'leave',
@@ -100,7 +122,11 @@ export default function AdminDashboardScreen() {
         icon: 'account-group',
         color: theme.colors.purple,
         iconBg: theme.colors.purpleLight,
-        onPress: () => navigation.navigate('Employees'),
+        onPress: () =>
+          rootNavigation.navigate('Employees', {
+            screen: 'EmployeeList',
+            params: RETURN_TO_HOME_PARAMS,
+          }),
       },
       {
         key: 'reports',
@@ -124,7 +150,11 @@ export default function AdminDashboardScreen() {
         icon: 'chat-outline',
         color: theme.colors.purple,
         iconBg: theme.colors.purpleLight,
-        onPress: () => navigation.navigate('Chat'),
+        onPress: () =>
+          rootNavigation.navigate('Chat', {
+            screen: 'ChatHub',
+            params: RETURN_TO_HOME_PARAMS,
+          }),
       },
       {
         key: 'notifications',
@@ -142,7 +172,7 @@ export default function AdminDashboardScreen() {
     }
 
     return items;
-  }, [goMore, isHr, navigation, unreadCount]);
+  }, [goMore, isHr, rootNavigation, unreadCount]);
 
   const employeeCount = isHr
     ? (employeeSummary?.present || 0) + (employeeSummary?.absent || 0) + (employeeSummary?.late || 0)

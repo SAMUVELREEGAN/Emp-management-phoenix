@@ -42,6 +42,8 @@ interface AttendanceScreenProps {
 }
 
 import { normalizeOfficeHours } from '../../utils/officeHours';
+import { getAttendanceStatusPresentation } from '../../utils/attendanceHours';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function AttendanceScreen({ embedded = false }: AttendanceScreenProps) {
   const navigation = useNavigation<NativeStackNavigationProp<AttendanceStackParamList>>();
@@ -60,6 +62,10 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   );
   const [previewLocation, setPreviewLocation] = useState<LocationPayload | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  const { showBack, handleBack } = useQuickAccessBack({
+    enabled: !embedded,
+  });
 
   const fetchToday = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -307,10 +313,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     setPendingCheckoutLocation(null);
   };
 
-  const statusLabel =
-    attendance?.attendanceStatus === 'late' && attendance.lateMinutes
-      ? `Late (${formatLateDuration(attendance.lateMinutes)})`
-      : undefined;
+  const statusPresentation = getAttendanceStatusPresentation(attendance);
 
   return (
     <View style={styles.container} collapsable={false}>
@@ -322,6 +325,8 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
               ? 'Mark your attendance with office hour rules'
               : 'Mark your daily attendance with GPS location'
           }
+          showBack={showBack}
+          onBack={showBack ? handleBack : undefined}
         />
       ) : null}
       {loading ? (
@@ -403,7 +408,10 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
           <View style={styles.statusCard}>
             <Text style={styles.statusLabel}>Today's Status</Text>
             {attendance ? (
-              <StatusBadge status={attendance.attendanceStatus} label={statusLabel} />
+              <StatusBadge
+                status={statusPresentation.status}
+                label={statusPresentation.label}
+              />
             ) : (
               <StatusBadge status="absent" label="Not Marked" />
             )}

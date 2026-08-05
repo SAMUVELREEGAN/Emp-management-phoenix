@@ -30,6 +30,7 @@ export interface LocationPayload {
   latitude: number;
   longitude: number;
   address?: string;
+  accuracy?: number;
 }
 
 export interface JwtPayload {

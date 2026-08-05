@@ -3,6 +3,7 @@ import { Attendance, IAttendance } from '../models/Attendance';
 import { User, IUser } from '../models/User';
 import { ApiError } from '../utils/ApiError';
 import {
+  calculateOvertimeMinutes,
   calculateWorkingMinutes,
   determineAttendanceStatus,
   endOfDay,
@@ -36,9 +37,15 @@ interface ListFilters {
 const employeePopulateFields =
   'fullName employeeId department designation email role';
 
-function enrichAttendanceRecord<T extends { checkInTime?: Date; checkOutTime?: Date; totalWorkingMinutes?: number; toObject?: () => T }>(
-  attendance: T | null,
-): T | null {
+function enrichAttendanceRecord<
+  T extends {
+    checkInTime?: Date;
+    checkOutTime?: Date;
+    totalWorkingMinutes?: number;
+    overtimeMinutes?: number;
+    toObject?: () => T;
+  },
+>(attendance: T | null, officeEndTime?: string): T | null {
   if (!attendance) {
     return null;
   }
@@ -53,6 +60,7 @@ function enrichAttendanceRecord<T extends { checkInTime?: Date; checkOutTime?: D
       new Date(record.checkInTime),
       new Date(),
     );
+    record.overtimeMinutes = 0;
   } else if (record.checkInTime && record.checkOutTime) {
     record.totalWorkingMinutes =
       record.totalWorkingMinutes && record.totalWorkingMinutes > 0
@@ -61,17 +69,33 @@ function enrichAttendanceRecord<T extends { checkInTime?: Date; checkOutTime?: D
             new Date(record.checkInTime),
             new Date(record.checkOutTime),
           );
+
+    if (officeEndTime) {
+      record.overtimeMinutes =
+        record.overtimeMinutes != null && record.overtimeMinutes >= 0
+          ? record.overtimeMinutes
+          : calculateOvertimeMinutes(new Date(record.checkOutTime), officeEndTime);
+    } else {
+      record.overtimeMinutes = record.overtimeMinutes ?? 0;
+    }
   } else {
     record.totalWorkingMinutes = 0;
+    record.overtimeMinutes = 0;
   }
 
   return record;
 }
 
-function enrichAttendanceRecords<T extends { checkInTime?: Date; checkOutTime?: Date; totalWorkingMinutes?: number; toObject?: () => T }>(
-  records: T[],
-): T[] {
-  return records.map(record => enrichAttendanceRecord(record) as T);
+function enrichAttendanceRecords<
+  T extends {
+    checkInTime?: Date;
+    checkOutTime?: Date;
+    totalWorkingMinutes?: number;
+    overtimeMinutes?: number;
+    toObject?: () => T;
+  },
+>(records: T[], officeEndTime?: string): T[] {
+  return records.map(record => enrichAttendanceRecord(record, officeEndTime) as T);
 }
 
 async function enrichLocation(location: LocationPayload): Promise<LocationPayload> {
@@ -189,6 +213,7 @@ export const checkIn = async (
     existing.attendanceStatus = status;
     existing.lateMinutes = lateMinutes;
     existing.totalWorkingMinutes = 0;
+    existing.overtimeMinutes = 0;
     existing.checkOutTime = undefined;
     existing.checkOutLocation = undefined;
     existing.isEarlyCheckout = false;
@@ -209,8 +234,11 @@ export const checkIn = async (
 
   await startRouteSession(employeeId, result._id, today, resolvedLocation);
 
+  const officeHours = await getOfficeHours();
+
   return enrichAttendanceRecord(
     await Attendance.findById(result._id).populate('employee', employeePopulateFields),
+    officeHours.officeEndTime,
   );
 };
 
@@ -274,10 +302,10 @@ export const checkOut = async (
     attendance.checkInTime,
     now,
   );
-
-  if (attendance.attendanceStatus !== 'late' && attendance.totalWorkingMinutes < 240) {
-    attendance.attendanceStatus = 'half_day';
-  }
+  attendance.overtimeMinutes = calculateOvertimeMinutes(
+    now,
+    officeHours.officeEndTime,
+  );
 
   await attendance.save();
 
@@ -296,6 +324,7 @@ export const checkOut = async (
 
   return enrichAttendanceRecord(
     await Attendance.findById(attendance._id).populate('employee', employeePopulateFields),
+    officeHours.officeEndTime,
   );
 };
 
@@ -310,7 +339,7 @@ export const getTodayAttendance = async (employeeId: string) => {
   ]);
 
   return {
-    attendance: enrichAttendanceRecord(attendance),
+    attendance: enrichAttendanceRecord(attendance, officeHours.officeEndTime),
     officeHours,
   };
 };
@@ -319,6 +348,7 @@ export const getMyAttendanceHistory = async (
   employeeId: string,
   filters: ListFilters,
 ) => {
+  const officeHours = await getOfficeHours();
   const query: FilterQuery<IAttendance> = {
     employee: employeeId,
   };
@@ -344,7 +374,7 @@ export const getMyAttendanceHistory = async (
   ]);
 
   return {
-    items: enrichAttendanceRecords(items),
+    items: enrichAttendanceRecords(items, officeHours.officeEndTime),
     pagination: {
       page: filters.page,
       limit: filters.limit,
@@ -355,6 +385,7 @@ export const getMyAttendanceHistory = async (
 };
 
 export const listAttendance = async (filters: ListFilters) => {
+  const officeHours = await getOfficeHours();
   const query: FilterQuery<IAttendance> = {};
 
   if (filters.employeeId) {
@@ -402,7 +433,7 @@ export const listAttendance = async (filters: ListFilters) => {
   const total = await Attendance.countDocuments(query);
 
   return {
-    items: enrichAttendanceRecords(items),
+    items: enrichAttendanceRecords(items, officeHours.officeEndTime),
     pagination: {
       page: filters.page,
       limit: filters.limit,
@@ -413,6 +444,7 @@ export const listAttendance = async (filters: ListFilters) => {
 };
 
 export const getAttendanceById = async (id: string) => {
+  const officeHours = await getOfficeHours();
   const attendance = await Attendance.findById(id).populate(
     'employee',
     `${employeePopulateFields} phone`,
@@ -420,7 +452,7 @@ export const getAttendanceById = async (id: string) => {
   if (!attendance) {
     throw ApiError.notFound('Attendance record not found');
   }
-  return enrichAttendanceRecord(attendance);
+  return enrichAttendanceRecord(attendance, officeHours.officeEndTime);
 };
 
 export type AttendanceBreakdownCategory =
@@ -454,12 +486,14 @@ export const getAttendanceBreakdown = async (
 
   const userIds = activeUsers.map((user) => user._id);
 
+  const officeHours = await getOfficeHours();
+
   const records = await Attendance.find({
     date: { $gte: date, $lte: dayEnd },
     employee: { $in: userIds },
   }).populate('employee', employeePopulateFields);
 
-  const enriched = enrichAttendanceRecords(records);
+  const enriched = enrichAttendanceRecords(records, officeHours.officeEndTime);
 
   const checkedInRecords = enriched.filter(
     (record) =>

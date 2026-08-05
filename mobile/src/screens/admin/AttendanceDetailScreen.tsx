@@ -8,8 +8,9 @@ import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
-import { formatLocationLabel } from '../../utils/location';
-import { formatLateDuration } from '../../utils/dates';
+import { formatLocationWithCoords } from '../../utils/location';
+import { formatLateDuration, formatWorkingHours } from '../../utils/dates';
+import { getAttendanceStatusPresentation } from '../../utils/attendanceHours';
 import type { Attendance, UserSummary } from '../../types';
 import type {
   AdminAttendanceStackParamList,
@@ -80,6 +81,10 @@ export default function AttendanceDetailScreen() {
     }, [fetchAttendance]),
   );
 
+  const statusPresentation = attendance
+    ? getAttendanceStatusPresentation(attendance)
+    : null;
+
   return (
     <View style={styles.container} collapsable={false}>
       <AppHeader title="Attendance Details" showBack onBack={handleBack} />
@@ -93,7 +98,10 @@ export default function AttendanceDetailScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.header}>
             <Text style={styles.employee}>{getEmployeeName(attendance.employee)}</Text>
-            <StatusBadge status={attendance.attendanceStatus} />
+            <StatusBadge
+              status={statusPresentation?.status || attendance.attendanceStatus}
+              label={statusPresentation?.label}
+            />
           </View>
           <AttendanceCard attendance={attendance} />
           {attendance.lateMinutes && attendance.lateMinutes > 0 ? (
@@ -102,6 +110,14 @@ export default function AttendanceDetailScreen() {
               <Text style={styles.infoText}>
                 Checked in late by {formatLateDuration(attendance.lateMinutes)} after office start
                 time.
+              </Text>
+            </View>
+          ) : null}
+          {attendance.checkOutTime && (attendance.overtimeMinutes ?? 0) > 0 ? (
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Overtime (OT)</Text>
+              <Text style={styles.infoText}>
+                Worked {formatWorkingHours(attendance.overtimeMinutes ?? 0)} beyond office end time.
               </Text>
             </View>
           ) : null}
@@ -128,20 +144,15 @@ function LocationBlock({
   location,
 }: {
   title: string;
-  location: { latitude: number; longitude: number; address?: string };
+  location: { latitude: number; longitude: number; address?: string; accuracy?: number };
 }) {
-  const placeName = formatLocationLabel(location);
-
   return (
     <View style={styles.locationCard}>
       <View style={styles.locationHeader}>
         <MaterialCommunityIcons name="map-marker" size={20} color={theme.colors.primary} />
         <Text style={styles.locationTitle}>{title}</Text>
       </View>
-      <Text style={styles.placeName}>{placeName}</Text>
-      <Text style={styles.coordinates}>
-        GPS: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-      </Text>
+      <Text style={styles.placeName}>{formatLocationWithCoords(location)}</Text>
     </View>
   );
 }

@@ -14,7 +14,7 @@ import { taskApi } from '../../api/taskApi';
 import { getErrorMessage } from '../../utils/errors';
 import type { Task } from '../../types';
 import type { EmployeeTasksStackParamList } from '../../navigation/types';
-import { useMoreHubBack } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function MyTasksScreen() {
   const navigation =
@@ -24,7 +24,8 @@ export default function MyTasksScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const { handleBack, isLeaving } = useMoreHubBack({
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    moreHubFallback: true,
     onBeforeBack: () => setTasks([]),
   });
 
@@ -51,7 +52,12 @@ export default function MyTasksScreen() {
 
   return (
     <View style={styles.container} collapsable={false}>
-      <AppHeader title="My Tasks" subtitle="Tasks assigned by admin" showBack onBack={handleBack} />
+      <AppHeader
+        title="My Tasks"
+        subtitle="Tasks assigned by admin"
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
+      />
       {loading || isLeaving ? (
         <LoadingIndicator fullScreen />
       ) : error ? (

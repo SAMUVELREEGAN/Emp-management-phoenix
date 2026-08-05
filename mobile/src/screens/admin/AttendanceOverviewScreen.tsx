@@ -38,7 +38,7 @@ import type {
   AdminAttendanceStackParamList,
   HrAttendanceStackParamList,
 } from '../../navigation/types';
-import { useFabricSafeBack, ATTENDANCE_MAIN_ROUTE } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 type AttendanceOverviewStack =
   | AdminAttendanceStackParamList
@@ -148,12 +148,10 @@ export default function AttendanceOverviewScreen({
     setSelectedCategory('all');
   }, []);
 
-  const { handleBack, leavingRef } = useFabricSafeBack({
-    routes: ATTENDANCE_MAIN_ROUTE,
+  const { showBack, handleBack, leavingRef, isLeaving } = useQuickAccessBack({
     onBeforeBack: clearScreenState,
+    enabled: !embedded,
   });
-
-  const showBack = isHr && !embedded;
   const showRoleTabs = !embedded && !fixedRole;
   const interactiveStats = enableDateFilter;
 
@@ -321,7 +319,7 @@ export default function AttendanceOverviewScreen({
         onExport={handleExportReport}
       />
 
-      {loading ? (
+      {loading || isLeaving ? (
         <LoadingIndicator fullScreen />
       ) : error ? (
         <View style={styles.center}>

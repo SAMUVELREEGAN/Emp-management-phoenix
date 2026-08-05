@@ -9,6 +9,7 @@ import { workReportApi } from '../../api/workReportApi';
 import { getErrorMessage } from '../../utils/errors';
 import type { WorkReport } from '../../types';
 import type { EmployeeReportsStackParamList } from '../../navigation/types';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function WorkReportListScreen() {
   const navigation =
@@ -17,6 +18,10 @@ export default function WorkReportListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    onBeforeBack: () => setReports([]),
+  });
 
   const fetchReports = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -47,6 +52,8 @@ export default function WorkReportListScreen() {
       <AppHeader
         title="Work Reports"
         subtitle="Your daily reports"
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
         rightAction={
           <Pressable
             onPress={() => navigation.navigate('WorkReportForm', {})}
@@ -55,7 +62,7 @@ export default function WorkReportListScreen() {
           </Pressable>
         }
       />
-      {loading ? (
+      {loading || isLeaving ? (
         <LoadingIndicator fullScreen />
       ) : error ? (
         <View style={styles.center}>

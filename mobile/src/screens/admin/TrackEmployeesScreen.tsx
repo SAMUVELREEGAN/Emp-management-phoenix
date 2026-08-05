@@ -16,7 +16,7 @@ import { getErrorMessage } from '../../utils/errors';
 import { formatDateTime } from '../../utils/dates';
 import type { TrackableEmployee } from '../../types';
 import type { AdminTrackStackParamList } from '../../navigation/types';
-import { useMoreHubBack } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function TrackEmployeesScreen() {
   const navigation =
@@ -26,7 +26,8 @@ export default function TrackEmployeesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const { handleBack, isLeaving } = useMoreHubBack({
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    moreHubFallback: true,
     onBeforeBack: () => setEmployees([]),
   });
 
@@ -58,8 +59,8 @@ export default function TrackEmployeesScreen() {
       <AppHeader
         title="Track Employees"
         subtitle="Live routes after check-in"
-        showBack
-        onBack={handleBack}
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
       />
       {loading || isLeaving ? (
         <LoadingIndicator fullScreen />

@@ -10,6 +10,7 @@ export interface IAttendance extends Document {
   checkInLocation?: LocationPayload;
   checkOutLocation?: LocationPayload;
   totalWorkingMinutes: number;
+  overtimeMinutes: number;
   lateMinutes: number;
   isEarlyCheckout: boolean;
   earlyCheckoutRemark?: string;
@@ -23,6 +24,7 @@ const locationSchema = new Schema<LocationPayload>(
     latitude: { type: Number, required: true },
     longitude: { type: Number, required: true },
     address: { type: String },
+    accuracy: { type: Number },
   },
   { _id: false },
 );
@@ -53,6 +55,11 @@ const attendanceSchema = new Schema<IAttendance>(
     totalWorkingMinutes: {
       type: Number,
       default: 0,
+    },
+    overtimeMinutes: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     lateMinutes: {
       type: Number,

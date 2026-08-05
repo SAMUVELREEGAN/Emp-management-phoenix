@@ -10,7 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import { formatDateTime } from '../../utils/dates';
 import type { Notification } from '../../types';
-import { useMoreHubBack } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation<NavigationProp<Record<string, object | undefined>>>();
@@ -21,7 +21,8 @@ export default function NotificationsScreen() {
   const [error, setError] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const { handleBack, isLeaving } = useMoreHubBack({
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    moreHubFallback: true,
     onBeforeBack: () => setNotifications([]),
   });
 
@@ -77,8 +78,8 @@ export default function NotificationsScreen() {
       <AppHeader
         title="Notifications"
         subtitle={unreadCount > 0 ? `${unreadCount} unread` : undefined}
-        showBack
-        onBack={handleBack}
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
         rightAction={
           isAdmin ? (
             <Pressable

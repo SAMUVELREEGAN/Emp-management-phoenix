@@ -15,7 +15,7 @@ import { leaveApi } from '../../api/leaveApi';
 import { getErrorMessage } from '../../utils/errors';
 import type { LeaveRequest } from '../../types';
 import type { EmployeeLeaveStackParamList } from '../../navigation/types';
-import { useMoreHubBack } from '../../navigation/safeStackBack';
+import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function LeaveListScreen() {
   const navigation =
@@ -25,7 +25,8 @@ export default function LeaveListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const { handleBack, isLeaving } = useMoreHubBack({
+  const { showBack, handleBack, isLeaving } = useQuickAccessBack({
+    moreHubFallback: true,
     onBeforeBack: () => setLeaves([]),
   });
 
@@ -55,8 +56,8 @@ export default function LeaveListScreen() {
       <AppHeader
         title="Leave Requests"
         subtitle="Apply and track your leave"
-        showBack
-        onBack={handleBack}
+        showBack={showBack}
+        onBack={showBack ? handleBack : undefined}
         rightAction={
           <Pressable
             onPress={() => navigation.navigate('LeaveRequestForm')}

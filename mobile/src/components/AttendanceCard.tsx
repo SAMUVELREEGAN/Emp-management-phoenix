@@ -2,9 +2,10 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { theme } from '../constants/theme';
-import { formatDate, formatLateDuration, formatTime } from '../utils/dates';
+import { formatDate, formatLateDuration, formatTime, formatWorkingHours } from '../utils/dates';
 import { formatLocationWithCoords } from '../utils/location';
 import { useLiveWorkingHours } from '../hooks/useLiveWorkingHours';
+import { getAttendanceStatusPresentation } from '../utils/attendanceHours';
 import type { Attendance, UserRole, UserSummary } from '../types';
 import { StatusBadge } from './StatusBadge';
 
@@ -31,11 +32,7 @@ function getEmployeeRole(employee: UserSummary | string | undefined | null): Use
 export function AttendanceCard({ attendance, onPress, showEmployee = false }: AttendanceCardProps) {
   const employeeRole = getEmployeeRole(attendance.employee);
   const { label: workingHoursLabel, isActive } = useLiveWorkingHours(attendance);
-  const lateLabel = formatLateDuration(attendance.lateMinutes);
-  const statusLabel =
-    attendance.attendanceStatus === 'late' && lateLabel
-      ? `Late (${lateLabel})`
-      : undefined;
+  const statusPresentation = getAttendanceStatusPresentation(attendance);
   const isAbsentOnly = attendance.attendanceStatus === 'absent' && !attendance.checkInTime;
 
   if (isAbsentOnly && showEmployee) {
@@ -75,12 +72,15 @@ export function AttendanceCard({ attendance, onPress, showEmployee = false }: At
             </View>
           ) : null}
         </View>
-        <StatusBadge status={attendance.attendanceStatus} label={statusLabel} />
+        <StatusBadge
+          status={statusPresentation.status}
+          label={statusPresentation.label}
+        />
       </View>
-      {attendance.lateMinutes && attendance.lateMinutes > 0 ? (
+      {attendance.lateMinutes && attendance.lateMinutes > 0 && !attendance.checkOutTime ? (
         <View style={styles.lateBanner}>
           <MaterialCommunityIcons name="clock-alert-outline" size={16} color={theme.colors.warning} />
-          <Text style={styles.lateText}>Late by {lateLabel}</Text>
+          <Text style={styles.lateText}>Late by {formatLateDuration(attendance.lateMinutes)}</Text>
         </View>
       ) : null}
       <View style={styles.row}>
@@ -110,6 +110,14 @@ export function AttendanceCard({ attendance, onPress, showEmployee = false }: At
         <Text style={styles.label}>Working Hours:</Text>
         <Text style={[styles.value, isActive && styles.valueActive]}>{workingHoursLabel}</Text>
       </View>
+      {attendance.checkOutTime && (attendance.overtimeMinutes ?? 0) > 0 ? (
+        <View style={styles.otBanner}>
+          <MaterialCommunityIcons name="clock-plus-outline" size={16} color={theme.colors.info} />
+          <Text style={styles.otText}>
+            Overtime (OT): {formatWorkingHours(attendance.overtimeMinutes ?? 0)}
+          </Text>
+        </View>
+      ) : null}
       {attendance.isEarlyCheckout && attendance.earlyCheckoutRemark ? (
         <View style={styles.remarkBox}>
           <Text style={styles.remarkTitle}>Early Check-Out Remark</Text>
@@ -218,6 +226,22 @@ const styles = StyleSheet.create({
   lateText: {
     fontSize: theme.fonts.sizes.xs,
     color: theme.colors.warning,
+    fontWeight: theme.fonts.weights.semibold,
+  },
+  otBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.infoLight,
+    borderRadius: theme.radii.md,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+  },
+  otText: {
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.info,
     fontWeight: theme.fonts.weights.semibold,
   },
   remarkBox: {
