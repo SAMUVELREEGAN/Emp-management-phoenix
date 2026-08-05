@@ -35,6 +35,11 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [settingsRefreshKey, setSettingsRefreshKey] = useState(0);
+
+  const bumpSettingsRefresh = useCallback(() => {
+    setSettingsRefreshKey(current => current + 1);
+  }, []);
 
   const fetchDashboard = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -157,7 +162,13 @@ export default function AdminDashboardScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => fetchDashboard(true)} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                bumpSettingsRefresh();
+                void fetchDashboard(true);
+              }}
+            />
           }>
           {error ? <ErrorMessage message={error} onRetry={() => fetchDashboard()} /> : null}
 
@@ -198,8 +209,18 @@ export default function AdminDashboardScreen() {
 
           <QuickAccessGrid items={quickAccessItems} />
 
-          {!isHr ? <OfficeHoursSettingsCard /> : null}
-          {!isHr ? <OfficeGeofenceSettingsCard /> : null}
+          {!isHr ? (
+            <OfficeHoursSettingsCard
+              refreshKey={settingsRefreshKey}
+              onSaved={bumpSettingsRefresh}
+            />
+          ) : null}
+          {!isHr ? (
+            <OfficeGeofenceSettingsCard
+              refreshKey={settingsRefreshKey}
+              onSaved={bumpSettingsRefresh}
+            />
+          ) : null}
 
           <Text style={styles.sectionTitle}>Recent Attendance</Text>
           {data?.recentAttendance.length ? (

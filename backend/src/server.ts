@@ -3,6 +3,7 @@ import { connectDatabase } from './config/database';
 import { env } from './config/env';
 import { clearDemoData } from './seeds/clearDemoData';
 import { ensureDefaultAdmin } from './seeds/ensureDefaultAdmin';
+import { ensureOfficeSettingsDocument } from './services/officeSettingsService';
 import { logger } from './utils/logger';
 
 const startServer = async () => {
@@ -11,9 +12,11 @@ const startServer = async () => {
   if (env.RESET_DEMO_DATA) {
     logger.warn('RESET_DEMO_DATA=true — clearing demo data (keep admin only)');
     await clearDemoData();
+    await ensureOfficeSettingsDocument();
     logger.warn('Remove RESET_DEMO_DATA from Render after this deploy finishes');
   } else {
     await ensureDefaultAdmin();
+    await ensureOfficeSettingsDocument();
   }
 
   app.listen(env.PORT, '0.0.0.0', () => {

@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import type { User } from '../types';
 import { resetForAuthenticatedUser, resetToAuth, waitForNavigationReady } from './navigationRef';
 
-const LOGOUT_SETTLE_MS = 650;
+const LOGOUT_SETTLE_MS = 900;
 
 let logoutInProgress = false;
 
@@ -24,7 +24,7 @@ function waitForUiTeardown(): Promise<void> {
     InteractionManager.runAfterInteractions(() => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          setTimeout(resolve, 280);
+          setTimeout(resolve, 500);
         });
       });
     });

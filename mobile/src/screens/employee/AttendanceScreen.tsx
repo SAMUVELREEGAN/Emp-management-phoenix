@@ -61,19 +61,24 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   const [previewLocation, setPreviewLocation] = useState<LocationPayload | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  const fetchToday = useCallback(async () => {
-    setLoading(true);
+  const fetchToday = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     setError('');
     try {
       const response = await attendanceApi.today();
+      const latestOfficeHours = normalizeOfficeHours(response.data.officeHours);
       setAttendance(response.data.attendance);
-      setOfficeHours(
-        normalizeOfficeHours(response.data.officeHours),
-      );
+      setOfficeHours(latestOfficeHours);
+      return latestOfficeHours;
     } catch (err) {
       setError(getErrorMessage(err));
+      return null;
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -159,8 +164,9 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   const validateGeofenceForAttendance = (
     location: LocationPayload,
     action: 'check-in' | 'check-out',
+    hours: OfficeHours = officeHours,
   ): boolean => {
-    const status = getGeofenceStatus(location.latitude, location.longitude, officeHours);
+    const status = getGeofenceStatus(location.latitude, location.longitude, hours);
     if (!status.enforced || status.within) {
       return true;
     }
@@ -183,11 +189,12 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     setRouteRecordingEnabled(false);
     setActionLoading(true);
     try {
+      const latestOfficeHours = (await fetchToday({ silent: true })) ?? officeHours;
       const location = await getLocationForAttendance();
       if (!location) {
         return;
       }
-      if (!validateGeofenceForAttendance(location, 'check-in')) {
+      if (!validateGeofenceForAttendance(location, 'check-in', latestOfficeHours)) {
         setPreviewLocation(location);
         return;
       }
@@ -255,16 +262,17 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     setRouteRecordingEnabled(false);
     setActionLoading(true);
     try {
+      const latestOfficeHours = (await fetchToday({ silent: true })) ?? officeHours;
       const location = await getLocationForAttendance();
       if (!location) {
         return;
       }
-      if (!validateGeofenceForAttendance(location, 'check-out')) {
+      if (!validateGeofenceForAttendance(location, 'check-out', latestOfficeHours)) {
         setPreviewLocation(location);
         return;
       }
 
-      if (isBeforeOfficeEnd(officeHours.officeEndTime)) {
+      if (isBeforeOfficeEnd(latestOfficeHours.officeEndTime)) {
         setPendingCheckoutLocation(location);
         setShowEarlyCheckoutModal(true);
         return;

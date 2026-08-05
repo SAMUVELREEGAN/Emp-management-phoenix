@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import MapView, { Circle, Marker, type Region } from 'react-native-maps';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { AppButton } from './AppButton';
 import { AppInput } from './AppInput';
@@ -16,6 +17,7 @@ import { settingsApi } from '../api/settingsApi';
 import { getErrorMessage } from '../utils/errors';
 import { getCurrentLocation, requestLocationPermission } from '../utils/location';
 import { DEFAULT_OFFICE_HOURS, normalizeOfficeHours } from '../utils/officeHours';
+import { useAuthStore } from '../store/authStore';
 import type { OfficeHours } from '../types';
 
 const RADIUS_OPTIONS = [50, 100, 200, 500, 1000, 2000];
@@ -30,7 +32,16 @@ function toRegion(latitude: number, longitude: number, radiusMeters: number): Re
   };
 }
 
-export function OfficeGeofenceSettingsCard() {
+interface OfficeGeofenceSettingsCardProps {
+  refreshKey?: number;
+  onSaved?: () => void;
+}
+
+export function OfficeGeofenceSettingsCard({
+  refreshKey = 0,
+  onSaved,
+}: OfficeGeofenceSettingsCardProps) {
+  const isLoggingOut = useAuthStore(state => state.isLoggingOut);
   const [settings, setSettings] = useState<OfficeHours>(DEFAULT_OFFICE_HOURS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,6 +64,12 @@ export function OfficeGeofenceSettingsCard() {
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      void fetchSettings();
+    }
+  }, [refreshKey, fetchSettings]);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,16 +116,15 @@ export function OfficeGeofenceSettingsCard() {
     setSaving(true);
     try {
       const response = await settingsApi.updateOfficeHours({
-        officeStartTime: settings.officeStartTime,
-        officeEndTime: settings.officeEndTime,
         geofenceEnabled: !!settings.geofenceEnabled,
         officeLatitude: settings.officeLatitude,
         officeLongitude: settings.officeLongitude,
         geofenceRadiusMeters: settings.geofenceRadiusMeters ?? 200,
         officeLocationName: settings.officeLocationName ?? '',
       });
-      const saved = response.data.officeHours;
-      setSettings(normalizeOfficeHours({ ...settings, ...saved }));
+      const saved = normalizeOfficeHours(response.data.officeHours);
+      setSettings(saved);
+      onSaved?.();
       Alert.alert('Saved', 'Geofence settings updated successfully.');
     } catch (err) {
       Alert.alert('Error', getErrorMessage(err));
@@ -208,45 +224,51 @@ export function OfficeGeofenceSettingsCard() {
       />
 
       <View style={styles.mapWrap}>
-        <MapView
-          key={mapKey}
-          style={styles.map}
-          region={region}
-          onRegionChangeComplete={setRegion}
-          onPress={event => {
-            if (disabled) {
-              return;
-            }
-            const { latitude, longitude } = event.nativeEvent.coordinate;
-            updateSettings({ officeLatitude: latitude, officeLongitude: longitude });
-          }}>
-          {hasOfficeCoords ? (
-            <>
-              <Marker
-                coordinate={{
-                  latitude: settings.officeLatitude!,
-                  longitude: settings.officeLongitude!,
-                }}
-                title={settings.officeLocationName || 'Office'}
-                draggable
-                onDragEnd={event => {
-                  const { latitude, longitude } = event.nativeEvent.coordinate;
-                  updateSettings({ officeLatitude: latitude, officeLongitude: longitude });
-                }}
-              />
-              <Circle
-                center={{
-                  latitude: settings.officeLatitude!,
-                  longitude: settings.officeLongitude!,
-                }}
-                radius={radius}
-                strokeColor={theme.colors.primary}
-                fillColor="rgba(37, 99, 235, 0.15)"
-                strokeWidth={2}
-              />
-            </>
-          ) : null}
-        </MapView>
+        {!isLoggingOut ? (
+          <MapView
+            key={mapKey}
+            style={styles.map}
+            region={region}
+            onRegionChangeComplete={setRegion}
+            onPress={event => {
+              if (disabled) {
+                return;
+              }
+              const { latitude, longitude } = event.nativeEvent.coordinate;
+              updateSettings({ officeLatitude: latitude, officeLongitude: longitude });
+            }}>
+            {hasOfficeCoords ? (
+              <>
+                <Marker
+                  coordinate={{
+                    latitude: settings.officeLatitude!,
+                    longitude: settings.officeLongitude!,
+                  }}
+                  title={settings.officeLocationName || 'Office'}
+                  draggable
+                  onDragEnd={event => {
+                    const { latitude, longitude } = event.nativeEvent.coordinate;
+                    updateSettings({ officeLatitude: latitude, officeLongitude: longitude });
+                  }}
+                />
+                <Circle
+                  center={{
+                    latitude: settings.officeLatitude!,
+                    longitude: settings.officeLongitude!,
+                  }}
+                  radius={radius}
+                  strokeColor={theme.colors.primary}
+                  fillColor="rgba(37, 99, 235, 0.15)"
+                  strokeWidth={2}
+                />
+              </>
+            ) : null}
+          </MapView>
+        ) : (
+          <View style={styles.mapPlaceholder}>
+            <MaterialCommunityIcons name="map-outline" size={28} color={theme.colors.textMuted} />
+          </View>
+        )}
       </View>
 
       {hasOfficeCoords ? (
@@ -356,6 +378,12 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  mapPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
   },
   coordsText: {
     fontSize: theme.fonts.sizes.xs,

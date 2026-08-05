@@ -10,6 +10,7 @@ import type {
   ProfileStackParamList,
 } from './types';
 import { createTabBarScreenOptions } from '../constants/tabBarOptions';
+import { LogoutGate } from './LogoutGate';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import EmployeeListScreen from '../screens/admin/EmployeeListScreen';
 import EmployeeDetailScreen from '../screens/admin/EmployeeDetailScreen';
@@ -96,12 +97,14 @@ const hrTabIcons = {
 
 export function HrNavigator() {
   return (
-    <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(hrTabIcons)}>
-      <Tab.Screen name="Home" component={AdminDashboardScreen} options={{ title: 'Home' }} />
-      <Tab.Screen name="Employees" component={EmployeesStackNavigator} />
-      <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />
-      <Tab.Screen name="Chat" component={ChatStackNavigator} options={{ title: 'Chat' }} />
-      <Tab.Screen name="More" component={MoreStackNavigator} options={moreTabScreenOptions} />
-    </Tab.Navigator>
+    <LogoutGate>
+      <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(hrTabIcons)}>
+        <Tab.Screen name="Home" component={AdminDashboardScreen} options={{ title: 'Home' }} />
+        <Tab.Screen name="Employees" component={EmployeesStackNavigator} />
+        <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />
+        <Tab.Screen name="Chat" component={ChatStackNavigator} options={{ title: 'Chat' }} />
+        <Tab.Screen name="More" component={MoreStackNavigator} options={moreTabScreenOptions} />
+      </Tab.Navigator>
+    </LogoutGate>
   );
 }

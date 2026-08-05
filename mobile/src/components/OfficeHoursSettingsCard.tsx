@@ -10,7 +10,15 @@ import { formatOfficeTime12Hour, parseTimeToMinutes } from '../utils/dates';
 import { normalizeOfficeHours } from '../utils/officeHours';
 import type { OfficeHours } from '../types';
 
-export function OfficeHoursSettingsCard() {
+interface OfficeHoursSettingsCardProps {
+  refreshKey?: number;
+  onSaved?: () => void;
+}
+
+export function OfficeHoursSettingsCard({
+  refreshKey = 0,
+  onSaved,
+}: OfficeHoursSettingsCardProps) {
   const [officeHours, setOfficeHours] = useState<OfficeHours>({
     officeStartTime: '09:30',
     officeEndTime: '18:00',
@@ -39,6 +47,12 @@ export function OfficeHoursSettingsCard() {
     fetchOfficeHours();
   }, [fetchOfficeHours]);
 
+  useEffect(() => {
+    if (refreshKey > 0) {
+      void fetchOfficeHours();
+    }
+  }, [refreshKey, fetchOfficeHours]);
+
   useFocusEffect(
     useCallback(() => {
       void fetchOfficeHours();
@@ -60,9 +74,8 @@ export function OfficeHoursSettingsCard() {
         officeStartTime: officeHours.officeStartTime,
         officeEndTime: officeHours.officeEndTime,
       });
-      setOfficeHours(current =>
-        normalizeOfficeHours({ ...current, ...response.data.officeHours }),
-      );
+      setOfficeHours(normalizeOfficeHours(response.data.officeHours));
+      onSaved?.();
       Alert.alert('Saved', 'Office hours updated successfully.');
     } catch (err) {
       Alert.alert('Error', getErrorMessage(err));

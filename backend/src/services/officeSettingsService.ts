@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { env } from '../config/env';
-import { OfficeSettings } from '../models/OfficeSettings';
+import { OfficeSettings, type IOfficeSettings } from '../models/OfficeSettings';
 import { ApiError } from '../utils/ApiError';
 import { parseTimeToMinutes } from '../utils/dateHelpers';
 
@@ -45,15 +45,18 @@ function mapSettings(settings: {
   };
 }
 
-export const getOfficeHours = async (): Promise<OfficeSettingsData> => {
-  if (cachedOfficeSettings) {
-    return cachedOfficeSettings;
-  }
+/** Keep a single settings row so reads and writes always target the same document. */
+async function resolveOfficeSettingsDocument(
+  createIfMissing = true,
+): Promise<IOfficeSettings | null> {
+  const documents = await OfficeSettings.find().sort({ updatedAt: -1 });
 
-  let settings = await OfficeSettings.findOne().sort({ updatedAt: -1 });
+  if (documents.length === 0) {
+    if (!createIfMissing) {
+      return null;
+    }
 
-  if (!settings) {
-    settings = await OfficeSettings.create({
+    return OfficeSettings.create({
       officeStartTime: env.OFFICE_START_TIME,
       officeEndTime: env.OFFICE_END_TIME,
       geofenceEnabled: false,
@@ -61,7 +64,29 @@ export const getOfficeHours = async (): Promise<OfficeSettingsData> => {
     });
   }
 
-  cachedOfficeSettings = mapSettings(settings);
+  const [primary, ...duplicates] = documents;
+
+  if (duplicates.length > 0) {
+    await OfficeSettings.deleteMany({
+      _id: { $in: duplicates.map(doc => doc._id) },
+    });
+    clearOfficeHoursCache();
+  }
+
+  return primary;
+}
+
+export const ensureOfficeSettingsDocument = async (): Promise<void> => {
+  await resolveOfficeSettingsDocument(true);
+};
+
+export const getOfficeHours = async (): Promise<OfficeSettingsData> => {
+  if (cachedOfficeSettings) {
+    return cachedOfficeSettings;
+  }
+
+  const settings = await resolveOfficeSettingsDocument(true);
+  cachedOfficeSettings = mapSettings(settings!);
   return cachedOfficeSettings;
 };
 
@@ -69,7 +94,7 @@ export const updateOfficeHours = async (
   adminId: string,
   patch: OfficeSettingsUpdate,
 ): Promise<OfficeSettingsData> => {
-  let settings = await OfficeSettings.findOne();
+  let settings = await resolveOfficeSettingsDocument(true);
 
   if (!settings) {
     settings = await OfficeSettings.create({
@@ -86,7 +111,10 @@ export const updateOfficeHours = async (
   const merged: OfficeSettingsData = {
     officeStartTime: patch.officeStartTime ?? current.officeStartTime,
     officeEndTime: patch.officeEndTime ?? current.officeEndTime,
-    geofenceEnabled: patch.geofenceEnabled ?? current.geofenceEnabled,
+    geofenceEnabled:
+      patch.geofenceEnabled !== undefined
+        ? patch.geofenceEnabled
+        : current.geofenceEnabled,
     officeLatitude:
       patch.officeLatitude !== undefined
         ? patch.officeLatitude

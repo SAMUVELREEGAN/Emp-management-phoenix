@@ -26,6 +26,7 @@ type Props = CompositeScreenProps<
 
 export default function ProfileScreen({ navigation }: Props) {
   const user = useAuthStore(state => state.user);
+  const setLoggingOut = useAuthStore(state => state.setLoggingOut);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
   const { handleBack } = useMoreHubBack();
@@ -33,13 +34,14 @@ export default function ProfileScreen({ navigation }: Props) {
   const handleConfirmLogout = useCallback(() => {
     setShowLogoutConfirm(false);
     setLogoutPending(true);
+    setLoggingOut(true);
 
     setTimeout(() => {
       void performLogout().finally(() => {
         setLogoutPending(false);
       });
-    }, 320);
-  }, []);
+    }, 450);
+  }, [setLoggingOut]);
 
   if (!user) {
     return <View style={styles.container} collapsable={false} />;

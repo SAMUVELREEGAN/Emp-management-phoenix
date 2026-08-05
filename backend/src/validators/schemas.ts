@@ -134,10 +134,10 @@ export const updateOfficeSettingsSchema = z.object({
     .string()
     .regex(/^\d{2}:\d{2}$/, 'Office end time must be HH:mm')
     .optional(),
-  geofenceEnabled: z.boolean().optional(),
-  officeLatitude: z.number().min(-90).max(90).optional(),
-  officeLongitude: z.number().min(-180).max(180).optional(),
-  geofenceRadiusMeters: z
+  geofenceEnabled: z.coerce.boolean().optional(),
+  officeLatitude: z.coerce.number().min(-90).max(90).optional(),
+  officeLongitude: z.coerce.number().min(-180).max(180).optional(),
+  geofenceRadiusMeters: z.coerce
     .number()
     .min(25, 'Minimum geofence radius is 25 meters')
     .max(5000, 'Maximum geofence radius is 5000 meters')

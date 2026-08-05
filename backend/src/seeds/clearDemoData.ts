@@ -11,6 +11,7 @@ import { User } from '../models/User';
 import { VerificationCode } from '../models/VerificationCode';
 import { WorkReport } from '../models/WorkReport';
 import { logger } from '../utils/logger';
+import { clearOfficeHoursCache } from '../services/officeSettingsService';
 import { ensureDefaultAdmin } from './ensureDefaultAdmin';
 
 export const ADMIN_EMAIL = 'admin@company.com';
@@ -65,6 +66,7 @@ export const clearDemoData = async (): Promise<DemoDataResetSummary> => {
   ]);
 
   await ensureDefaultAdmin();
+  clearOfficeHoursCache();
 
   const summary: DemoDataResetSummary = {
     attendance: attendance.deletedCount,
