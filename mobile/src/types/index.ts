@@ -76,6 +76,11 @@ export interface UserSummary {
   role?: UserRole;
 }
 
+export interface BreakSession {
+  startedAt: string;
+  endedAt?: string;
+}
+
 export interface Attendance {
   _id: string;
   employee: UserSummary | string;
@@ -85,6 +90,8 @@ export interface Attendance {
   checkInLocation?: LocationPayload;
   checkOutLocation?: LocationPayload;
   totalWorkingMinutes: number;
+  totalBreakMinutes?: number;
+  breakSessions?: BreakSession[];
   overtimeMinutes?: number;
   lateMinutes?: number;
   isEarlyCheckout?: boolean;

@@ -90,6 +90,10 @@ export const checkOutSchema = z.object({
   earlyCheckoutRemark: z.string().trim().optional().default(''),
 });
 
+export const breakActionSchema = z.object({
+  deviceTimestamp: z.string().optional(),
+});
+
 export const officeHoursSchema = z
   .object({
     officeStartTime: z

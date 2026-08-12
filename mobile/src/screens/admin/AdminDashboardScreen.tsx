@@ -23,7 +23,7 @@ import { useUnreadNotificationCount } from '../../hooks/useUnreadNotificationCou
 import { getErrorMessage } from '../../utils/errors';
 import type { AdminDashboardData } from '../../types';
 import type { AdminTabParamList, HrTabParamList } from '../../navigation/types';
-import { RETURN_TO_HOME_PARAMS } from '../../navigation/dashboardNavigation';
+import { RETURN_TO_HOME_PARAMS, navigateHomeNestedScreen, navigateHomeScreen } from '../../navigation/dashboardNavigation';
 
 type DashboardNav = BottomTabNavigationProp<AdminTabParamList | HrTabParamList>;
 
@@ -72,26 +72,33 @@ export default function AdminDashboardScreen() {
   const employeeSummary = summary?.employees;
   const welcomeLabel = isHr ? 'HR' : 'Admin';
 
-  const goMore = useCallback(
+  const openQuickAccess = useCallback(
     (screen: 'Tasks' | 'Leave' | 'Track' | 'Reports' | 'Notifications' | 'Profile') => {
-      const nestedParams: Record<
-        typeof screen,
-        { screen: string; params?: typeof RETURN_TO_HOME_PARAMS }
+      if (screen === 'Notifications' && isHr) {
+        navigateHomeScreen(rootNavigation, 'Notifications', RETURN_TO_HOME_PARAMS);
+        return;
+      }
+
+      const nestedScreens: Record<
+        'Tasks' | 'Leave' | 'Track' | 'Reports' | 'Notifications' | 'Profile',
+        string
       > = {
-        Tasks: { screen: 'AdminTaskList', params: RETURN_TO_HOME_PARAMS },
-        Leave: { screen: 'LeaveApprovalList', params: RETURN_TO_HOME_PARAMS },
-        Track: { screen: 'TrackEmployees', params: RETURN_TO_HOME_PARAMS },
-        Reports: { screen: 'AdminWorkReportList', params: RETURN_TO_HOME_PARAMS },
-        Notifications: { screen: 'NotificationsMain', params: RETURN_TO_HOME_PARAMS },
-        Profile: { screen: 'ProfileMain', params: RETURN_TO_HOME_PARAMS },
+        Tasks: 'AdminTaskList',
+        Leave: 'LeaveApprovalList',
+        Track: 'TrackEmployees',
+        Reports: 'AdminWorkReportList',
+        Notifications: 'NotificationsMain',
+        Profile: 'ProfileMain',
       };
 
-      rootNavigation.navigate('More', {
+      navigateHomeNestedScreen(
+        rootNavigation,
         screen,
-        params: nestedParams[screen],
-      });
+        nestedScreens[screen],
+        RETURN_TO_HOME_PARAMS,
+      );
     },
-    [rootNavigation],
+    [isHr, rootNavigation],
   );
 
   const quickAccessItems = useMemo<QuickAccessItem[]>(() => {
@@ -114,7 +121,7 @@ export default function AdminDashboardScreen() {
         icon: 'calendar-plus',
         color: theme.colors.success,
         iconBg: theme.colors.successLight,
-        onPress: () => goMore('Leave'),
+        onPress: () => openQuickAccess('Leave'),
       },
       {
         key: 'employees',
@@ -134,7 +141,7 @@ export default function AdminDashboardScreen() {
         icon: 'chart-bar',
         color: theme.colors.warning,
         iconBg: theme.colors.warningLight,
-        onPress: () => goMore('Reports'),
+        onPress: () => openQuickAccess('Reports'),
       },
       {
         key: 'tasks',
@@ -142,7 +149,7 @@ export default function AdminDashboardScreen() {
         icon: 'clipboard-list-outline',
         color: theme.colors.info,
         iconBg: theme.colors.infoLight,
-        onPress: () => goMore('Tasks'),
+        onPress: () => openQuickAccess('Tasks'),
       },
       {
         key: 'chat',
@@ -163,7 +170,7 @@ export default function AdminDashboardScreen() {
         color: theme.colors.error,
         iconBg: theme.colors.errorLight,
         badge: unreadCount,
-        onPress: () => goMore('Notifications'),
+        onPress: () => openQuickAccess('Notifications'),
       },
     ];
 
@@ -172,7 +179,7 @@ export default function AdminDashboardScreen() {
     }
 
     return items;
-  }, [goMore, isHr, rootNavigation, unreadCount]);
+  }, [isHr, openQuickAccess, rootNavigation, unreadCount]);
 
   const employeeCount = isHr
     ? (employeeSummary?.present || 0) + (employeeSummary?.absent || 0) + (employeeSummary?.late || 0)
@@ -183,8 +190,8 @@ export default function AdminDashboardScreen() {
       <DashboardHeader
         welcomeName={welcomeLabel}
         unreadCount={unreadCount}
-        onMenuPress={() => goMore('Profile')}
-        onNotificationsPress={() => goMore('Notifications')}
+        onMenuPress={() => openQuickAccess('Profile')}
+        onNotificationsPress={() => openQuickAccess('Notifications')}
       />
       {loading ? (
         <LoadingIndicator fullScreen />
@@ -234,7 +241,7 @@ export default function AdminDashboardScreen() {
           </View>
 
           {!isHr ? (
-            <LiveTrackingCard onPress={() => goMore('Track')} />
+            <LiveTrackingCard onPress={() => openQuickAccess('Track')} />
           ) : null}
 
           <QuickAccessGrid items={quickAccessItems} />

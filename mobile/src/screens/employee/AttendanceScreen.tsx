@@ -16,7 +16,7 @@ import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
-import { formatLocationLabel, formatLocationWithCoords, getLocationForAttendance } from '../../utils/location';
+import { formatLocationWithCoords, enrichAttendanceLocations, getLocationForAttendance } from '../../utils/location';
 import {
   buildOutsideGeofenceMessage,
   getGeofenceStatus,
@@ -42,7 +42,7 @@ interface AttendanceScreenProps {
 }
 
 import { normalizeOfficeHours } from '../../utils/officeHours';
-import { getAttendanceStatusPresentation } from '../../utils/attendanceHours';
+import { getAttendanceStatusPresentation, isOnBreak } from '../../utils/attendanceHours';
 import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function AttendanceScreen({ embedded = false }: AttendanceScreenProps) {
@@ -75,7 +75,8 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     try {
       const response = await attendanceApi.today();
       const latestOfficeHours = normalizeOfficeHours(response.data.officeHours);
-      setAttendance(response.data.attendance);
+      const enrichedAttendance = await enrichAttendanceLocations(response.data.attendance);
+      setAttendance(enrichedAttendance);
       setOfficeHours(latestOfficeHours);
       return latestOfficeHours;
     } catch (err) {
@@ -95,6 +96,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   );
 
   const isSessionActive = !!attendance?.checkInTime && !attendance?.checkOutTime;
+  const onBreak = isOnBreak(attendance);
   const [routeRecordingEnabled, setRouteRecordingEnabled] = useState(false);
   const pendingRouteAfterCheckInRef = useRef(false);
 
@@ -135,28 +137,23 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   const canCheckOut = !!attendance?.checkInTime && !attendance?.checkOutTime;
 
   const refreshLocationPreview = useCallback(async () => {
-    if (!officeHours.geofenceEnabled) {
-      setPreviewLocation(null);
-      return;
-    }
-
     setPreviewLoading(true);
     try {
       const location = await getLocationForAttendance();
-      setPreviewLocation(location);
+      if (location) {
+        setPreviewLocation(location);
+      }
     } catch {
       setPreviewLocation(null);
     } finally {
       setPreviewLoading(false);
     }
-  }, [officeHours.geofenceEnabled]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (officeHours.geofenceEnabled) {
-        void refreshLocationPreview();
-      }
-    }, [officeHours.geofenceEnabled, refreshLocationPreview]),
+      void refreshLocationPreview();
+    }, [refreshLocationPreview]),
   );
 
   const previewGeofenceStatus = previewLocation
@@ -188,6 +185,12 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     return false;
   };
 
+  const applyAttendance = useCallback(async (record: Attendance | null) => {
+    const enriched = await enrichAttendanceLocations(record);
+    setAttendance(enriched);
+    return enriched;
+  }, []);
+
   const handleCheckIn = async () => {
     if (actionLoading) {
       return;
@@ -208,7 +211,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
         location,
         deviceTimestamp: toIsoDateTime(),
       });
-      const checkedIn = response.data.attendance;
+      const checkedIn = await applyAttendance(response.data.attendance);
       pendingRouteAfterCheckInRef.current = true;
 
       const lateLabel = formatLateDuration(checkedIn?.lateMinutes);
@@ -218,7 +221,6 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
           : 'Checked in on time.';
       const placeLabel = formatLocationWithCoords(checkedIn?.checkInLocation ?? location);
 
-      setAttendance(checkedIn);
       setPreviewLocation(checkedIn?.checkInLocation ?? location);
 
       Alert.alert(
@@ -252,12 +254,12 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
       deviceTimestamp: toIsoDateTime(),
       earlyCheckoutRemark,
     });
-    setAttendance(response.data.attendance);
+    const checkedOut = await applyAttendance(response.data.attendance);
     setRouteRecordingEnabled(false);
     pendingRouteAfterCheckInRef.current = false;
     Alert.alert(
       'Checked Out',
-      `You checked out from:\n${formatLocationWithCoords(response.data.attendance.checkOutLocation ?? location)}`,
+      `You checked out from:\n${formatLocationWithCoords(checkedOut?.checkOutLocation ?? location)}`,
     );
   };
 
@@ -311,6 +313,40 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   const handleEarlyCheckoutCancel = () => {
     setShowEarlyCheckoutModal(false);
     setPendingCheckoutLocation(null);
+  };
+
+  const handleStartBreak = async () => {
+    if (actionLoading || !isSessionActive || onBreak) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await attendanceApi.startBreak(toIsoDateTime());
+      await applyAttendance(response.data.attendance);
+      Alert.alert('Break Started', 'Break time will not be counted in your working hours.');
+    } catch (err) {
+      Alert.alert('Error', getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEndBreak = async () => {
+    if (actionLoading || !isSessionActive || !onBreak) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await attendanceApi.endBreak(toIsoDateTime());
+      await applyAttendance(response.data.attendance);
+      Alert.alert('Break Ended', 'Your working hours have resumed.');
+    } catch (err) {
+      Alert.alert('Error', getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const statusPresentation = getAttendanceStatusPresentation(attendance);
@@ -405,6 +441,38 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
             </View>
           ) : null}
 
+          {!officeHours.geofenceEnabled ? (
+            <View style={styles.locationCard}>
+              <View style={styles.geofenceHeader}>
+                <MaterialCommunityIcons
+                  name="map-marker-outline"
+                  size={20}
+                  color={theme.colors.primary}
+                />
+                <Text style={styles.geofenceTitle}>Current Location</Text>
+              </View>
+              {previewLocation ? (
+                <Text style={styles.geofenceLocation}>
+                  {formatLocationWithCoords(previewLocation)}
+                </Text>
+              ) : (
+                <Text style={styles.geofenceLocation}>
+                  {previewLoading
+                    ? 'Detecting your current location...'
+                    : 'Tap Refresh Location to detect your place name.'}
+                </Text>
+              )}
+              <AppButton
+                title={previewLoading ? 'Refreshing...' : 'Refresh Location'}
+                variant="outline"
+                onPress={refreshLocationPreview}
+                loading={previewLoading}
+                disabled={actionLoading}
+                style={styles.refreshButton}
+              />
+            </View>
+          ) : null}
+
           <View style={styles.statusCard}>
             <Text style={styles.statusLabel}>Today's Status</Text>
             {attendance ? (
@@ -416,6 +484,15 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
               <StatusBadge status="absent" label="Not Marked" />
             )}
           </View>
+
+          {isSessionActive && onBreak ? (
+            <View style={styles.breakBanner}>
+              <MaterialCommunityIcons name="coffee-outline" size={18} color={theme.colors.warning} />
+              <Text style={styles.breakText}>
+                You are on a break. Working hours are paused until you end the break.
+              </Text>
+            </View>
+          ) : null}
 
           {isSessionActive && !isHr && routeRecordingEnabled ? (
             <View style={styles.recordingBanner}>
@@ -444,6 +521,27 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
               disabled={!canCheckOut || actionLoading}
               style={styles.button}
             />
+            {isSessionActive ? (
+              onBreak ? (
+                <AppButton
+                  title={actionLoading ? 'Ending Break...' : 'End Break'}
+                  variant="outline"
+                  onPress={handleEndBreak}
+                  loading={actionLoading}
+                  disabled={actionLoading}
+                  style={styles.button}
+                />
+              ) : (
+                <AppButton
+                  title={actionLoading ? 'Starting Break...' : 'Start Break'}
+                  variant="outline"
+                  onPress={handleStartBreak}
+                  loading={actionLoading}
+                  disabled={actionLoading}
+                  style={styles.button}
+                />
+              )
+            ) : null}
             <AppButton
               title="View History"
               variant="outline"
@@ -508,6 +606,14 @@ const styles = StyleSheet.create({
   geofenceCardOutside: {
     borderColor: theme.colors.error,
     backgroundColor: theme.colors.errorLight,
+  },
+  locationCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   geofenceHeader: {
     flexDirection: 'row',
@@ -575,6 +681,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: theme.fonts.sizes.sm,
     color: theme.colors.success,
+    fontWeight: theme.fonts.weights.medium,
+  },
+  breakBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.warningLight,
+    borderRadius: theme.radii.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  breakText: {
+    flex: 1,
+    fontSize: theme.fonts.sizes.sm,
+    color: theme.colors.warning,
     fontWeight: theme.fonts.weights.medium,
   },
 });

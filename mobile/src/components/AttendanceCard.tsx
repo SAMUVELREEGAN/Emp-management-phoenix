@@ -5,7 +5,7 @@ import { theme } from '../constants/theme';
 import { formatDate, formatLateDuration, formatTime, formatWorkingHours } from '../utils/dates';
 import { formatLocationWithCoords } from '../utils/location';
 import { useLiveWorkingHours } from '../hooks/useLiveWorkingHours';
-import { getAttendanceStatusPresentation } from '../utils/attendanceHours';
+import { getBreakMinutes, getAttendanceStatusPresentation } from '../utils/attendanceHours';
 import type { Attendance, UserRole, UserSummary } from '../types';
 import { StatusBadge } from './StatusBadge';
 
@@ -33,6 +33,7 @@ export function AttendanceCard({ attendance, onPress, showEmployee = false }: At
   const employeeRole = getEmployeeRole(attendance.employee);
   const { label: workingHoursLabel, isActive } = useLiveWorkingHours(attendance);
   const statusPresentation = getAttendanceStatusPresentation(attendance);
+  const breakMinutes = getBreakMinutes(attendance);
   const isAbsentOnly = attendance.attendanceStatus === 'absent' && !attendance.checkInTime;
 
   if (isAbsentOnly && showEmployee) {
@@ -110,6 +111,12 @@ export function AttendanceCard({ attendance, onPress, showEmployee = false }: At
         <Text style={styles.label}>Working Hours:</Text>
         <Text style={[styles.value, isActive && styles.valueActive]}>{workingHoursLabel}</Text>
       </View>
+      {breakMinutes > 0 ? (
+        <View style={styles.breakInfoRow}>
+          <MaterialCommunityIcons name="coffee-outline" size={16} color={theme.colors.warning} />
+          <Text style={styles.breakInfoText}>Break: {formatWorkingHours(breakMinutes)}</Text>
+        </View>
+      ) : null}
       {attendance.checkOutTime && (attendance.overtimeMinutes ?? 0) > 0 ? (
         <View style={styles.otBanner}>
           <MaterialCommunityIcons name="clock-plus-outline" size={16} color={theme.colors.info} />
@@ -227,6 +234,18 @@ const styles = StyleSheet.create({
     fontSize: theme.fonts.sizes.xs,
     color: theme.colors.warning,
     fontWeight: theme.fonts.weights.semibold,
+  },
+  breakInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.xs,
+    paddingLeft: 26,
+  },
+  breakInfoText: {
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.warning,
+    fontWeight: theme.fonts.weights.medium,
   },
   otBanner: {
     flexDirection: 'row',

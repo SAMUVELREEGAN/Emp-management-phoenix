@@ -1,7 +1,8 @@
 import { Alert, Linking, PermissionsAndroid, Platform } from 'react-native';
 import Geolocation, { PositionError, type GeoPosition } from 'react-native-geolocation-service';
 import type { GeoOptions } from 'react-native-geolocation-service';
-import type { LocationPayload } from '../types';
+import { geocodeApi } from '../api/geocodeApi';
+import type { Attendance, LocationPayload } from '../types';
 
 const ATTENDANCE_LOCATION_ATTEMPTS: GeoOptions[] = [
   {
@@ -340,7 +341,7 @@ export async function getLocationForAttendance(): Promise<LocationPayload | null
       }
 
       const coordinates = await getAttendanceCoordinates();
-      return coordinates;
+      return enrichLocationWithAddress(coordinates);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to get your location.';
@@ -373,7 +374,69 @@ export function formatGpsCoordinates(location?: LocationPayload): string {
   return coords;
 }
 
+export async function enrichLocationWithAddress(
+  location: LocationPayload,
+): Promise<LocationPayload> {
+  try {
+    const response = await geocodeApi.reverse(location.latitude, location.longitude);
+    const address = response.data.location.address?.trim();
+    if (address && !looksLikeCoordinates(address)) {
+      return {
+        ...location,
+        address,
+      };
+    }
+  } catch {
+    // Keep GPS-only payload when reverse geocoding is unavailable.
+  }
+
+  return location;
+}
+
+export async function enrichLocationIfNeeded(
+  location?: LocationPayload | null,
+): Promise<LocationPayload | undefined | null> {
+  if (!location) {
+    return location;
+  }
+
+  const address = location.address?.trim();
+  if (address && !looksLikeCoordinates(address)) {
+    return location;
+  }
+
+  return enrichLocationWithAddress(location);
+}
+
+export async function enrichAttendanceLocations(
+  attendance: Attendance | null,
+): Promise<Attendance | null> {
+  if (!attendance) {
+    return attendance;
+  }
+
+  const [checkInLocation, checkOutLocation] = await Promise.all([
+    enrichLocationIfNeeded(attendance.checkInLocation),
+    enrichLocationIfNeeded(attendance.checkOutLocation),
+  ]);
+
+  return {
+    ...attendance,
+    ...(checkInLocation ? { checkInLocation } : {}),
+    ...(checkOutLocation ? { checkOutLocation } : {}),
+  };
+}
+
 export function formatLocationLabel(location?: LocationPayload): string {
+  if (!location) {
+    return 'Location unavailable';
+  }
+
+  const address = location.address?.trim();
+  if (address && !looksLikeCoordinates(address)) {
+    return address;
+  }
+
   return formatGpsCoordinates(location);
 }
 
@@ -382,12 +445,10 @@ export function formatLocationWithCoords(location?: LocationPayload): string {
     return 'Location unavailable';
   }
 
-  const gps = formatGpsCoordinates(location);
   const address = location.address?.trim();
-
   if (address && !looksLikeCoordinates(address)) {
-    return `GPS: ${gps}\nNear: ${address}`;
+    return address;
   }
 
-  return `GPS: ${gps}`;
+  return `GPS: ${formatGpsCoordinates(location)}`;
 }

@@ -18,6 +18,44 @@ export const calculateWorkingMinutes = (
   return Math.max(0, Math.floor(diff / (1000 * 60)));
 };
 
+export interface BreakSessionLike {
+  startedAt: Date | string;
+  endedAt?: Date | string;
+}
+
+export const calculateBreakMinutes = (
+  sessions: BreakSessionLike[] = [],
+  referenceTime: Date = new Date(),
+): number => {
+  return sessions.reduce((total, session) => {
+    const start = new Date(session.startedAt);
+    const end = session.endedAt ? new Date(session.endedAt) : referenceTime;
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return total;
+    }
+
+    return total + Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60000));
+  }, 0);
+};
+
+export const isOnBreak = (sessions: BreakSessionLike[] = []): boolean => {
+  if (!sessions.length) {
+    return false;
+  }
+
+  const lastSession = sessions[sessions.length - 1];
+  return !lastSession.endedAt;
+};
+
+export const calculateNetWorkingMinutes = (
+  checkIn: Date,
+  checkOut: Date,
+  breakMinutes: number,
+): number => {
+  return Math.max(0, calculateWorkingMinutes(checkIn, checkOut) - breakMinutes);
+};
+
 export const formatWorkingHours = (totalMinutes: number): string => {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;

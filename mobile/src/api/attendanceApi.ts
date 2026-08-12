@@ -27,6 +27,22 @@ export const attendanceApi = {
     return response.data;
   },
 
+  startBreak: async (deviceTimestamp?: string) => {
+    const response = await apiClient.post<ApiResponse<{ attendance: Attendance }>>(
+      '/attendance/start-break',
+      { deviceTimestamp },
+    );
+    return response.data;
+  },
+
+  endBreak: async (deviceTimestamp?: string) => {
+    const response = await apiClient.post<ApiResponse<{ attendance: Attendance }>>(
+      '/attendance/end-break',
+      { deviceTimestamp },
+    );
+    return response.data;
+  },
+
   today: async () => {
     const response = await apiClient.get<ApiResponse<TodayAttendanceData>>(
       '/attendance/today',

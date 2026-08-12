@@ -52,17 +52,34 @@ const formatAddressParts = (address?: NominatimAddress): string => {
     return '';
   }
 
+  const city =
+    address.city || address.town || address.village || address.county || address.suburb;
+  const state = address.state;
   const street = [address.house_number, address.building, address.road]
     .filter(Boolean)
     .join(' ')
     .trim();
+  const locality = address.neighbourhood || address.suburb;
 
-  const locality =
-    address.neighbourhood ||
-    address.suburb ||
-    address.city ||
-    address.town ||
-    address.village;
+  if (street && city && state) {
+    return `${street}, ${city}, ${state}`;
+  }
+
+  if (street && city) {
+    return `${street}, ${city}`;
+  }
+
+  if (city && state) {
+    return `${city}, ${state}`;
+  }
+
+  if (city) {
+    return city;
+  }
+
+  if (locality && state) {
+    return `${locality}, ${state}`;
+  }
 
   const parts = [
     street,
@@ -130,7 +147,7 @@ function getGeocodingProvider(): 'osm' | 'google' | 'auto' {
     return env.GEOCODING_PROVIDER;
   }
 
-  return env.NODE_ENV === 'development' ? 'osm' : 'auto';
+  return env.GOOGLE_MAPS_API_KEY?.trim() ? 'auto' : 'osm';
 }
 
 function pickBestGoogleAddress(results?: GoogleGeocodeResult[]): string | null {
@@ -167,32 +184,37 @@ async function googleReverseGeocode(
     return null;
   }
 
-  try {
-    const params = new URLSearchParams({
-      latlng: `${latitude},${longitude}`,
-      key: apiKey,
-      language: 'en',
-      result_type: 'street_address|premise|subpremise|route',
-    });
+  const baseParams = {
+    latlng: `${latitude},${longitude}`,
+    key: apiKey,
+    language: 'en',
+  };
 
-    const data = await httpsGetJson<GoogleGeocodeResponse>(
-      `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`,
-    );
+  const attempts = [
+    new URLSearchParams({
+      ...baseParams,
+      result_type:
+        'street_address|premise|subpremise|route|locality|sublocality|administrative_area_level_2|administrative_area_level_1',
+    }),
+    new URLSearchParams(baseParams),
+  ];
 
-    const address = pickBestGoogleAddress(data.results);
-    if (address) {
-      return address;
+  for (const params of attempts) {
+    try {
+      const data = await httpsGetJson<GoogleGeocodeResponse>(
+        `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`,
+      );
+
+      const address = pickBestGoogleAddress(data.results);
+      if (address && !looksLikeCoordinates(address)) {
+        return address;
+      }
+    } catch (error) {
+      logger.warn('Google reverse geocoding failed', error);
     }
-
-    logger.warn('Google reverse geocoding returned no usable address', {
-      status: data.status,
-      errorMessage: data.error_message,
-    });
-    return null;
-  } catch (error) {
-    logger.warn('Google reverse geocoding failed', error);
-    return null;
   }
+
+  return null;
 }
 
 async function nominatimReverseGeocode(

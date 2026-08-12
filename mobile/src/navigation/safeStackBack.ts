@@ -183,6 +183,10 @@ export function useTabBack(
       if (!enabledRef.current) {
         return;
       }
+      if (tabName === 'Home') {
+        tabNavigation.navigate('Home', { screen: 'Dashboard' });
+        return;
+      }
       tabNavigation.navigate(tabName);
     });
   }, [tabNavigation, tabName]);

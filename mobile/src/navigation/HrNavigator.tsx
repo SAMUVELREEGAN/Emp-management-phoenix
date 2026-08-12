@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type {
   HrAttendanceStackParamList,
   HrEmployeesStackParamList,
+  HrHomeStackParamList,
   HrMoreStackParamList,
   HrReportsStackParamList,
   HrTabParamList,
@@ -24,9 +25,11 @@ import MoreHubScreen from '../screens/common/MoreHubScreen';
 import ProfileScreen from '../screens/common/ProfileScreen';
 import ChangePasswordScreen from '../screens/common/ChangePasswordScreen';
 import { ChatStackNavigator } from './ChatStackNavigator';
+import { homeTabScreenOptions } from './homeTabOptions';
 import { moreTabScreenOptions } from './moreTabOptions';
 
 const Tab = createBottomTabNavigator<HrTabParamList>();
+const HomeStack = createNativeStackNavigator<HrHomeStackParamList>();
 const EmployeesStack = createNativeStackNavigator<HrEmployeesStackParamList>();
 const AttendanceStack = createNativeStackNavigator<HrAttendanceStackParamList>();
 const MoreStack = createNativeStackNavigator<HrMoreStackParamList>();
@@ -76,9 +79,20 @@ function ProfileStackNavigator() {
   );
 }
 
+function HomeStackNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={stackScreenOptions} initialRouteName="Dashboard">
+      <HomeStack.Screen name="Dashboard" component={AdminDashboardScreen} />
+      <HomeStack.Screen name="Reports" component={ReportsStackNavigator} />
+      <HomeStack.Screen name="Notifications" component={NotificationsScreen} />
+      <HomeStack.Screen name="Profile" component={ProfileStackNavigator} />
+    </HomeStack.Navigator>
+  );
+}
+
 function MoreStackNavigator() {
   return (
-    <MoreStack.Navigator screenOptions={stackScreenOptions}>
+    <MoreStack.Navigator screenOptions={stackScreenOptions} initialRouteName="MoreHub">
       <MoreStack.Screen name="MoreHub" component={MoreHubScreen} />
       <MoreStack.Screen name="Reports" component={ReportsStackNavigator} />
       <MoreStack.Screen name="Notifications" component={NotificationsScreen} />
@@ -99,7 +113,7 @@ export function HrNavigator() {
   return (
     <LogoutGate>
       <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(hrTabIcons)}>
-        <Tab.Screen name="Home" component={AdminDashboardScreen} options={{ title: 'Home' }} />
+        <Tab.Screen name="Home" component={HomeStackNavigator} options={homeTabScreenOptions} />
         <Tab.Screen name="Employees" component={EmployeesStackNavigator} />
         <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />
         <Tab.Screen name="Chat" component={ChatStackNavigator} options={{ title: 'Chat' }} />

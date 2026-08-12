@@ -1,9 +1,9 @@
-import type { Attendance } from '../types';
+import type { Attendance, BreakSession } from '../types';
 import { formatLateDuration, formatWorkingHours } from './dates';
 
 type AttendanceTiming = Pick<
   Attendance,
-  'checkInTime' | 'checkOutTime' | 'totalWorkingMinutes'
+  'checkInTime' | 'checkOutTime' | 'totalWorkingMinutes' | 'totalBreakMinutes' | 'breakSessions'
 >;
 
 export function isAttendanceSessionActive(attendance?: AttendanceTiming | null): boolean {
@@ -25,6 +25,31 @@ export function calculateElapsedMinutes(
   return Math.max(0, Math.floor(diffMs / (1000 * 60)));
 }
 
+export function calculateBreakMinutes(
+  sessions: BreakSession[] = [],
+  referenceTime: Date = new Date(),
+): number {
+  return sessions.reduce((total, session) => {
+    const start = new Date(session.startedAt);
+    const end = session.endedAt ? new Date(session.endedAt) : referenceTime;
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return total;
+    }
+
+    return total + Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60000));
+  }, 0);
+}
+
+export function isOnBreak(attendance?: AttendanceTiming | null): boolean {
+  const sessions = attendance?.breakSessions ?? [];
+  if (!sessions.length) {
+    return false;
+  }
+
+  return !sessions[sessions.length - 1]?.endedAt;
+}
+
 export function getWorkingMinutes(
   attendance?: AttendanceTiming | null,
   now: Date = new Date(),
@@ -37,10 +62,40 @@ export function getWorkingMinutes(
     if (attendance.totalWorkingMinutes && attendance.totalWorkingMinutes > 0) {
       return attendance.totalWorkingMinutes;
     }
-    return calculateElapsedMinutes(attendance.checkInTime, attendance.checkOutTime);
+
+    const grossMinutes = calculateElapsedMinutes(
+      attendance.checkInTime,
+      attendance.checkOutTime,
+    );
+    const breakMinutes =
+      attendance.totalBreakMinutes ??
+      calculateBreakMinutes(attendance.breakSessions ?? [], new Date(attendance.checkOutTime));
+
+    return Math.max(0, grossMinutes - breakMinutes);
   }
 
-  return calculateElapsedMinutes(attendance.checkInTime, now);
+  const grossMinutes = calculateElapsedMinutes(attendance.checkInTime, now);
+  const breakMinutes =
+    attendance.totalBreakMinutes ?? calculateBreakMinutes(attendance.breakSessions ?? [], now);
+
+  return Math.max(0, grossMinutes - breakMinutes);
+}
+
+export function getBreakMinutes(
+  attendance?: AttendanceTiming | null,
+  now: Date = new Date(),
+): number {
+  if (!attendance?.checkInTime) {
+    return 0;
+  }
+
+  if (attendance.totalBreakMinutes != null && attendance.totalBreakMinutes >= 0) {
+    if (!isAttendanceSessionActive(attendance) || !isOnBreak(attendance)) {
+      return attendance.totalBreakMinutes;
+    }
+  }
+
+  return calculateBreakMinutes(attendance.breakSessions ?? [], now);
 }
 
 export function formatAttendanceWorkingHours(
@@ -55,6 +110,9 @@ export function formatAttendanceWorkingHours(
   const formatted = formatWorkingHours(minutes);
 
   if (isAttendanceSessionActive(attendance)) {
+    if (isOnBreak(attendance)) {
+      return `${formatted} (on break)`;
+    }
     return `${formatted} (running)`;
   }
 
@@ -80,6 +138,13 @@ export function getAttendanceStatusPresentation(attendance?: Attendance | null):
     return {
       status,
       label: hoursLabel,
+    };
+  }
+
+  if (isOnBreak(attendance)) {
+    return {
+      status: 'present',
+      label: formatAttendanceWorkingHours(attendance),
     };
   }
 

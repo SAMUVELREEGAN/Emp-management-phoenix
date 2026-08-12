@@ -20,7 +20,7 @@ import { useUnreadNotificationCount } from '../../hooks/useUnreadNotificationCou
 import { getErrorMessage } from '../../utils/errors';
 import type { EmployeeDashboardData } from '../../types';
 import type { EmployeeTabParamList } from '../../navigation/types';
-import { RETURN_TO_HOME_PARAMS } from '../../navigation/dashboardNavigation';
+import { RETURN_TO_HOME_PARAMS, navigateHomeNestedScreen, navigateHomeScreen } from '../../navigation/dashboardNavigation';
 
 export default function EmployeeDashboardScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<EmployeeTabParamList>>();
@@ -62,22 +62,25 @@ export default function EmployeeDashboardScreen() {
   const absentCount = data?.attendanceSummary.find(item => item._id === 'absent')?.count || 0;
   const totalDays = presentCount + lateCount + absentCount;
 
-  const goMore = useCallback(
+  const openQuickAccess = useCallback(
     (screen: 'Tasks' | 'Leave' | 'Notifications' | 'Profile') => {
-      const nestedParams: Record<
-        typeof screen,
-        { screen: string; params?: typeof RETURN_TO_HOME_PARAMS }
-      > = {
-        Tasks: { screen: 'MyTasks', params: RETURN_TO_HOME_PARAMS },
-        Leave: { screen: 'LeaveList', params: RETURN_TO_HOME_PARAMS },
-        Notifications: { screen: 'NotificationsMain', params: RETURN_TO_HOME_PARAMS },
-        Profile: { screen: 'ProfileMain', params: RETURN_TO_HOME_PARAMS },
+      if (screen === 'Notifications') {
+        navigateHomeScreen(rootNavigation, 'Notifications', RETURN_TO_HOME_PARAMS);
+        return;
+      }
+
+      const nestedScreens: Record<'Tasks' | 'Leave' | 'Profile', string> = {
+        Tasks: 'MyTasks',
+        Leave: 'LeaveList',
+        Profile: 'ProfileMain',
       };
 
-      rootNavigation.navigate('More', {
+      navigateHomeNestedScreen(
+        rootNavigation,
         screen,
-        params: nestedParams[screen],
-      });
+        nestedScreens[screen],
+        RETURN_TO_HOME_PARAMS,
+      );
     },
     [rootNavigation],
   );
@@ -102,7 +105,7 @@ export default function EmployeeDashboardScreen() {
         icon: 'calendar-plus',
         color: theme.colors.success,
         iconBg: theme.colors.successLight,
-        onPress: () => goMore('Leave'),
+        onPress: () => openQuickAccess('Leave'),
       },
       {
         key: 'tasks',
@@ -110,7 +113,7 @@ export default function EmployeeDashboardScreen() {
         icon: 'clipboard-list-outline',
         color: theme.colors.info,
         iconBg: theme.colors.infoLight,
-        onPress: () => goMore('Tasks'),
+        onPress: () => openQuickAccess('Tasks'),
       },
       {
         key: 'reports',
@@ -143,10 +146,10 @@ export default function EmployeeDashboardScreen() {
         color: theme.colors.error,
         iconBg: theme.colors.errorLight,
         badge: unreadCount,
-        onPress: () => goMore('Notifications'),
+        onPress: () => openQuickAccess('Notifications'),
       },
     ],
-    [goMore, rootNavigation, unreadCount],
+    [openQuickAccess, rootNavigation, unreadCount],
   );
 
   const firstName = user?.fullName?.split(' ')[0] || 'Employee';
@@ -156,8 +159,8 @@ export default function EmployeeDashboardScreen() {
       <DashboardHeader
         welcomeName={firstName}
         unreadCount={unreadCount}
-        onMenuPress={() => goMore('Profile')}
-        onNotificationsPress={() => goMore('Notifications')}
+        onMenuPress={() => openQuickAccess('Profile')}
+        onNotificationsPress={() => openQuickAccess('Notifications')}
       />
       {loading ? (
         <LoadingIndicator fullScreen />

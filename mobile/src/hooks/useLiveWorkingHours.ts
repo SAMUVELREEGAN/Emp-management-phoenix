@@ -21,7 +21,7 @@ export function useLiveWorkingHours(attendance?: Attendance | null) {
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [isActive, attendance?.checkInTime, attendance?.checkOutTime]);
+  }, [isActive, attendance?.checkInTime, attendance?.checkOutTime, attendance?.breakSessions]);
 
   return {
     isActive,

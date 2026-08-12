@@ -43,6 +43,14 @@ export type EmployeeReportsStackParamList = {
   WorkReportDetail: { reportId: string };
 };
 
+export type EmployeeHomeStackParamList = {
+  Dashboard: undefined;
+  Tasks: NavigatorScreenParams<EmployeeTasksStackParamList>;
+  Leave: NavigatorScreenParams<EmployeeLeaveStackParamList>;
+  Notifications: { returnToHome?: boolean } | undefined;
+  Profile: NavigatorScreenParams<ProfileStackParamList>;
+};
+
 export type EmployeeMoreStackParamList = {
   MoreHub: undefined;
   Tasks: NavigatorScreenParams<EmployeeTasksStackParamList>;
@@ -52,7 +60,7 @@ export type EmployeeMoreStackParamList = {
 };
 
 export type EmployeeTabParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<EmployeeHomeStackParamList>;
   Attendance: NavigatorScreenParams<EmployeeAttendanceStackParamList>;
   Chat: NavigatorScreenParams<ChatStackParamList>;
   Reports: NavigatorScreenParams<EmployeeReportsStackParamList>;
@@ -96,6 +104,16 @@ export type AdminNotificationsStackParamList = {
   SendAnnouncement: undefined;
 };
 
+export type AdminHomeStackParamList = {
+  Dashboard: undefined;
+  Tasks: NavigatorScreenParams<AdminTasksStackParamList>;
+  Leave: NavigatorScreenParams<AdminLeaveStackParamList>;
+  Track: NavigatorScreenParams<AdminTrackStackParamList>;
+  Reports: NavigatorScreenParams<AdminReportsStackParamList>;
+  Notifications: NavigatorScreenParams<AdminNotificationsStackParamList>;
+  Profile: NavigatorScreenParams<ProfileStackParamList>;
+};
+
 export type AdminMoreStackParamList = {
   MoreHub: undefined;
   Tasks: NavigatorScreenParams<AdminTasksStackParamList>;
@@ -107,7 +125,7 @@ export type AdminMoreStackParamList = {
 };
 
 export type AdminTabParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<AdminHomeStackParamList>;
   Employees: NavigatorScreenParams<AdminEmployeesStackParamList>;
   Attendance: NavigatorScreenParams<AdminAttendanceStackParamList>;
   Chat: NavigatorScreenParams<ChatStackParamList>;
@@ -130,6 +148,13 @@ export type HrReportsStackParamList = {
   AdminWorkReportDetail: { reportId: string };
 };
 
+export type HrHomeStackParamList = {
+  Dashboard: undefined;
+  Reports: NavigatorScreenParams<HrReportsStackParamList>;
+  Notifications: { returnToHome?: boolean } | undefined;
+  Profile: NavigatorScreenParams<ProfileStackParamList>;
+};
+
 export type HrMoreStackParamList = {
   MoreHub: undefined;
   Reports: NavigatorScreenParams<HrReportsStackParamList>;
@@ -138,7 +163,7 @@ export type HrMoreStackParamList = {
 };
 
 export type HrTabParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<HrHomeStackParamList>;
   Employees: NavigatorScreenParams<HrEmployeesStackParamList>;
   Attendance: NavigatorScreenParams<HrAttendanceStackParamList>;
   Chat: NavigatorScreenParams<ChatStackParamList>;

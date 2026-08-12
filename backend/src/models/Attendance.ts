@@ -1,6 +1,11 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
 import { AttendanceStatus, LocationPayload } from '../types';
 
+export interface IBreakSession {
+  startedAt: Date;
+  endedAt?: Date;
+}
+
 export interface IAttendance extends Document {
   _id: Types.ObjectId;
   employee: Types.ObjectId;
@@ -10,6 +15,8 @@ export interface IAttendance extends Document {
   checkInLocation?: LocationPayload;
   checkOutLocation?: LocationPayload;
   totalWorkingMinutes: number;
+  totalBreakMinutes: number;
+  breakSessions: IBreakSession[];
   overtimeMinutes: number;
   lateMinutes: number;
   isEarlyCheckout: boolean;
@@ -25,6 +32,14 @@ const locationSchema = new Schema<LocationPayload>(
     longitude: { type: Number, required: true },
     address: { type: String },
     accuracy: { type: Number },
+  },
+  { _id: false },
+);
+
+const breakSessionSchema = new Schema<IBreakSession>(
+  {
+    startedAt: { type: Date, required: true },
+    endedAt: { type: Date },
   },
   { _id: false },
 );
@@ -55,6 +70,15 @@ const attendanceSchema = new Schema<IAttendance>(
     totalWorkingMinutes: {
       type: Number,
       default: 0,
+    },
+    totalBreakMinutes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    breakSessions: {
+      type: [breakSessionSchema],
+      default: [],
     },
     overtimeMinutes: {
       type: Number,

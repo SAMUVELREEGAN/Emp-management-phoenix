@@ -3,12 +3,15 @@ import { Attendance, IAttendance } from '../models/Attendance';
 import { User, IUser } from '../models/User';
 import { ApiError } from '../utils/ApiError';
 import {
+  calculateBreakMinutes,
+  calculateNetWorkingMinutes,
   calculateOvertimeMinutes,
   calculateWorkingMinutes,
   determineAttendanceStatus,
   endOfDay,
   formatLateDuration,
   isEarlyCheckout,
+  isOnBreak,
   parseDateOnly,
   startOfDay,
 } from '../utils/dateHelpers';
@@ -42,6 +45,8 @@ function enrichAttendanceRecord<
     checkInTime?: Date;
     checkOutTime?: Date;
     totalWorkingMinutes?: number;
+    totalBreakMinutes?: number;
+    breakSessions?: { startedAt: Date; endedAt?: Date }[];
     overtimeMinutes?: number;
     toObject?: () => T;
   },
@@ -55,19 +60,35 @@ function enrichAttendanceRecord<
       ? (attendance.toObject() as T)
       : { ...attendance };
 
+  const breakSessions = record.breakSessions ?? [];
+  const now = new Date();
+  const breakMinutes = calculateBreakMinutes(breakSessions, now);
+  record.totalBreakMinutes = breakMinutes;
+
   if (record.checkInTime && !record.checkOutTime) {
-    record.totalWorkingMinutes = calculateWorkingMinutes(
+    record.totalWorkingMinutes = calculateNetWorkingMinutes(
       new Date(record.checkInTime),
-      new Date(),
+      now,
+      breakMinutes,
     );
     record.overtimeMinutes = 0;
   } else if (record.checkInTime && record.checkOutTime) {
+    const grossMinutes = calculateWorkingMinutes(
+      new Date(record.checkInTime),
+      new Date(record.checkOutTime),
+    );
+    const storedBreakMinutes =
+      record.totalBreakMinutes != null && record.totalBreakMinutes >= 0
+        ? record.totalBreakMinutes
+        : breakMinutes;
+
     record.totalWorkingMinutes =
       record.totalWorkingMinutes && record.totalWorkingMinutes > 0
         ? record.totalWorkingMinutes
-        : calculateWorkingMinutes(
+        : calculateNetWorkingMinutes(
             new Date(record.checkInTime),
             new Date(record.checkOutTime),
+            storedBreakMinutes,
           );
 
     if (officeEndTime) {
@@ -78,8 +99,13 @@ function enrichAttendanceRecord<
     } else {
       record.overtimeMinutes = record.overtimeMinutes ?? 0;
     }
+
+    if (!record.totalBreakMinutes) {
+      record.totalBreakMinutes = storedBreakMinutes;
+    }
   } else {
     record.totalWorkingMinutes = 0;
+    record.totalBreakMinutes = 0;
     record.overtimeMinutes = 0;
   }
 
@@ -91,6 +117,8 @@ function enrichAttendanceRecords<
     checkInTime?: Date;
     checkOutTime?: Date;
     totalWorkingMinutes?: number;
+    totalBreakMinutes?: number;
+    breakSessions?: { startedAt: Date; endedAt?: Date }[];
     overtimeMinutes?: number;
     toObject?: () => T;
   },
@@ -213,6 +241,8 @@ export const checkIn = async (
     existing.attendanceStatus = status;
     existing.lateMinutes = lateMinutes;
     existing.totalWorkingMinutes = 0;
+    existing.totalBreakMinutes = 0;
+    existing.breakSessions = [];
     existing.overtimeMinutes = 0;
     existing.checkOutTime = undefined;
     existing.checkOutLocation = undefined;
@@ -279,6 +309,13 @@ export const checkOut = async (
     throw ApiError.badRequest('Check-out time cannot be before check-in time');
   }
 
+  if (isOnBreak(attendance.breakSessions)) {
+    const openBreak = attendance.breakSessions[attendance.breakSessions.length - 1];
+    openBreak.endedAt = now;
+  }
+
+  const totalBreakMinutes = calculateBreakMinutes(attendance.breakSessions, now);
+
   const officeHours = await getOfficeHours();
   const earlyCheckout = isEarlyCheckout(now, officeHours.officeEndTime);
 
@@ -298,9 +335,11 @@ export const checkOut = async (
 
   attendance.checkOutTime = now;
   attendance.checkOutLocation = resolvedLocation;
-  attendance.totalWorkingMinutes = calculateWorkingMinutes(
+  attendance.totalBreakMinutes = totalBreakMinutes;
+  attendance.totalWorkingMinutes = calculateNetWorkingMinutes(
     attendance.checkInTime,
     now,
+    totalBreakMinutes,
   );
   attendance.overtimeMinutes = calculateOvertimeMinutes(
     now,
@@ -321,6 +360,80 @@ export const checkOut = async (
   );
 
   await endRouteSession(attendance._id.toString(), resolvedLocation);
+
+  return enrichAttendanceRecord(
+    await Attendance.findById(attendance._id).populate('employee', employeePopulateFields),
+    officeHours.officeEndTime,
+  );
+};
+
+async function getActiveAttendanceForToday(employeeId: string) {
+  const today = startOfDay();
+  const attendance = await Attendance.findOne({
+    employee: employeeId,
+    date: today,
+  });
+
+  if (!attendance?.checkInTime) {
+    throw ApiError.badRequest('You must check in before managing breaks');
+  }
+
+  if (attendance.checkOutTime) {
+    throw ApiError.badRequest('You have already checked out today');
+  }
+
+  return attendance;
+}
+
+export const startBreak = async (employeeId: string, deviceTimestamp?: string) => {
+  const attendance = await getActiveAttendanceForToday(employeeId);
+
+  if (isOnBreak(attendance.breakSessions)) {
+    throw ApiError.conflict('You are already on a break');
+  }
+
+  const now = deviceTimestamp ? new Date(deviceTimestamp) : new Date();
+  if (Number.isNaN(now.getTime())) {
+    throw ApiError.badRequest('Invalid device timestamp');
+  }
+
+  if (now.getTime() < attendance.checkInTime!.getTime()) {
+    throw ApiError.badRequest('Break cannot start before check-in time');
+  }
+
+  attendance.breakSessions.push({ startedAt: now });
+  await attendance.save();
+
+  const officeHours = await getOfficeHours();
+
+  return enrichAttendanceRecord(
+    await Attendance.findById(attendance._id).populate('employee', employeePopulateFields),
+    officeHours.officeEndTime,
+  );
+};
+
+export const endBreak = async (employeeId: string, deviceTimestamp?: string) => {
+  const attendance = await getActiveAttendanceForToday(employeeId);
+
+  if (!isOnBreak(attendance.breakSessions)) {
+    throw ApiError.badRequest('You are not currently on a break');
+  }
+
+  const now = deviceTimestamp ? new Date(deviceTimestamp) : new Date();
+  if (Number.isNaN(now.getTime())) {
+    throw ApiError.badRequest('Invalid device timestamp');
+  }
+
+  const openBreak = attendance.breakSessions[attendance.breakSessions.length - 1];
+  if (now.getTime() < openBreak.startedAt.getTime()) {
+    throw ApiError.badRequest('Break end time cannot be before break start time');
+  }
+
+  openBreak.endedAt = now;
+  attendance.totalBreakMinutes = calculateBreakMinutes(attendance.breakSessions, now);
+  await attendance.save();
+
+  const officeHours = await getOfficeHours();
 
   return enrichAttendanceRecord(
     await Attendance.findById(attendance._id).populate('employee', employeePopulateFields),

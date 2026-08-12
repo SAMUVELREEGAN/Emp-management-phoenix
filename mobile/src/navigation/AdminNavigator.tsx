@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type {
   AdminAttendanceStackParamList,
   AdminEmployeesStackParamList,
+  AdminHomeStackParamList,
   AdminLeaveStackParamList,
   AdminMoreStackParamList,
   AdminNotificationsStackParamList,
@@ -36,9 +37,11 @@ import MoreHubScreen from '../screens/common/MoreHubScreen';
 import ProfileScreen from '../screens/common/ProfileScreen';
 import ChangePasswordScreen from '../screens/common/ChangePasswordScreen';
 import { ChatStackNavigator } from './ChatStackNavigator';
+import { homeTabScreenOptions } from './homeTabOptions';
 import { moreTabScreenOptions } from './moreTabOptions';
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
+const HomeStack = createNativeStackNavigator<AdminHomeStackParamList>();
 const EmployeesStack = createNativeStackNavigator<AdminEmployeesStackParamList>();
 const AttendanceStack = createNativeStackNavigator<AdminAttendanceStackParamList>();
 const MoreStack = createNativeStackNavigator<AdminMoreStackParamList>();
@@ -129,9 +132,23 @@ function ProfileStackNavigator() {
   );
 }
 
+function HomeStackNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={stackScreenOptions} initialRouteName="Dashboard">
+      <HomeStack.Screen name="Dashboard" component={AdminDashboardScreen} />
+      <HomeStack.Screen name="Tasks" component={TasksStackNavigator} />
+      <HomeStack.Screen name="Leave" component={LeaveStackNavigator} />
+      <HomeStack.Screen name="Track" component={TrackStackNavigator} />
+      <HomeStack.Screen name="Reports" component={ReportsStackNavigator} />
+      <HomeStack.Screen name="Notifications" component={NotificationsStackNavigator} />
+      <HomeStack.Screen name="Profile" component={ProfileStackNavigator} />
+    </HomeStack.Navigator>
+  );
+}
+
 function MoreStackNavigator() {
   return (
-    <MoreStack.Navigator screenOptions={stackScreenOptions}>
+    <MoreStack.Navigator screenOptions={stackScreenOptions} initialRouteName="MoreHub">
       <MoreStack.Screen name="MoreHub" component={MoreHubScreen} />
       <MoreStack.Screen name="Tasks" component={TasksStackNavigator} />
       <MoreStack.Screen name="Leave" component={LeaveStackNavigator} />
@@ -155,7 +172,7 @@ export function AdminNavigator() {
   return (
     <LogoutGate>
       <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(adminTabIcons)}>
-        <Tab.Screen name="Home" component={AdminDashboardScreen} options={{ title: 'Home' }} />
+        <Tab.Screen name="Home" component={HomeStackNavigator} options={homeTabScreenOptions} />
         <Tab.Screen name="Employees" component={EmployeesStackNavigator} />
         <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />
         <Tab.Screen name="Chat" component={ChatStackNavigator} options={{ title: 'Chat' }} />

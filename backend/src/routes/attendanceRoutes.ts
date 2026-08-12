@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
 import { validate } from '../middleware/errorHandler';
-import { checkInSchema, checkOutSchema, attendanceBreakdownSchema, attendanceExportSchema } from '../validators/schemas';
+import { checkInSchema, checkOutSchema, breakActionSchema, attendanceBreakdownSchema, attendanceExportSchema } from '../validators/schemas';
 import * as attendanceController from '../controllers/attendanceController';
 
 const router = Router();
@@ -19,6 +19,30 @@ router.post(
   authorize('employee', 'hr'),
   validate(checkOutSchema),
   attendanceController.checkOut,
+);
+router.post(
+  '/start-break',
+  authorize('employee', 'hr'),
+  validate(breakActionSchema),
+  attendanceController.startBreak,
+);
+router.post(
+  '/end-break',
+  authorize('employee', 'hr'),
+  validate(breakActionSchema),
+  attendanceController.endBreak,
+);
+router.post(
+  '/break/start',
+  authorize('employee', 'hr'),
+  validate(breakActionSchema),
+  attendanceController.startBreak,
+);
+router.post(
+  '/break/end',
+  authorize('employee', 'hr'),
+  validate(breakActionSchema),
+  attendanceController.endBreak,
 );
 router.get('/today', authorize('employee', 'hr'), attendanceController.getToday);
 router.get(

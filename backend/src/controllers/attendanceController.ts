@@ -31,6 +31,22 @@ export const checkOut = asyncHandler(
   },
 );
 
+export const startBreak = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const attendance = await attendanceService.startBreak(
+    req.user!._id.toString(),
+    req.body.deviceTimestamp,
+  );
+  return sendSuccess(res, 'Break started successfully', { attendance });
+});
+
+export const endBreak = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const attendance = await attendanceService.endBreak(
+    req.user!._id.toString(),
+    req.body.deviceTimestamp,
+  );
+  return sendSuccess(res, 'Break ended successfully', { attendance });
+});
+
 export const getToday = asyncHandler(
   async (req: AuthRequest, res: Response) => {
     const result = await attendanceService.getTodayAttendance(
