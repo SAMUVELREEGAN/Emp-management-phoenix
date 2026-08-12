@@ -26,6 +26,7 @@ import { useRouteRecorder } from '../../hooks/useRouteRecorder';
 import {
   formatLateDuration,
   formatOfficeTime,
+  getDeviceTimezoneOffset,
   isBeforeOfficeEnd,
   toIsoDateTime,
 } from '../../utils/dates';
@@ -36,6 +37,13 @@ import type {
 } from '../../navigation/types';
 
 type AttendanceStackParamList = EmployeeAttendanceStackParamList | HrAttendanceStackParamList;
+
+const EARLY_CHECKOUT_REMARK_MESSAGE =
+  'Please provide a reason for checking out before office hours end';
+
+function needsEarlyCheckoutRemark(error: unknown): boolean {
+  return getErrorMessage(error).includes('provide a reason');
+}
 
 interface AttendanceScreenProps {
   embedded?: boolean;
@@ -252,15 +260,23 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     const response = await attendanceApi.checkOut({
       location,
       deviceTimestamp: toIsoDateTime(),
+      deviceTimezoneOffset: getDeviceTimezoneOffset(),
       earlyCheckoutRemark,
     });
     const checkedOut = await applyAttendance(response.data.attendance);
     setRouteRecordingEnabled(false);
     pendingRouteAfterCheckInRef.current = false;
+    setShowEarlyCheckoutModal(false);
+    setPendingCheckoutLocation(null);
     Alert.alert(
       'Checked Out',
       `You checked out from:\n${formatLocationWithCoords(checkedOut?.checkOutLocation ?? location)}`,
     );
+  };
+
+  const promptEarlyCheckoutRemark = (location: LocationPayload) => {
+    setPendingCheckoutLocation(location);
+    setShowEarlyCheckoutModal(true);
   };
 
   const handleCheckOut = async () => {
@@ -281,12 +297,19 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
       }
 
       if (isBeforeOfficeEnd(latestOfficeHours.officeEndTime)) {
-        setPendingCheckoutLocation(location);
-        setShowEarlyCheckoutModal(true);
+        promptEarlyCheckoutRemark(location);
         return;
       }
 
-      await completeCheckOut(location);
+      try {
+        await completeCheckOut(location);
+      } catch (err) {
+        if (needsEarlyCheckoutRemark(err)) {
+          promptEarlyCheckoutRemark(location);
+          return;
+        }
+        throw err;
+      }
     } catch (err) {
       Alert.alert('Error', getErrorMessage(err));
     } finally {
@@ -301,9 +324,11 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     setActionLoading(true);
     try {
       await completeCheckOut(pendingCheckoutLocation, remark);
-      setShowEarlyCheckoutModal(false);
-      setPendingCheckoutLocation(null);
     } catch (err) {
+      if (needsEarlyCheckoutRemark(err)) {
+        Alert.alert('Reason required', EARLY_CHECKOUT_REMARK_MESSAGE);
+        return;
+      }
       Alert.alert('Error', getErrorMessage(err));
     } finally {
       setActionLoading(false);

@@ -19,7 +19,6 @@ type FabricSafeBackOptions = {
 };
 
 export const ATTENDANCE_MAIN_ROUTE = [{ name: 'AttendanceMain' }];
-export const MORE_HUB_ROUTE = [{ name: 'MoreHub' }];
 
 const DEFAULT_BACK_DELAY_MS = 480;
 const LIST_BACK_DELAY_MS = 560;
@@ -135,22 +134,10 @@ export function useStackBackTo(
 export function useMoreHubBack(
   options?: Pick<FabricSafeBackOptions, 'onBeforeBack' | 'delayMs' | 'enabled'>,
 ) {
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
-
-  let moreNavigation: NavigationProp<ParamListBase> | undefined = navigation;
-  while (moreNavigation) {
-    const routeNames = moreNavigation.getState()?.routeNames ?? [];
-    if (routeNames.includes('MoreHub')) {
-      break;
-    }
-    moreNavigation = moreNavigation.getParent() ?? undefined;
-  }
-
-  return useFabricSafeBackOn(moreNavigation ?? navigation, {
-    routes: MORE_HUB_ROUTE,
-    index: 0,
-    delayMs: HUB_BACK_DELAY_MS,
-    ...options,
+  return useTabBack('More', {
+    onBeforeBack: options?.onBeforeBack,
+    delayMs: options?.delayMs ?? HUB_BACK_DELAY_MS,
+    enabled: options?.enabled,
   });
 }
 
@@ -185,6 +172,10 @@ export function useTabBack(
       }
       if (tabName === 'Home') {
         tabNavigation.navigate('Home', { screen: 'Dashboard' });
+        return;
+      }
+      if (tabName === 'More') {
+        tabNavigation.navigate('More', { screen: 'MoreHub' });
         return;
       }
       tabNavigation.navigate(tabName);

@@ -27,6 +27,7 @@ interface GoogleGeocodeResult {
   geometry?: {
     location_type?: string;
   };
+  types?: string[];
 }
 
 interface GoogleGeocodeResponse {
@@ -36,7 +37,6 @@ interface GoogleGeocodeResponse {
 }
 
 const geocodingHttpsAgent = new https.Agent({
-  // Windows dev machines with antivirus SSL inspection often fail Node fetch TLS.
   rejectUnauthorized: env.NODE_ENV === 'production',
 });
 
@@ -47,51 +47,67 @@ const GOOGLE_PRECISION_RANK: Record<string, number> = {
   APPROXIMATE: 1,
 };
 
-const formatAddressParts = (address?: NominatimAddress): string => {
-  if (!address) {
-    return '';
+function looksLikeCoordinates(value: string): boolean {
+  return /^-?\d+\.\d+\s*,\s*-?\d+\.\d+$/.test(value.trim());
+}
+
+export function cleanGoogleFormattedAddress(formatted: string): string {
+  let cleaned = formatted.trim();
+
+  // Remove Google Plus Code prefix (e.g. "P8CW+XPX ") while keeping the rest.
+  cleaned = cleaned.replace(/^[A-Z0-9]{4,}\+[A-Z0-9]{2,}\s*/i, '');
+
+  // Drop trailing country for a cleaner label.
+  cleaned = cleaned.replace(/,\s*India\s*$/i, '');
+
+  return cleaned.trim();
+}
+
+function pickBestGoogleFormattedAddress(results?: GoogleGeocodeResult[]): string | null {
+  if (!results?.length) {
+    return null;
   }
 
-  const city =
-    address.city || address.town || address.village || address.county || address.suburb;
-  const state = address.state;
-  const street = [address.house_number, address.building, address.road]
+  let best: { rank: number; address: string } | null = null;
+
+  for (const result of results) {
+    const formatted = result.formatted_address?.trim();
+    if (!formatted) {
+      continue;
+    }
+
+    const cleaned = cleanGoogleFormattedAddress(formatted);
+    if (!cleaned || looksLikeCoordinates(cleaned)) {
+      continue;
+    }
+
+    const rank = GOOGLE_PRECISION_RANK[result.geometry?.location_type ?? ''] ?? 0;
+    if (!best || rank > best.rank) {
+      best = { rank, address: cleaned };
+    }
+  }
+
+  if (best?.address) {
+    return best.address;
+  }
+
+  const fallback = results[0]?.formatted_address?.trim();
+  return fallback ? cleanGoogleFormattedAddress(fallback) : null;
+}
+
+function formatOsmDisplayName(displayName?: string): string | null {
+  if (!displayName?.trim()) {
+    return null;
+  }
+
+  const parts = displayName
+    .split(',')
+    .map(part => part.trim())
     .filter(Boolean)
-    .join(' ')
-    .trim();
-  const locality = address.neighbourhood || address.suburb;
+    .filter(part => !['india', 'ind'].includes(part.toLowerCase()));
 
-  if (street && city && state) {
-    return `${street}, ${city}, ${state}`;
-  }
-
-  if (street && city) {
-    return `${street}, ${city}`;
-  }
-
-  if (city && state) {
-    return `${city}, ${state}`;
-  }
-
-  if (city) {
-    return city;
-  }
-
-  if (locality && state) {
-    return `${locality}, ${state}`;
-  }
-
-  const parts = [
-    street,
-    locality,
-    address.county,
-    address.state,
-    address.postcode,
-    address.country,
-  ].filter(Boolean);
-
-  return parts.join(', ');
-};
+  return parts.length ? parts.slice(0, 4).join(', ') : null;
+}
 
 function coordinateFallback(latitude: number, longitude: number): string {
   return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
@@ -150,30 +166,6 @@ function getGeocodingProvider(): 'osm' | 'google' | 'auto' {
   return env.GOOGLE_MAPS_API_KEY?.trim() ? 'auto' : 'osm';
 }
 
-function pickBestGoogleAddress(results?: GoogleGeocodeResult[]): string | null {
-  if (!results?.length) {
-    return null;
-  }
-
-  let best: { rank: number; address: string } | null = null;
-
-  for (const result of results) {
-    const address = result.formatted_address?.trim();
-    if (!address) {
-      continue;
-    }
-
-    const locationType = result.geometry?.location_type ?? 'APPROXIMATE';
-    const rank = GOOGLE_PRECISION_RANK[locationType] ?? 0;
-
-    if (!best || rank > best.rank) {
-      best = { rank, address };
-    }
-  }
-
-  return best?.address ?? results[0]?.formatted_address?.trim() ?? null;
-}
-
 async function googleReverseGeocode(
   latitude: number,
   longitude: number,
@@ -184,37 +176,29 @@ async function googleReverseGeocode(
     return null;
   }
 
-  const baseParams = {
+  const params = new URLSearchParams({
     latlng: `${latitude},${longitude}`,
     key: apiKey,
     language: 'en',
-  };
+  });
 
-  const attempts = [
-    new URLSearchParams({
-      ...baseParams,
-      result_type:
-        'street_address|premise|subpremise|route|locality|sublocality|administrative_area_level_2|administrative_area_level_1',
-    }),
-    new URLSearchParams(baseParams),
-  ];
+  try {
+    const data = await httpsGetJson<GoogleGeocodeResponse>(
+      `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`,
+    );
 
-  for (const params of attempts) {
-    try {
-      const data = await httpsGetJson<GoogleGeocodeResponse>(
-        `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`,
-      );
-
-      const address = pickBestGoogleAddress(data.results);
-      if (address && !looksLikeCoordinates(address)) {
-        return address;
-      }
-    } catch (error) {
-      logger.warn('Google reverse geocoding failed', error);
+    if (data.status && data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+      logger.warn('Google reverse geocoding status', {
+        status: data.status,
+        error: data.error_message,
+      });
     }
-  }
 
-  return null;
+    return pickBestGoogleFormattedAddress(data.results);
+  } catch (error) {
+    logger.warn('Google reverse geocoding failed', error);
+    return null;
+  }
 }
 
 async function nominatimReverseGeocode(
@@ -226,7 +210,7 @@ async function nominatimReverseGeocode(
       format: 'json',
       lat: String(latitude),
       lon: String(longitude),
-      zoom: '19',
+      zoom: '18',
       addressdetails: '1',
     });
 
@@ -237,14 +221,7 @@ async function nominatimReverseGeocode(
       },
     );
 
-    const formatted = formatAddressParts(data.address);
-    const displayName = data.display_name?.trim();
-
-    if (formatted) {
-      return formatted;
-    }
-
-    return displayName || null;
+    return formatOsmDisplayName(data.display_name);
   } catch (error) {
     logger.warn('OpenStreetMap reverse geocoding failed', error);
     return null;
@@ -274,11 +251,7 @@ export async function reverseGeocode(
   }
 
   const osmAddress = await nominatimReverseGeocode(latitude, longitude);
-  if (osmAddress) {
-    return osmAddress;
-  }
-
-  return fallback;
+  return osmAddress || fallback;
 }
 
 export async function resolveLocationAddress(location: {
@@ -300,8 +273,4 @@ export async function resolveLocationAddress(location: {
     address,
     accuracy: location.accuracy,
   };
-}
-
-function looksLikeCoordinates(value: string): boolean {
-  return /^-?\d+\.\d+\s*,\s*-?\d+\.\d+$/.test(value.trim());
 }

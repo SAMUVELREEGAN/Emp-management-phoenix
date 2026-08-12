@@ -56,6 +56,24 @@ function looksLikeCoordinates(value: string): boolean {
   return /^-?\d+\.\d+\s*,\s*-?\d+\.\d+$/.test(value.trim());
 }
 
+function shouldRefreshPlaceName(address?: string): boolean {
+  if (!address?.trim() || looksLikeCoordinates(address)) {
+    return true;
+  }
+
+  const parts = address
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  // Re-fetch generic town/city labels like "Manamadurai, Tamil Nadu, India".
+  if (parts.length <= 3) {
+    return true;
+  }
+
+  return false;
+}
+
 function toLocationPayload(position: GeoPosition): LocationPayload {
   const accuracy = position.coords.accuracy;
   return {
@@ -401,7 +419,7 @@ export async function enrichLocationIfNeeded(
   }
 
   const address = location.address?.trim();
-  if (address && !looksLikeCoordinates(address)) {
+  if (address && !shouldRefreshPlaceName(address)) {
     return location;
   }
 
@@ -441,14 +459,5 @@ export function formatLocationLabel(location?: LocationPayload): string {
 }
 
 export function formatLocationWithCoords(location?: LocationPayload): string {
-  if (!location) {
-    return 'Location unavailable';
-  }
-
-  const address = location.address?.trim();
-  if (address && !looksLikeCoordinates(address)) {
-    return address;
-  }
-
-  return `GPS: ${formatGpsCoordinates(location)}`;
+  return formatLocationLabel(location);
 }

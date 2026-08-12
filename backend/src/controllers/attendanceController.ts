@@ -24,6 +24,7 @@ export const checkOut = asyncHandler(
       req.body.location,
       req.body.deviceTimestamp,
       req.body.earlyCheckoutRemark,
+      req.body.deviceTimezoneOffset,
     );
     return sendSuccess(res, 'Attendance checked out successfully', {
       attendance,

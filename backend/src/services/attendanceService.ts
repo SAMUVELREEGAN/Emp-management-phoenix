@@ -277,6 +277,7 @@ export const checkOut = async (
   location: LocationPayload,
   deviceTimestamp?: string,
   earlyCheckoutRemark?: string,
+  deviceTimezoneOffset?: number,
 ) => {
   const user = await User.findById(employeeId);
   if (!user) {
@@ -317,7 +318,11 @@ export const checkOut = async (
   const totalBreakMinutes = calculateBreakMinutes(attendance.breakSessions, now);
 
   const officeHours = await getOfficeHours();
-  const earlyCheckout = isEarlyCheckout(now, officeHours.officeEndTime);
+  const earlyCheckout = isEarlyCheckout(
+    now,
+    officeHours.officeEndTime,
+    deviceTimezoneOffset,
+  );
 
   if (earlyCheckout) {
     const remark = earlyCheckoutRemark?.trim();

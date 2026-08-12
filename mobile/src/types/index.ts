@@ -233,6 +233,7 @@ export interface ResendVerificationPayload {
 export interface CheckInOutPayload {
   location: LocationPayload;
   deviceTimestamp?: string;
+  deviceTimezoneOffset?: number;
   earlyCheckoutRemark?: string;
 }
 

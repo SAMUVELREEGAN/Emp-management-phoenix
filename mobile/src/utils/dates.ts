@@ -203,6 +203,10 @@ export function toIsoDateTime(): string {
   return new Date().toISOString();
 }
 
+export function getDeviceTimezoneOffset(): number {
+  return new Date().getTimezoneOffset();
+}
+
 export function calculateLeaveDuration(
   leaveType: 'full_day' | 'half_day',
   fromDate: string,

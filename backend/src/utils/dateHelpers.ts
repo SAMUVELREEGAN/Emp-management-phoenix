@@ -10,6 +10,16 @@ export const getMinutesFromDate = (date: Date): number => {
   return date.getHours() * 60 + date.getMinutes();
 };
 
+/** Wall-clock minutes using the device timezone (JS getTimezoneOffset convention). */
+export const getDeviceLocalMinutes = (
+  date: Date,
+  timezoneOffsetMinutes: number,
+): number => {
+  const localMs = date.getTime() - timezoneOffsetMinutes * 60 * 1000;
+  const local = new Date(localMs);
+  return local.getUTCHours() * 60 + local.getUTCMinutes();
+};
+
 export const calculateWorkingMinutes = (
   checkIn: Date,
   checkOut: Date,
@@ -97,8 +107,14 @@ export const evaluateCheckIn = (
 export const isEarlyCheckout = (
   checkOutTime: Date,
   officeEndTime: string,
+  timezoneOffsetMinutes?: number,
 ): boolean => {
-  return getMinutesFromDate(checkOutTime) < parseTimeToMinutes(officeEndTime);
+  const checkoutMinutes =
+    timezoneOffsetMinutes != null
+      ? getDeviceLocalMinutes(checkOutTime, timezoneOffsetMinutes)
+      : getMinutesFromDate(checkOutTime);
+
+  return checkoutMinutes < parseTimeToMinutes(officeEndTime);
 };
 
 /** Minutes worked after office end time on the same day (0 if checkout is on time or early). */
