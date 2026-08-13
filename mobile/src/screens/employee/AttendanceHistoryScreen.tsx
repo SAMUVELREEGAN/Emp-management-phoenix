@@ -1,15 +1,18 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { AppHeader, AttendanceCard, EmptyState, ErrorMessage, LoadingIndicator } from '../../components';
 import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
+import { settingsApi } from '../../api/settingsApi';
 import { getErrorMessage } from '../../utils/errors';
+import { normalizeOfficeHours } from '../../utils/officeHours';
 import type { Attendance } from '../../types';
 import { useFabricSafeBack, ATTENDANCE_MAIN_ROUTE } from '../../navigation/safeStackBack';
 
 export default function AttendanceHistoryScreen() {
   const [records, setRecords] = useState<Attendance[]>([]);
+  const [officeStartTime, setOfficeStartTime] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -58,6 +61,17 @@ export default function AttendanceHistoryScreen() {
     }, [fetchHistory]),
   );
 
+  useEffect(() => {
+    settingsApi
+      .getOfficeHours()
+      .then(response => {
+        setOfficeStartTime(normalizeOfficeHours(response.data.officeHours).officeStartTime);
+      })
+      .catch(() => {
+        setOfficeStartTime(undefined);
+      });
+  }, []);
+
   return (
     <View style={styles.container} collapsable={false}>
       <AppHeader title="Attendance History" showBack onBack={handleBack} />
@@ -83,7 +97,9 @@ export default function AttendanceHistoryScreen() {
               message="Your attendance history will appear here."
             />
           }
-          renderItem={({ item }) => <AttendanceCard attendance={item} />}
+          renderItem={({ item }) => (
+            <AttendanceCard attendance={item} officeStartTime={officeStartTime} />
+          )}
         />
       )}
     </View>

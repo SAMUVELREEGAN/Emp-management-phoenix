@@ -90,9 +90,13 @@ export const formatLateDuration = (lateMinutes: number): string => {
 export const evaluateCheckIn = (
   checkInTime: Date,
   officeStartTime: string,
+  timezoneOffsetMinutes?: number,
 ): { status: 'present' | 'late'; lateMinutes: number } => {
   const officeStart = parseTimeToMinutes(officeStartTime);
-  const checkInMinutes = getMinutesFromDate(checkInTime);
+  const checkInMinutes =
+    timezoneOffsetMinutes != null
+      ? getDeviceLocalMinutes(checkInTime, timezoneOffsetMinutes)
+      : getMinutesFromDate(checkInTime);
 
   if (checkInMinutes > officeStart) {
     return {
@@ -121,8 +125,12 @@ export const isEarlyCheckout = (
 export const calculateOvertimeMinutes = (
   checkOutTime: Date,
   officeEndTime: string,
+  timezoneOffsetMinutes?: number,
 ): number => {
-  const checkoutMinutes = getMinutesFromDate(checkOutTime);
+  const checkoutMinutes =
+    timezoneOffsetMinutes != null
+      ? getDeviceLocalMinutes(checkOutTime, timezoneOffsetMinutes)
+      : getMinutesFromDate(checkOutTime);
   const officeEndMinutes = parseTimeToMinutes(officeEndTime);
 
   if (checkoutMinutes <= officeEndMinutes) {
@@ -134,12 +142,21 @@ export const calculateOvertimeMinutes = (
 
 export const determineAttendanceStatus = async (
   checkInTime: Date,
+  timezoneOffsetMinutes?: number,
 ): Promise<{ status: 'present' | 'late'; lateMinutes: number }> => {
   try {
     const officeHours = await getOfficeHours();
-    return evaluateCheckIn(checkInTime, officeHours.officeStartTime);
+    return evaluateCheckIn(
+      checkInTime,
+      officeHours.officeStartTime,
+      timezoneOffsetMinutes,
+    );
   } catch {
-    return evaluateCheckIn(checkInTime, env.OFFICE_START_TIME);
+    return evaluateCheckIn(
+      checkInTime,
+      env.OFFICE_START_TIME,
+      timezoneOffsetMinutes,
+    );
   }
 };
 
@@ -162,6 +179,28 @@ export const parseDateOnly = (value: string | Date): Date => {
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year, month - 1, day, 0, 0, 0, 0);
 };
+
+/** Sundays are treated as weekly holidays across attendance reports. */
+export const isWeeklyHoliday = (value?: string | Date | null): boolean => {
+  if (!value) {
+    return false;
+  }
+
+  const date =
+    value instanceof Date
+      ? value
+      : /^\d{4}-\d{2}-\d{2}/.test(value)
+        ? parseDateOnly(value.slice(0, 10))
+        : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  return date.getDay() === 0;
+};
+
+export const WEEKLY_HOLIDAY_LABEL = '-';
 
 export const toDateKey = (value: string | Date): string => {
   const date = value instanceof Date ? value : parseDateOnly(value);

@@ -11,6 +11,7 @@ export const checkIn = asyncHandler(async (req: AuthRequest, res: Response) => {
     req.user!._id.toString(),
     req.body.location,
     req.body.deviceTimestamp,
+    req.body.deviceTimezoneOffset,
   );
   return sendSuccess(res, 'Attendance checked in successfully', {
     attendance,

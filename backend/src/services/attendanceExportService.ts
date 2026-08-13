@@ -9,8 +9,10 @@ import {
   endOfDay,
   formatShortDateLabel,
   formatWorkingHours,
+  isWeeklyHoliday,
   parseDateOnly,
   toDateKey,
+  WEEKLY_HOLIDAY_LABEL,
 } from '../utils/dateHelpers';
 import { getOfficeHours } from './officeSettingsService';
 
@@ -77,14 +79,32 @@ function getDayCellLabel(
     overtimeMinutes?: number;
   },
   officeEndTime?: string,
+  day?: Date,
 ): {
   label: string;
   isPresent: boolean;
+  isHoliday: boolean;
   workingMinutes: number;
   overtimeMinutes: number;
 } {
+  if (day && isWeeklyHoliday(day) && !isPresentRecord(record)) {
+    return {
+      label: WEEKLY_HOLIDAY_LABEL,
+      isPresent: false,
+      isHoliday: true,
+      workingMinutes: 0,
+      overtimeMinutes: 0,
+    };
+  }
+
   if (!isPresentRecord(record)) {
-    return { label: 'Absent', isPresent: false, workingMinutes: 0, overtimeMinutes: 0 };
+    return {
+      label: 'Absent',
+      isPresent: false,
+      isHoliday: false,
+      workingMinutes: 0,
+      overtimeMinutes: 0,
+    };
   }
 
   const minutes = getWorkingMinutes(record);
@@ -100,6 +120,7 @@ function getDayCellLabel(
     return {
       label: `Late (${hoursLabel}${overtimeSuffix})`,
       isPresent: true,
+      isHoliday: false,
       workingMinutes: minutes,
       overtimeMinutes,
     };
@@ -108,6 +129,7 @@ function getDayCellLabel(
   return {
     label: `Present (${hoursLabel}${overtimeSuffix})`,
     isPresent: true,
+    isHoliday: false,
     workingMinutes: minutes,
     overtimeMinutes,
   };
@@ -195,10 +217,10 @@ export const exportAttendanceReport = async (
     for (const day of days) {
       const dateKey = toDateKey(day);
       const record = employeeRecords?.get(dateKey);
-      const cell = getDayCellLabel(record, officeEndTime);
+      const cell = getDayCellLabel(record, officeEndTime, day);
       if (cell.isPresent) {
         totalPresent += 1;
-      } else {
+      } else if (!cell.isHoliday) {
         totalAbsent += 1;
       }
       totalWorkingMinutes += cell.workingMinutes;
@@ -231,7 +253,8 @@ export const exportAttendanceReport = async (
   const roleLabel = staffRole === 'hr' ? 'HR' : 'Employee';
   sheet.getCell('A1').note =
     `${roleLabel} attendance from ${fromDateInput} to ${toDateInput}. ` +
-    `Office hours end: ${officeEndTime}. OT = time worked after office end.`;
+    `Office hours end: ${officeEndTime}. OT = time worked after office end. ` +
+    `Sundays are weekly holidays and shown as "${WEEKLY_HOLIDAY_LABEL}".`;
 
   const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
   const filename = `${staffRole}-attendance-${fromDateInput}-to-${toDateInput}.xlsx`;

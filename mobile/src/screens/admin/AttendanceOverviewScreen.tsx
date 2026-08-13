@@ -24,10 +24,12 @@ import {
 } from '../../components';
 import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
+import { settingsApi } from '../../api/settingsApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import { saveAndShareBase64File } from '../../utils/fileExport';
-import { formatDate, toDateInputValue } from '../../utils/dates';
+import { formatDate, isWeeklyHoliday, toDateInputValue } from '../../utils/dates';
+import { normalizeOfficeHours } from '../../utils/officeHours';
 import type {
   Attendance,
   AttendanceBreakdownCategory,
@@ -139,6 +141,7 @@ export default function AttendanceOverviewScreen({
   const [selectedDate, setSelectedDate] = useState(toDateInputValue());
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [officeStartTime, setOfficeStartTime] = useState<string | undefined>();
 
   const clearScreenState = useCallback(() => {
     setRecords([]);
@@ -227,6 +230,17 @@ export default function AttendanceOverviewScreen({
     }, [fetchData, staffTab, selectedDate, selectedCategory]),
   );
 
+  useEffect(() => {
+    settingsApi
+      .getOfficeHours()
+      .then(response => {
+        setOfficeStartTime(normalizeOfficeHours(response.data.officeHours).officeStartTime);
+      })
+      .catch(() => {
+        setOfficeStartTime(undefined);
+      });
+  }, []);
+
   const handleSelectCategory = (category: AttendanceBreakdownCategory) => {
     setSelectedCategory(current => (current === category ? 'all' : category));
   };
@@ -263,7 +277,9 @@ export default function AttendanceOverviewScreen({
       : `${tabLabel} Records${enableDateFilter ? ` (${formatDate(selectedDate)})` : ''}`;
 
   const emptyMessage =
-    selectedCategory !== 'all'
+    selectedCategory === 'absent' && isWeeklyHoliday(selectedDate)
+      ? `Sunday is a weekly holiday. No employees are marked absent on ${formatDate(selectedDate)}.`
+      : selectedCategory !== 'all'
       ? `No ${tabLabel.toLowerCase()}s marked as ${CATEGORY_LABELS[selectedCategory].toLowerCase()} on ${formatDate(selectedDate)}.`
       : enableDateFilter
         ? `No ${tabLabel.toLowerCase()} attendance found for ${formatDate(selectedDate)}.`
@@ -371,6 +387,7 @@ export default function AttendanceOverviewScreen({
             <AttendanceCard
               attendance={item}
               showEmployee
+              officeStartTime={officeStartTime}
               onPress={
                 item._id.startsWith('absent-') ? undefined : () => openDetail(item._id)
               }

@@ -82,6 +82,7 @@ export const locationSchema = z.object({
 export const checkInSchema = z.object({
   location: locationSchema,
   deviceTimestamp: z.string().optional(),
+  deviceTimezoneOffset: z.number().optional(),
 });
 
 export const checkOutSchema = z.object({

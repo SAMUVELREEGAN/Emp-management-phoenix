@@ -12,6 +12,7 @@ import {
   formatLateDuration,
   isEarlyCheckout,
   isOnBreak,
+  isWeeklyHoliday,
   parseDateOnly,
   startOfDay,
 } from '../utils/dateHelpers';
@@ -198,6 +199,7 @@ export const checkIn = async (
   employeeId: string,
   location: LocationPayload,
   deviceTimestamp?: string,
+  deviceTimezoneOffset?: number,
 ) => {
   const user = await User.findById(employeeId);
   if (!user) {
@@ -222,7 +224,10 @@ export const checkIn = async (
     throw ApiError.conflict('You have already checked in today');
   }
 
-  const { status, lateMinutes } = await determineAttendanceStatus(now);
+  const { status, lateMinutes } = await determineAttendanceStatus(
+    now,
+    deviceTimezoneOffset,
+  );
 
   const attendance =
     existing ||
@@ -349,6 +354,7 @@ export const checkOut = async (
   attendance.overtimeMinutes = calculateOvertimeMinutes(
     now,
     officeHours.officeEndTime,
+    deviceTimezoneOffset,
   );
 
   await attendance.save();
@@ -631,6 +637,9 @@ export const getAttendanceBreakdown = async (
     case 'checked_out':
       return enriched.filter((record) => !!record.checkOutTime);
     case 'absent':
+      if (isWeeklyHoliday(date)) {
+        return [];
+      }
       return activeUsers
         .filter((user) => !checkedInEmployeeIds.has(user._id.toString()))
         .map((user) => ({
@@ -653,6 +662,7 @@ const buildRoleSummary = (
   activeCount: number,
   records: IAttendance[],
   role: 'employee' | 'hr',
+  date?: Date,
 ) => {
   const roleRecords = records.filter((record) => {
     const emp = record.employee as unknown as { role?: string };
@@ -666,11 +676,12 @@ const buildRoleSummary = (
     (record) => record.attendanceStatus === 'late',
   ).length;
   const checkedOut = roleRecords.filter((record) => !!record.checkOutTime).length;
+  const isHoliday = date ? isWeeklyHoliday(date) : false;
 
   return {
     active: activeCount,
     present,
-    absent: Math.max(activeCount - present, 0),
+    absent: isHoliday ? 0 : Math.max(activeCount - present, 0),
     late,
     checkedOut,
   };
@@ -706,10 +717,13 @@ export const getAttendanceSummary = async (dateInput?: string) => {
     (record) => !!record.checkOutTime,
   ).length;
   const activeStaff = activeEmployees + activeHr;
-  const absentToday = Math.max(activeStaff - presentToday, 0);
+  const isHoliday = isWeeklyHoliday(date);
+  const absentToday = isHoliday
+    ? 0
+    : Math.max(activeStaff - presentToday, 0);
 
-  const employees = buildRoleSummary(activeEmployees, todayRecords, 'employee');
-  const hr = buildRoleSummary(activeHr, todayRecords, 'hr');
+  const employees = buildRoleSummary(activeEmployees, todayRecords, 'employee', date);
+  const hr = buildRoleSummary(activeHr, todayRecords, 'hr', date);
 
   return {
     totalEmployees,

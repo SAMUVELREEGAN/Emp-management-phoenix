@@ -7,13 +7,14 @@ import * as workReportService from '../services/workReportService';
 import { Attendance } from '../models/Attendance';
 import { WorkReport } from '../models/WorkReport';
 import { startOfDay } from '../utils/dateHelpers';
+import { getOfficeHours } from '../services/officeSettingsService';
 
 export const getAdminDashboard = asyncHandler(
   async (_req: AuthRequest, res: Response) => {
     const summary = await attendanceService.getAttendanceSummary();
     const reportStats = await workReportService.getWorkReportStats();
 
-    const [recentAttendance, recentReports] = await Promise.all([
+    const [recentAttendance, recentReports, officeHours] = await Promise.all([
       Attendance.find({ date: startOfDay() })
         .sort({ checkInTime: -1 })
         .limit(8)
@@ -22,6 +23,7 @@ export const getAdminDashboard = asyncHandler(
         .sort({ submittedAt: -1, createdAt: -1 })
         .limit(8)
         .populate('employee', 'fullName employeeId department'),
+      getOfficeHours(),
     ]);
 
     return sendSuccess(res, 'Admin dashboard fetched successfully', {
@@ -29,6 +31,7 @@ export const getAdminDashboard = asyncHandler(
         ...summary,
         ...reportStats,
       },
+      officeHours,
       recentAttendance,
       recentReports,
     });
@@ -70,6 +73,7 @@ export const getEmployeeDashboard = asyncHandler(
 
     return sendSuccess(res, 'Employee dashboard fetched successfully', {
       todayAttendance: todayAttendanceResult.attendance,
+      officeHours: todayAttendanceResult.officeHours,
       todayReport,
       recentReports,
       attendanceSummary,

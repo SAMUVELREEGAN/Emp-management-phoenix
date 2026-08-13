@@ -272,6 +272,8 @@ function watchBestPosition(
       );
     }, maxWaitMs);
 
+    const { maximumAge: _maximumAge, ...watchOptions } = options;
+
     watchId = Geolocation.watchPosition(
       position => {
         const payload = toLocationPayload(position);
@@ -287,10 +289,9 @@ function watchBestPosition(
       },
       error => fail(new Error(getLocationErrorMessage(error))),
       {
-        ...options,
+        ...watchOptions,
         enableHighAccuracy: true,
         distanceFilter: 0,
-        maximumAge: 0,
         showLocationDialog: true,
         forceRequestLocation: true,
       },

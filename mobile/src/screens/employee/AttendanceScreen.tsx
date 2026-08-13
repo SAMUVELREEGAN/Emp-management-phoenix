@@ -50,7 +50,7 @@ interface AttendanceScreenProps {
 }
 
 import { normalizeOfficeHours } from '../../utils/officeHours';
-import { getAttendanceStatusPresentation, isOnBreak } from '../../utils/attendanceHours';
+import { getAttendanceStatusPresentation, isOnBreak, calculateLateMinutes } from '../../utils/attendanceHours';
 import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 export default function AttendanceScreen({ embedded = false }: AttendanceScreenProps) {
@@ -218,13 +218,17 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
       const response = await attendanceApi.checkIn({
         location,
         deviceTimestamp: toIsoDateTime(),
+        deviceTimezoneOffset: getDeviceTimezoneOffset(),
       });
       const checkedIn = await applyAttendance(response.data.attendance);
       pendingRouteAfterCheckInRef.current = true;
 
-      const lateLabel = formatLateDuration(checkedIn?.lateMinutes);
+      const lateMinutes = checkedIn?.checkInTime
+        ? calculateLateMinutes(checkedIn.checkInTime, latestOfficeHours.officeStartTime)
+        : checkedIn?.lateMinutes ?? 0;
+      const lateLabel = formatLateDuration(lateMinutes);
       const statusMessage =
-        checkedIn?.attendanceStatus === 'late' && lateLabel
+        lateMinutes > 0 && lateLabel
           ? `You checked in late by ${lateLabel}.`
           : 'Checked in on time.';
       const placeLabel = formatLocationWithCoords(checkedIn?.checkInLocation ?? location);
@@ -374,7 +378,9 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     }
   };
 
-  const statusPresentation = getAttendanceStatusPresentation(attendance);
+  const statusPresentation = getAttendanceStatusPresentation(attendance, {
+    officeStartTime: officeHours.officeStartTime,
+  });
 
   return (
     <View style={styles.container} collapsable={false}>
@@ -528,7 +534,12 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
             </View>
           ) : null}
 
-          {attendance ? <AttendanceCard attendance={attendance} /> : null}
+          {attendance ? (
+            <AttendanceCard
+              attendance={attendance}
+              officeStartTime={officeHours.officeStartTime}
+            />
+          ) : null}
 
           <View style={styles.actions}>
             <AppButton

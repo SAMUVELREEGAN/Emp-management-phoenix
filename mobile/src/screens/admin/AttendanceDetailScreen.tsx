@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -6,11 +6,13 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { AppHeader, AttendanceCard, ErrorMessage, LoadingIndicator, StatusBadge } from '../../components';
 import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
+import { settingsApi } from '../../api/settingsApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import { formatLocationWithCoords } from '../../utils/location';
 import { formatLateDuration, formatWorkingHours } from '../../utils/dates';
-import { getAttendanceStatusPresentation } from '../../utils/attendanceHours';
+import { getAttendanceStatusPresentation, getEffectiveLateMinutes } from '../../utils/attendanceHours';
+import { normalizeOfficeHours } from '../../utils/officeHours';
 import type { Attendance, UserSummary } from '../../types';
 import type {
   AdminAttendanceStackParamList,
@@ -34,6 +36,7 @@ export default function AttendanceDetailScreen() {
   const isHr = userRole === 'hr';
 
   const [attendance, setAttendance] = useState<Attendance | null>(null);
+  const [officeStartTime, setOfficeStartTime] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -81,9 +84,23 @@ export default function AttendanceDetailScreen() {
     }, [fetchAttendance]),
   );
 
+  useEffect(() => {
+    settingsApi
+      .getOfficeHours()
+      .then(response => {
+        setOfficeStartTime(normalizeOfficeHours(response.data.officeHours).officeStartTime);
+      })
+      .catch(() => {
+        setOfficeStartTime(undefined);
+      });
+  }, []);
+
   const statusPresentation = attendance
-    ? getAttendanceStatusPresentation(attendance)
+    ? getAttendanceStatusPresentation(attendance, { officeStartTime })
     : null;
+  const lateMinutes = attendance
+    ? getEffectiveLateMinutes(attendance, officeStartTime)
+    : 0;
 
   return (
     <View style={styles.container} collapsable={false}>
@@ -103,13 +120,12 @@ export default function AttendanceDetailScreen() {
               label={statusPresentation?.label}
             />
           </View>
-          <AttendanceCard attendance={attendance} />
-          {attendance.lateMinutes && attendance.lateMinutes > 0 ? (
+          <AttendanceCard attendance={attendance} officeStartTime={officeStartTime} />
+          {attendance.checkInTime && lateMinutes > 0 ? (
             <View style={styles.infoCard}>
               <Text style={styles.infoTitle}>Late Arrival</Text>
               <Text style={styles.infoText}>
-                Checked in late by {formatLateDuration(attendance.lateMinutes)} after office start
-                time.
+                Checked in late by {formatLateDuration(lateMinutes)} after office start time.
               </Text>
             </View>
           ) : null}

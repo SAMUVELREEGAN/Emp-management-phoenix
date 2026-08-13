@@ -207,6 +207,31 @@ export function getDeviceTimezoneOffset(): number {
   return new Date().getTimezoneOffset();
 }
 
+/** Sundays are weekly holidays — not counted as absent in reports. */
+export function isWeeklyHoliday(value?: string | Date | null): boolean {
+  if (!value) {
+    return false;
+  }
+
+  let date: Date;
+  if (value instanceof Date) {
+    date = value;
+  } else if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const parts = dateInputToParts(value.slice(0, 10));
+    date = new Date(parts.year, parts.month - 1, parts.day);
+  } else {
+    date = new Date(value);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  return date.getDay() === 0;
+}
+
+export const WEEKLY_HOLIDAY_LABEL = '-';
+
 export function calculateLeaveDuration(
   leaveType: 'full_day' | 'half_day',
   fromDate: string,

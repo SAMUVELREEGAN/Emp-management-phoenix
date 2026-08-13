@@ -16,7 +16,7 @@ type ConfigModule = {
  */
 export function loadNativeEnv(): NativeEnvConfig {
   try {
-    const turbo = TurboModuleRegistry.get<ConfigModule>('RNCConfigModule');
+    const turbo = TurboModuleRegistry.get('RNCConfigModule') as ConfigModule | null;
     if (turbo?.getConfig) {
       return turbo.getConfig()?.config ?? {};
     }

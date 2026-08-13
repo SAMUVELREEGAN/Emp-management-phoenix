@@ -189,6 +189,7 @@ export interface WorkReportStats {
 
 export interface AdminDashboardData {
   summary: AttendanceSummary & WorkReportStats;
+  officeHours: OfficeHours;
   recentAttendance: Attendance[];
   recentReports: WorkReport[];
 }
@@ -200,6 +201,7 @@ export interface AttendanceSummaryItem {
 
 export interface EmployeeDashboardData {
   todayAttendance: Attendance | null;
+  officeHours: OfficeHours;
   todayReport: WorkReport | null;
   recentReports: WorkReport[];
   attendanceSummary: AttendanceSummaryItem[];

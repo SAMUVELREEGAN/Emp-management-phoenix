@@ -8,6 +8,7 @@ type StatusType =
   | 'present'
   | 'late'
   | 'absent'
+  | 'holiday'
   | 'half_day'
   | 'on_leave'
   | 'draft'
@@ -31,6 +32,7 @@ const statusConfig: Record<string, { bg: string; color: string; label: string }>
   present: { bg: theme.colors.successLight, color: theme.colors.success, label: 'Present' },
   late: { bg: theme.colors.warningLight, color: theme.colors.warning, label: 'Late' },
   absent: { bg: theme.colors.errorLight, color: theme.colors.error, label: 'Absent' },
+  holiday: { bg: theme.colors.surface, color: theme.colors.textMuted, label: 'Holiday' },
   half_day: { bg: theme.colors.infoLight, color: theme.colors.info, label: 'Half Day' },
   on_leave: { bg: theme.colors.primaryLight, color: theme.colors.primary, label: 'On Leave' },
   draft: { bg: theme.colors.surface, color: theme.colors.textSecondary, label: 'Draft' },

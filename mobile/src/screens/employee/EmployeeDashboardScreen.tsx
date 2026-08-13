@@ -207,7 +207,10 @@ export default function EmployeeDashboardScreen() {
 
           <Text style={styles.sectionTitle}>Today's Attendance</Text>
           {data?.todayAttendance ? (
-            <AttendanceCard attendance={data.todayAttendance} />
+            <AttendanceCard
+              attendance={data.todayAttendance}
+              officeStartTime={data.officeHours?.officeStartTime}
+            />
           ) : (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyText}>No attendance marked today</Text>

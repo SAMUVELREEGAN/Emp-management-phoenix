@@ -73,8 +73,8 @@ export function AttendanceExportModal({
         <Pressable style={styles.sheet} onPress={event => event.stopPropagation()}>
           <Text style={styles.title}>Export Attendance Report</Text>
           <Text style={styles.subtitle}>
-            Choose a date range. The Excel file will list each employee with daily Present/Absent
-            status, working hours, and totals.
+            Choose a date range. The Excel file lists each employee with daily status, working
+            hours, and totals. Sundays are weekly holidays and shown as "-".
           </Text>
 
           <View style={styles.presets}>

@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { theme } from '../constants/theme';
-import { formatDate, formatLateDuration, formatTime, formatWorkingHours } from '../utils/dates';
+import { formatDate, formatLateDuration, formatTime, formatWorkingHours, isWeeklyHoliday, WEEKLY_HOLIDAY_LABEL } from '../utils/dates';
 import { formatLocationWithCoords } from '../utils/location';
 import { useLiveWorkingHours } from '../hooks/useLiveWorkingHours';
 import { getBreakMinutes, getAttendanceStatusPresentation } from '../utils/attendanceHours';
@@ -13,6 +13,7 @@ interface AttendanceCardProps {
   attendance: Attendance;
   onPress?: () => void;
   showEmployee?: boolean;
+  officeStartTime?: string;
 }
 
 function getEmployeeName(employee: UserSummary | string | undefined | null): string {
@@ -29,12 +30,19 @@ function getEmployeeRole(employee: UserSummary | string | undefined | null): Use
   return employee.role;
 }
 
-export function AttendanceCard({ attendance, onPress, showEmployee = false }: AttendanceCardProps) {
+export function AttendanceCard({
+  attendance,
+  onPress,
+  showEmployee = false,
+  officeStartTime,
+}: AttendanceCardProps) {
   const employeeRole = getEmployeeRole(attendance.employee);
   const { label: workingHoursLabel, isActive } = useLiveWorkingHours(attendance);
-  const statusPresentation = getAttendanceStatusPresentation(attendance);
+  const statusPresentation = getAttendanceStatusPresentation(attendance, { officeStartTime });
   const breakMinutes = getBreakMinutes(attendance);
+  const lateMinutes = statusPresentation.lateMinutes;
   const isAbsentOnly = attendance.attendanceStatus === 'absent' && !attendance.checkInTime;
+  const isHoliday = isAbsentOnly && isWeeklyHoliday(attendance.date);
 
   if (isAbsentOnly && showEmployee) {
     const absentContent = (
@@ -46,7 +54,10 @@ export function AttendanceCard({ attendance, onPress, showEmployee = false }: At
             {employeeRole === 'hr' ? <Text style={styles.roleTag}>HR</Text> : null}
           </View>
         </View>
-        <StatusBadge status={attendance.attendanceStatus} />
+        <StatusBadge
+          status={isHoliday ? 'holiday' : attendance.attendanceStatus}
+          label={isHoliday ? WEEKLY_HOLIDAY_LABEL : undefined}
+        />
       </View>
     );
 
@@ -78,10 +89,10 @@ export function AttendanceCard({ attendance, onPress, showEmployee = false }: At
           label={statusPresentation.label}
         />
       </View>
-      {attendance.lateMinutes && attendance.lateMinutes > 0 && !attendance.checkOutTime ? (
+      {lateMinutes > 0 ? (
         <View style={styles.lateBanner}>
           <MaterialCommunityIcons name="clock-alert-outline" size={16} color={theme.colors.warning} />
-          <Text style={styles.lateText}>Late by {formatLateDuration(attendance.lateMinutes)}</Text>
+          <Text style={styles.lateText}>Late by {formatLateDuration(lateMinutes)}</Text>
         </View>
       ) : null}
       <View style={styles.row}>

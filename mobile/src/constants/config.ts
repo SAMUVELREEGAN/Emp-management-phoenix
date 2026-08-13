@@ -8,11 +8,13 @@ const PRODUCTION_API_BASE_URL =
 const DEV_API_BASE_URL = 'http://192.168.220.208:5000/api';
 
 const nativeConfig = loadNativeEnv();
+const nativeApiBaseUrl = String(nativeConfig.API_BASE_URL ?? '').trim();
 
-const resolvedApiBaseUrl =
-  String(nativeConfig.API_BASE_URL ?? '').trim() ||
-  (__DEV__ ? DEV_API_BASE_URL : '') ||
-  PRODUCTION_API_BASE_URL;
+const resolvedApiBaseUrl = !__DEV__
+  ? nativeApiBaseUrl.startsWith('https://')
+    ? nativeApiBaseUrl
+    : PRODUCTION_API_BASE_URL
+  : nativeApiBaseUrl || DEV_API_BASE_URL;
 
 export const API_BASE_URL = resolvedApiBaseUrl;
 

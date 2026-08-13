@@ -1,10 +1,35 @@
 import type { Attendance, BreakSession } from '../types';
-import { formatLateDuration, formatWorkingHours } from './dates';
+import { formatLateDuration, formatWorkingHours, getMinutesFromDate, parseTimeToMinutes } from './dates';
 
 type AttendanceTiming = Pick<
   Attendance,
   'checkInTime' | 'checkOutTime' | 'totalWorkingMinutes' | 'totalBreakMinutes' | 'breakSessions'
 >;
+
+export function calculateLateMinutes(
+  checkInTime: string | Date,
+  officeStartTime: string,
+): number {
+  const checkIn = new Date(checkInTime);
+  if (Number.isNaN(checkIn.getTime())) {
+    return 0;
+  }
+
+  const checkInMinutes = getMinutesFromDate(checkIn);
+  const officeStart = parseTimeToMinutes(officeStartTime);
+  return Math.max(0, checkInMinutes - officeStart);
+}
+
+export function getEffectiveLateMinutes(
+  attendance: Pick<Attendance, 'checkInTime' | 'lateMinutes' | 'attendanceStatus'>,
+  officeStartTime?: string,
+): number {
+  if (officeStartTime && attendance.checkInTime) {
+    return calculateLateMinutes(attendance.checkInTime, officeStartTime);
+  }
+
+  return attendance.lateMinutes ?? 0;
+}
 
 export function isAttendanceSessionActive(attendance?: AttendanceTiming | null): boolean {
   return !!attendance?.checkInTime && !attendance?.checkOutTime;
@@ -119,51 +144,52 @@ export function formatAttendanceWorkingHours(
   return formatted;
 }
 
-export function getAttendanceStatusPresentation(attendance?: Attendance | null): {
+export function getAttendanceStatusPresentation(
+  attendance?: Attendance | null,
+  options?: { officeStartTime?: string },
+): {
   status: string;
   label: string;
+  lateMinutes: number;
 } {
   if (!attendance?.checkInTime) {
     return {
       status: attendance?.attendanceStatus || 'absent',
       label: 'Not Marked',
+      lateMinutes: 0,
     };
   }
 
-  if (attendance.checkOutTime) {
-    const hoursLabel = formatAttendanceWorkingHours(attendance);
-    const status =
-      attendance.attendanceStatus === 'late' ? 'late' : 'present';
-
-    return {
-      status,
-      label: hoursLabel,
-    };
-  }
+  const lateMinutes = getEffectiveLateMinutes(attendance, options?.officeStartTime);
+  const isLate = lateMinutes > 0;
 
   if (isOnBreak(attendance)) {
     return {
-      status: 'present',
-      label: formatAttendanceWorkingHours(attendance),
+      status: isLate ? 'late' : 'present',
+      label: isLate ? `On Break · Late by ${formatLateDuration(lateMinutes)}` : 'On Break',
+      lateMinutes,
     };
   }
 
-  if (attendance.attendanceStatus === 'late' && attendance.lateMinutes) {
+  if (isLate) {
     return {
       status: 'late',
-      label: `Late (${formatLateDuration(attendance.lateMinutes)})`,
+      label: `Late by ${formatLateDuration(lateMinutes)}`,
+      lateMinutes,
     };
   }
 
   if (attendance.attendanceStatus === 'half_day') {
     return {
       status: 'present',
-      label: formatAttendanceWorkingHours(attendance),
+      label: 'Half Day',
+      lateMinutes: 0,
     };
   }
 
   return {
-    status: attendance.attendanceStatus || 'present',
-    label: attendance.attendanceStatus === 'late' ? 'Late' : 'Present',
+    status: 'present',
+    label: 'Present',
+    lateMinutes: 0,
   };
 }

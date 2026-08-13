@@ -262,7 +262,12 @@ export default function AdminDashboardScreen() {
           <Text style={styles.sectionTitle}>Recent Attendance</Text>
           {data?.recentAttendance.length ? (
             data.recentAttendance.map(item => (
-              <AttendanceCard key={item._id} attendance={item} showEmployee />
+              <AttendanceCard
+                key={item._id}
+                attendance={item}
+                showEmployee
+                officeStartTime={data.officeHours?.officeStartTime}
+              />
             ))
           ) : (
             <View style={styles.emptyBox}>
