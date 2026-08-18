@@ -13,6 +13,7 @@ import {
 } from '../../components';
 import { theme } from '../../constants/theme';
 import { leaveApi } from '../../api/leaveApi';
+import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import { formatDate, formatDateTime } from '../../utils/dates';
 import type { LeaveRequest, UserSummary } from '../../types';
@@ -33,6 +34,7 @@ function getDurationLabel(leave: LeaveRequest): string {
 export default function LeaveApprovalDetailScreen() {
   const route = useRoute<RouteProp<AdminLeaveStackParamList, 'LeaveApprovalDetail'>>();
   const { leaveId } = route.params;
+  const userRole = useAuthStore(state => state.user?.role);
   const [leave, setLeave] = useState<LeaveRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(false);
@@ -82,7 +84,7 @@ export default function LeaveApprovalDetailScreen() {
     }
   };
 
-  const canReview = leave?.status === 'pending';
+  const canReview = leave?.status === 'pending' && userRole === 'admin';
 
   return (
     <View style={styles.container}>

@@ -1,4 +1,5 @@
 import type { OfficeHours } from '../types';
+import { normalizeReminderIntervalMinutes } from './reminderInterval';
 
 const DEFAULT_OFFICE_HOURS: OfficeHours = {
   officeStartTime: '09:30',
@@ -6,6 +7,8 @@ const DEFAULT_OFFICE_HOURS: OfficeHours = {
   geofenceEnabled: false,
   geofenceRadiusMeters: 200,
   officeLocationName: 'Office',
+  hourlyReportReminderEnabled: true,
+  hourlyReportReminderIntervalMinutes: 60,
 };
 
 export function normalizeOfficeHours(
@@ -32,6 +35,12 @@ export function normalizeOfficeHours(
     officeLongitude: longitude,
     geofenceRadiusMeters: raw.geofenceRadiusMeters ?? 200,
     officeLocationName: raw.officeLocationName?.trim() || 'Office',
+    hourlyReportReminderEnabled: raw.hourlyReportReminderEnabled !== false,
+    hourlyReportReminderIntervalMinutes: normalizeReminderIntervalMinutes(
+      raw.hourlyReportReminderIntervalMinutes,
+      (raw as { hourlyReportReminderIntervalHours?: number })
+        .hourlyReportReminderIntervalHours,
+    ),
   };
 }
 

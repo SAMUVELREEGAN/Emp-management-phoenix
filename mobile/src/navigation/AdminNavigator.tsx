@@ -161,7 +161,7 @@ function MoreStackNavigator() {
 }
 
 const adminTabIcons = {
-  Home: 'home',
+  Home: 'home-outline',
   Employees: 'account-group-outline',
   Attendance: 'clock-outline',
   Chat: 'chat-outline',

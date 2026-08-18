@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
 import { WorkReportStatus } from '../types';
 
-export type WorkReportType = 'daily_work' | 'attendance_summary';
+export type WorkReportType = 'daily_work' | 'attendance_summary' | 'hourly_work';
 
 export interface AttendanceSummarySnapshot {
   present: number;
@@ -16,6 +16,8 @@ export interface IWorkReport extends Document {
   employee: Types.ObjectId;
   reportDate: Date;
   reportType: WorkReportType;
+  reportPeriodStart?: Date;
+  reportPeriodEnd?: Date;
   title: string;
   workSummary: string;
   completedTasks: string;
@@ -47,8 +49,14 @@ const workReportSchema = new Schema<IWorkReport>(
     },
     reportType: {
       type: String,
-      enum: ['daily_work', 'attendance_summary'],
+      enum: ['daily_work', 'attendance_summary', 'hourly_work'],
       default: 'daily_work',
+    },
+    reportPeriodStart: {
+      type: Date,
+    },
+    reportPeriodEnd: {
+      type: Date,
     },
     title: {
       type: String,
@@ -126,6 +134,18 @@ workReportSchema.index(
     unique: true,
     partialFilterExpression: {
       status: { $in: ['submitted', 'approved', 'rejected'] },
+      reportType: { $in: ['daily_work', 'attendance_summary'] },
+    },
+  },
+);
+
+workReportSchema.index(
+  { employee: 1, reportPeriodStart: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ['submitted', 'approved', 'rejected'] },
+      reportType: 'hourly_work',
     },
   },
 );

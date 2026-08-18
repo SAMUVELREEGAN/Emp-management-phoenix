@@ -11,7 +11,7 @@ export type AttendanceStatus =
   | 'on_leave';
 
 export type WorkReportStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
-export type WorkReportType = 'daily_work' | 'attendance_summary';
+export type WorkReportType = 'daily_work' | 'attendance_summary' | 'hourly_work';
 
 export interface AttendanceSummarySnapshot {
   present: number;
@@ -94,9 +94,11 @@ export interface Attendance {
   breakSessions?: BreakSession[];
   overtimeMinutes?: number;
   lateMinutes?: number;
+  lastHourlyReminderAt?: string;
   isEarlyCheckout?: boolean;
   earlyCheckoutRemark?: string;
   attendanceStatus: AttendanceStatus;
+  isWorkFromHome?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -106,6 +108,8 @@ export interface WorkReport {
   employee: UserSummary | string;
   reportDate: string;
   reportType?: WorkReportType;
+  reportPeriodStart?: string;
+  reportPeriodEnd?: string;
   title: string;
   workSummary: string;
   completedTasks: string;
@@ -237,6 +241,7 @@ export interface CheckInOutPayload {
   deviceTimestamp?: string;
   deviceTimezoneOffset?: number;
   earlyCheckoutRemark?: string;
+  workFromHome?: boolean;
 }
 
 export interface OfficeHours {
@@ -247,6 +252,8 @@ export interface OfficeHours {
   officeLongitude?: number;
   geofenceRadiusMeters?: number;
   officeLocationName?: string;
+  hourlyReportReminderEnabled?: boolean;
+  hourlyReportReminderIntervalMinutes?: number;
 }
 
 export interface TodayAttendanceData {

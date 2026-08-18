@@ -15,7 +15,11 @@ export function LogoutGate({ children }: LogoutGateProps) {
     return <View style={styles.shell} collapsable={false} />;
   }
 
-  return <>{children}</>;
+  return (
+    <View style={styles.shell} collapsable={false}>
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

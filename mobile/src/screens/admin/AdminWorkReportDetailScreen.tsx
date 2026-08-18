@@ -16,7 +16,7 @@ import { theme } from '../../constants/theme';
 import { workReportApi } from '../../api/workReportApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
-import { formatDate, formatDateTime } from '../../utils/dates';
+import { formatDate, formatDateTime, formatTime } from '../../utils/dates';
 import type { UserSummary, WorkReport } from '../../types';
 import type { AdminReportsStackParamList, HrReportsStackParamList } from '../../navigation/types';
 import { useFabricSafeBack } from '../../navigation/safeStackBack';
@@ -99,12 +99,23 @@ export default function AdminWorkReportDetailScreen() {
         : undefined;
   const isOwnReport = !!user?._id && reportOwnerId === user._id;
   const canReview =
-    report?.status === 'submitted' && !(user?.role === 'hr' && isOwnReport);
+    report?.status === 'submitted' &&
+    !(user?.role === 'hr' && isOwnReport) &&
+    !isHourlyReport;
   const isAttendanceSummary = report?.reportType === 'attendance_summary';
+  const isHourlyReport = report?.reportType === 'hourly_work';
+  const periodLabel =
+    isHourlyReport && report?.reportPeriodStart && report?.reportPeriodEnd
+      ? `${formatTime(report.reportPeriodStart)} - ${formatTime(report.reportPeriodEnd)}`
+      : null;
 
   return (
     <View style={styles.container} collapsable={false}>
-      <AppHeader title="Review Report" showBack onBack={handleBack} />
+      <AppHeader
+        title={isHourlyReport ? 'Hourly Report' : 'Review Report'}
+        showBack
+        onBack={handleBack}
+      />
       {loading || isLeaving ? (
         <LoadingIndicator fullScreen />
       ) : error ? (
@@ -120,8 +131,20 @@ export default function AdminWorkReportDetailScreen() {
           <Text style={styles.meta}>{getEmployeeName(report.employee)}</Text>
           <Text style={styles.meta}>
             {formatDate(report.reportDate)}
-            {!isAttendanceSummary ? ` • ${report.workingHours} hrs` : ''}
+            {periodLabel
+              ? ` • ${periodLabel}`
+              : !isAttendanceSummary
+                ? ` • ${report.workingHours} hrs`
+                : ''}
           </Text>
+
+          {isHourlyReport ? (
+            <View style={styles.hourlyNote}>
+              <Text style={styles.hourlyNoteText}>
+                Hourly update sent by the employee. These reports are view-only.
+              </Text>
+            </View>
+          ) : null}
 
           {isAttendanceSummary && report.attendanceSummary ? (
             <View style={styles.summaryGrid}>
@@ -137,7 +160,7 @@ export default function AdminWorkReportDetailScreen() {
             title={isAttendanceSummary ? 'Notes' : 'Work Summary'}
             content={report.workSummary}
           />
-          {!isAttendanceSummary ? (
+          {!isAttendanceSummary && !isHourlyReport ? (
             <>
               <Section title="Completed Tasks" content={report.completedTasks || '-'} />
               <Section title="Pending Tasks" content={report.pendingTasks || '-'} />
@@ -275,5 +298,17 @@ const styles = StyleSheet.create({
     fontSize: theme.fonts.sizes.xs,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+  },
+  hourlyNote: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.infoLight,
+    borderRadius: theme.radii.md,
+    padding: theme.spacing.sm,
+  },
+  hourlyNoteText: {
+    fontSize: theme.fonts.sizes.sm,
+    color: theme.colors.info,
+    lineHeight: 20,
   },
 });

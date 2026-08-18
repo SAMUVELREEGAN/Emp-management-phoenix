@@ -22,6 +22,8 @@ export interface IAttendance extends Document {
   isEarlyCheckout: boolean;
   earlyCheckoutRemark?: string;
   attendanceStatus: AttendanceStatus;
+  isWorkFromHome: boolean;
+  lastHourlyReminderAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,6 +105,13 @@ const attendanceSchema = new Schema<IAttendance>(
       type: String,
       enum: ['present', 'late', 'absent', 'half_day', 'on_leave'],
       default: 'present',
+    },
+    isWorkFromHome: {
+      type: Boolean,
+      default: false,
+    },
+    lastHourlyReminderAt: {
+      type: Date,
     },
   },
   { timestamps: true },

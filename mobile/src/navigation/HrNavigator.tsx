@@ -5,6 +5,7 @@ import type {
   HrAttendanceStackParamList,
   HrEmployeesStackParamList,
   HrHomeStackParamList,
+  HrLeaveStackParamList,
   HrMoreStackParamList,
   HrReportsStackParamList,
   HrTabParamList,
@@ -20,6 +21,8 @@ import AttendanceHistoryScreen from '../screens/employee/AttendanceHistoryScreen
 import AttendanceDetailScreen from '../screens/admin/AttendanceDetailScreen';
 import HrReportsHubScreen from '../screens/hr/HrReportsHubScreen';
 import AdminWorkReportDetailScreen from '../screens/admin/AdminWorkReportDetailScreen';
+import LeaveApprovalListScreen from '../screens/admin/LeaveApprovalListScreen';
+import LeaveApprovalDetailScreen from '../screens/admin/LeaveApprovalDetailScreen';
 import NotificationsScreen from '../screens/common/NotificationsScreen';
 import MoreHubScreen from '../screens/common/MoreHubScreen';
 import ProfileScreen from '../screens/common/ProfileScreen';
@@ -34,6 +37,7 @@ const EmployeesStack = createNativeStackNavigator<HrEmployeesStackParamList>();
 const AttendanceStack = createNativeStackNavigator<HrAttendanceStackParamList>();
 const MoreStack = createNativeStackNavigator<HrMoreStackParamList>();
 const ReportsStack = createNativeStackNavigator<HrReportsStackParamList>();
+const LeaveStack = createNativeStackNavigator<HrLeaveStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 
 const stackScreenOptions = {
@@ -70,6 +74,15 @@ function ReportsStackNavigator() {
   );
 }
 
+function LeaveStackNavigator() {
+  return (
+    <LeaveStack.Navigator screenOptions={stackScreenOptions}>
+      <LeaveStack.Screen name="LeaveApprovalList" component={LeaveApprovalListScreen} />
+      <LeaveStack.Screen name="LeaveApprovalDetail" component={LeaveApprovalDetailScreen} />
+    </LeaveStack.Navigator>
+  );
+}
+
 function ProfileStackNavigator() {
   return (
     <ProfileStack.Navigator screenOptions={stackScreenOptions}>
@@ -83,6 +96,7 @@ function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={stackScreenOptions} initialRouteName="Dashboard">
       <HomeStack.Screen name="Dashboard" component={AdminDashboardScreen} />
+      <HomeStack.Screen name="Leave" component={LeaveStackNavigator} />
       <HomeStack.Screen name="Reports" component={ReportsStackNavigator} />
       <HomeStack.Screen name="Notifications" component={NotificationsScreen} />
       <HomeStack.Screen name="Profile" component={ProfileStackNavigator} />
@@ -94,6 +108,7 @@ function MoreStackNavigator() {
   return (
     <MoreStack.Navigator screenOptions={stackScreenOptions} initialRouteName="MoreHub">
       <MoreStack.Screen name="MoreHub" component={MoreHubScreen} />
+      <MoreStack.Screen name="Leave" component={LeaveStackNavigator} />
       <MoreStack.Screen name="Reports" component={ReportsStackNavigator} />
       <MoreStack.Screen name="Notifications" component={NotificationsScreen} />
       <MoreStack.Screen name="Profile" component={ProfileStackNavigator} />
@@ -102,7 +117,7 @@ function MoreStackNavigator() {
 }
 
 const hrTabIcons = {
-  Home: 'home',
+  Home: 'home-outline',
   Employees: 'account-group-outline',
   Attendance: 'clock-outline',
   Chat: 'chat-outline',

@@ -7,7 +7,7 @@ import { AppButton, AppHeader, ErrorMessage, LoadingIndicator, StatusBadge } fro
 import { theme } from '../../constants/theme';
 import { workReportApi } from '../../api/workReportApi';
 import { getErrorMessage } from '../../utils/errors';
-import { formatDate, formatDateTime } from '../../utils/dates';
+import { formatDate, formatDateTime, formatTime } from '../../utils/dates';
 import type { WorkReport } from '../../types';
 import type { EmployeeReportsStackParamList } from '../../navigation/types';
 import { useStackBackTo } from '../../navigation/safeStackBack';
@@ -59,53 +59,78 @@ export default function WorkReportDetailScreen() {
     }
   };
 
-  const canEdit = report?.status === 'draft';
-  const canSubmit = report?.status === 'draft';
+  const canEdit = report?.status === 'draft' && report?.reportType !== 'hourly_work';
+  const canSubmit = report?.status === 'draft' && report?.reportType !== 'hourly_work';
+  const isHourlyReport = report?.reportType === 'hourly_work';
+  const periodLabel =
+    isHourlyReport && report?.reportPeriodStart && report?.reportPeriodEnd
+      ? `${formatTime(report.reportPeriodStart)} - ${formatTime(report.reportPeriodEnd)}`
+      : null;
 
   return (
-    <View style={styles.container}>
-      <AppHeader title="Report Details" showBack onBack={handleBack} />
-      {loading || isLeaving ? (
+    <View style={styles.container} collapsable={false}>
+      <AppHeader
+        title={isHourlyReport ? 'Hourly Report' : 'Report Details'}
+        showBack
+        onBack={handleBack}
+      />
+      {isLeaving ? (
         <LoadingIndicator fullScreen />
-      ) : error ? (
-        <View style={styles.center}>
-          <ErrorMessage message={error} onRetry={fetchReport} />
-        </View>
-      ) : report ? (
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>{report.title}</Text>
-            <StatusBadge status={report.status} />
-          </View>
-          <Text style={styles.meta}>{formatDate(report.reportDate)} • {report.workingHours} hrs</Text>
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} removeClippedSubviews={false}>
+          {loading ? (
+            <LoadingIndicator />
+          ) : error ? (
+            <ErrorMessage message={error} onRetry={fetchReport} />
+          ) : report ? (
+            <>
+              <View style={styles.headerRow}>
+                <Text style={styles.title}>{report.title}</Text>
+                <StatusBadge status={report.status} />
+              </View>
+              <Text style={styles.meta}>
+                {formatDate(report.reportDate)}
+                {periodLabel ? ` • ${periodLabel}` : ` • ${report.workingHours} hrs`}
+              </Text>
 
-          <Section title="Work Summary" content={report.workSummary} />
-          <Section title="Completed Tasks" content={report.completedTasks || '-'} />
-          <Section title="Pending Tasks" content={report.pendingTasks || '-'} />
-          <Section title="Blockers" content={report.blockers || '-'} />
-          <Section title="Tomorrow Plan" content={report.tomorrowPlan || '-'} />
+              <Section title="Work Summary" content={report.workSummary} />
+              {!isHourlyReport ? (
+                <>
+                  <Section title="Completed Tasks" content={report.completedTasks || '-'} />
+                  <Section title="Pending Tasks" content={report.pendingTasks || '-'} />
+                  <Section title="Blockers" content={report.blockers || '-'} />
+                  <Section title="Tomorrow Plan" content={report.tomorrowPlan || '-'} />
+                </>
+              ) : null}
 
-          {report.adminComment ? (
-            <Section title="Admin Comment" content={report.adminComment} />
-          ) : null}
+              {report.adminComment ? (
+                <Section title="Admin Comment" content={report.adminComment} />
+              ) : null}
 
-          {report.submittedAt ? (
-            <Text style={styles.meta}>Submitted: {formatDateTime(report.submittedAt)}</Text>
-          ) : null}
+              {report.submittedAt ? (
+                <Text style={styles.meta}>Submitted: {formatDateTime(report.submittedAt)}</Text>
+              ) : null}
 
-          {canEdit ? (
-            <AppButton
-              title="Edit Report"
-              variant="outline"
-              onPress={() => navigation.navigate('WorkReportForm', { reportId })}
-              style={styles.button}
-            />
-          ) : null}
-          {canSubmit ? (
-            <AppButton title="Submit Report" onPress={handleSubmit} loading={submitting} style={styles.button} />
+              {canEdit ? (
+                <AppButton
+                  title="Edit Report"
+                  variant="outline"
+                  onPress={() => navigation.navigate('WorkReportForm', { reportId })}
+                  style={styles.button}
+                />
+              ) : null}
+              {canSubmit ? (
+                <AppButton
+                  title="Submit Report"
+                  onPress={handleSubmit}
+                  loading={submitting}
+                  style={styles.button}
+                />
+              ) : null}
+            </>
           ) : null}
         </ScrollView>
-      ) : null}
+      )}
     </View>
   );
 }

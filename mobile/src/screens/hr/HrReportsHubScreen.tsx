@@ -23,7 +23,7 @@ export default function HrReportsHubScreen() {
         title="Reports"
         subtitle={
           tab === 'left'
-            ? 'Review employee daily work reports'
+            ? 'Review employee daily & hourly work reports'
             : 'Submit employee attendance summary to admin'
         }
         showBack={showBack}

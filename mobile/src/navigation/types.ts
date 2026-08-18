@@ -17,7 +17,7 @@ export type ProfileStackParamList = {
 };
 
 export type ChatStackParamList = {
-  ChatHub: undefined;
+  ChatHub: { groupId?: string; returnToHome?: boolean } | undefined;
   CreateChatGroup: { groupId?: string } | undefined;
 };
 
@@ -38,8 +38,9 @@ export type EmployeeTasksStackParamList = {
 };
 
 export type EmployeeReportsStackParamList = {
-  WorkReportList: undefined;
+  WorkReportList: { reportKind?: 'daily' | 'hourly'; returnToHome?: boolean } | undefined;
   WorkReportForm: { reportId?: string };
+  HourlyReportForm: { periodStart?: string; periodEnd?: string };
   WorkReportDetail: { reportId: string };
 };
 
@@ -148,8 +149,14 @@ export type HrReportsStackParamList = {
   AdminWorkReportDetail: { reportId: string };
 };
 
+export type HrLeaveStackParamList = {
+  LeaveApprovalList: undefined;
+  LeaveApprovalDetail: { leaveId: string };
+};
+
 export type HrHomeStackParamList = {
   Dashboard: undefined;
+  Leave: NavigatorScreenParams<HrLeaveStackParamList>;
   Reports: NavigatorScreenParams<HrReportsStackParamList>;
   Notifications: { returnToHome?: boolean } | undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
@@ -157,6 +164,7 @@ export type HrHomeStackParamList = {
 
 export type HrMoreStackParamList = {
   MoreHub: undefined;
+  Leave: NavigatorScreenParams<HrLeaveStackParamList>;
   Reports: NavigatorScreenParams<HrReportsStackParamList>;
   Notifications: undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList>;

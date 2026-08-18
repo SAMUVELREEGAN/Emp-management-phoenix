@@ -6,6 +6,7 @@ import {
   reviewReportSchema,
   workReportSchema,
   hrAttendanceReportSchema,
+  hourlyWorkReportSchema,
 } from '../validators/schemas';
 import * as workReportController from '../controllers/workReportController';
 
@@ -30,6 +31,12 @@ router.post(
   authorize('hr'),
   validate(hrAttendanceReportSchema),
   workReportController.createHrAttendanceReport,
+);
+router.post(
+  '/hourly',
+  authorize('employee'),
+  validate(hourlyWorkReportSchema),
+  workReportController.createHourlyReport,
 );
 router.get('/', authorize('admin', 'hr'), workReportController.listReports);
 router.get('/:id', workReportController.getReportById);

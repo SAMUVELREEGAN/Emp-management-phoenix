@@ -91,6 +91,19 @@ export const workReportApi = {
     return response.data;
   },
 
+  createHourly: async (payload: {
+    workSummary: string;
+    reportPeriodStart?: string;
+    reportPeriodEnd?: string;
+    workingHours?: number;
+  }) => {
+    const response = await apiClient.post<ApiResponse<{ report: WorkReport }>>(
+      '/work-reports/hourly',
+      payload,
+    );
+    return response.data;
+  },
+
   list: async (params?: PaginationParams) => {
     const response = await apiClient.get<ApiResponse<PaginatedResponse<WorkReport>>>(
       '/work-reports',

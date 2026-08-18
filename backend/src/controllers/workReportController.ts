@@ -32,6 +32,18 @@ export const createHrAttendanceReport = asyncHandler(
   },
 );
 
+export const createHourlyReport = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const report = await workReportService.createHourlyWorkReport(
+      req.user!._id.toString(),
+      req.body,
+    );
+    return sendSuccess(res, 'Hourly work report submitted successfully', {
+      report,
+    }, 201);
+  },
+);
+
 export const getMyReports = asyncHandler(
   async (req: AuthRequest, res: Response) => {
     const result = await workReportService.getMyReports(
@@ -45,6 +57,7 @@ export const getMyReports = asyncHandler(
         reportType: req.query.reportType as
           | 'daily_work'
           | 'attendance_summary'
+          | 'hourly_work'
           | undefined,
       },
     );
@@ -97,10 +110,11 @@ export const listReports = asyncHandler(
       employeeId: req.query.employeeId as string | undefined,
       search: req.query.search as string | undefined,
       staffRole: req.query.role as 'employee' | 'hr' | undefined,
-      reportType: req.query.reportType as
-        | 'daily_work'
-        | 'attendance_summary'
-        | undefined,
+        reportType: req.query.reportType as
+          | 'daily_work'
+          | 'attendance_summary'
+          | 'hourly_work'
+          | undefined,
     });
     return sendSuccess(res, 'Work reports fetched successfully', result);
   },

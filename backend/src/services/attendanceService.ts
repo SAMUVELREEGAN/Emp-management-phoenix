@@ -157,7 +157,7 @@ async function notifyAttendanceEvent(
   attendanceId: Types.ObjectId,
   placeName: string,
   eventTime: Date,
-  extra?: { lateMinutes?: number; earlyCheckoutRemark?: string },
+  extra?: { lateMinutes?: number; earlyCheckoutRemark?: string; workFromHome?: boolean },
 ) {
   const timeLabel = eventTime.toLocaleTimeString();
   const roleLabel = actor.role === 'hr' ? 'HR' : 'Employee';
@@ -165,6 +165,10 @@ async function notifyAttendanceEvent(
     action === 'check-in' ? `${roleLabel} checked in` : `${roleLabel} checked out`;
 
   let message = `${actor.fullName} ${action === 'check-in' ? 'checked in' : 'checked out'} at ${timeLabel} from ${placeName}.`;
+
+  if (action === 'check-in' && extra?.workFromHome) {
+    message += ' Working from home.';
+  }
 
   if (action === 'check-in' && extra?.lateMinutes && extra.lateMinutes > 0) {
     message += ` Late by ${formatLateDuration(extra.lateMinutes)}.`;
@@ -200,6 +204,7 @@ export const checkIn = async (
   location: LocationPayload,
   deviceTimestamp?: string,
   deviceTimezoneOffset?: number,
+  workFromHome = false,
 ) => {
   const user = await User.findById(employeeId);
   if (!user) {
@@ -207,7 +212,9 @@ export const checkIn = async (
   }
 
   const resolvedLocation = await enrichLocation(location);
-  await assertWithinOfficeGeofence(resolvedLocation, 'check-in');
+  if (!workFromHome) {
+    await assertWithinOfficeGeofence(resolvedLocation, 'check-in');
+  }
 
   const now = deviceTimestamp ? new Date(deviceTimestamp) : new Date();
   if (Number.isNaN(now.getTime())) {
@@ -238,6 +245,7 @@ export const checkIn = async (
       checkInLocation: resolvedLocation,
       attendanceStatus: status,
       lateMinutes,
+      isWorkFromHome: workFromHome,
     }));
 
   if (existing) {
@@ -245,6 +253,7 @@ export const checkIn = async (
     existing.checkInLocation = resolvedLocation;
     existing.attendanceStatus = status;
     existing.lateMinutes = lateMinutes;
+    existing.lastHourlyReminderAt = undefined;
     existing.totalWorkingMinutes = 0;
     existing.totalBreakMinutes = 0;
     existing.breakSessions = [];
@@ -253,6 +262,7 @@ export const checkIn = async (
     existing.checkOutLocation = undefined;
     existing.isEarlyCheckout = false;
     existing.earlyCheckoutRemark = '';
+    existing.isWorkFromHome = workFromHome;
     await existing.save();
   }
 
@@ -264,7 +274,7 @@ export const checkIn = async (
     result._id,
     resolvedLocation.address || 'Unknown location',
     now,
-    { lateMinutes },
+    { lateMinutes, workFromHome },
   );
 
   await startRouteSession(employeeId, result._id, today, resolvedLocation);
@@ -290,7 +300,6 @@ export const checkOut = async (
   }
 
   const resolvedLocation = await enrichLocation(location);
-  await assertWithinOfficeGeofence(resolvedLocation, 'check-out');
 
   const now = deviceTimestamp ? new Date(deviceTimestamp) : new Date();
   if (Number.isNaN(now.getTime())) {
@@ -305,6 +314,10 @@ export const checkOut = async (
 
   if (!attendance?.checkInTime) {
     throw ApiError.badRequest('You must check in before checking out');
+  }
+
+  if (!attendance.isWorkFromHome) {
+    await assertWithinOfficeGeofence(resolvedLocation, 'check-out');
   }
 
   if (attendance.checkOutTime) {
@@ -345,6 +358,7 @@ export const checkOut = async (
 
   attendance.checkOutTime = now;
   attendance.checkOutLocation = resolvedLocation;
+  attendance.lastHourlyReminderAt = undefined;
   attendance.totalBreakMinutes = totalBreakMinutes;
   attendance.totalWorkingMinutes = calculateNetWorkingMinutes(
     attendance.checkInTime,

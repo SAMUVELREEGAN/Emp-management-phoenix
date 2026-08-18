@@ -83,6 +83,7 @@ export const checkInSchema = z.object({
   location: locationSchema,
   deviceTimestamp: z.string().optional(),
   deviceTimezoneOffset: z.number().optional(),
+  workFromHome: z.coerce.boolean().optional().default(false),
 });
 
 export const checkOutSchema = z.object({
@@ -114,6 +115,14 @@ export const officeHoursSchema = z
       .optional()
       .default(200),
     officeLocationName: z.string().trim().optional().default(''),
+    hourlyReportReminderEnabled: z.boolean().optional().default(true),
+    hourlyReportReminderIntervalMinutes: z.coerce
+      .number()
+      .int()
+      .min(15, 'Minimum reminder interval is 15 minutes')
+      .max(480, 'Maximum reminder interval is 480 minutes (8 hours)')
+      .optional()
+      .default(60),
   })
   .refine(
     (data) =>
@@ -149,6 +158,13 @@ export const updateOfficeSettingsSchema = z.object({
     .max(5000, 'Maximum geofence radius is 5000 meters')
     .optional(),
   officeLocationName: z.string().trim().optional(),
+  hourlyReportReminderEnabled: z.coerce.boolean().optional(),
+  hourlyReportReminderIntervalMinutes: z.coerce
+    .number()
+    .int()
+    .min(15, 'Minimum reminder interval is 15 minutes')
+    .max(480, 'Maximum reminder interval is 480 minutes (8 hours)')
+    .optional(),
 });
 
 function parseTimeToMinutes(time: string): number {
@@ -169,6 +185,13 @@ export const workReportSchema = z.object({
     .min(0, 'Working hours must be 0 or more')
     .max(24, 'Working hours cannot exceed 24'),
   status: z.enum(['draft', 'submitted']).optional().default('draft'),
+});
+
+export const hourlyWorkReportSchema = z.object({
+  workSummary: nonEmpty('Work summary'),
+  reportPeriodStart: z.string().optional(),
+  reportPeriodEnd: z.string().optional(),
+  workingHours: z.coerce.number().min(0.5).max(24).optional(),
 });
 
 export const reviewReportSchema = z.object({

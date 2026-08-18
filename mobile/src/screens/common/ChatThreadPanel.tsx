@@ -10,13 +10,15 @@ import {
 } from 'react-native';
 import { launchImageLibrary, type ImagePickerResponse } from 'react-native-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
-import { AppHeader, ChatInputBar, ErrorMessage, LoadingIndicator, MessageBubble } from '../../components';
+import { AppHeader, ChatInputBar, EmptyState, ErrorMessage, LoadingIndicator, MessageBubble } from '../../components';
+import { chatTheme } from '../../constants/chatTheme';
 import { theme } from '../../constants/theme';
 import { chatApi } from '../../api/chatApi';
 import { useAuthStore } from '../../store/authStore';
 import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import { getErrorMessage } from '../../utils/errors';
 import { getChatSenderId } from '../../utils/chat';
+import type { ChatMessage } from '../../types';
 
 export interface ChatThreadPanelProps {
   groupId: string;
@@ -225,19 +227,30 @@ export function ChatThreadPanel({ groupId, groupName, isTeamChat, onBack }: Chat
         ) : (
           <ScrollView
             ref={scrollRef}
-            contentContainerStyle={styles.messagesList}
+            contentContainerStyle={[
+              styles.messagesList,
+              messages.length === 0 && styles.messagesListEmpty,
+            ]}
             keyboardShouldPersistTaps="handled"
             removeClippedSubviews={false}>
-            {messages.map(item => (
-              <MessageBubble
-                key={item._id}
-                message={item}
-                isOwn={getChatSenderId(item.sender) === currentUserId}
-                onPlayVoice={uri => {
-                  void playVoice(uri);
-                }}
+            {messages.length === 0 ? (
+              <EmptyState
+                icon="chat-processing-outline"
+                title="No messages yet"
+                message="Say hello to start the conversation."
               />
-            ))}
+            ) : (
+              messages.map(item => (
+                <MessageBubble
+                  key={item._id}
+                  message={item}
+                  isOwn={getChatSenderId(item.sender) === currentUserId}
+                  onPlayVoice={uri => {
+                    void playVoice(uri);
+                  }}
+                />
+              ))
+            )}
           </ScrollView>
         )}
 
@@ -262,7 +275,7 @@ export function ChatThreadPanel({ groupId, groupName, isTeamChat, onBack }: Chat
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: chatTheme.background,
   },
   flex: {
     flex: 1,
@@ -274,5 +287,9 @@ const styles = StyleSheet.create({
   messagesList: {
     paddingVertical: theme.spacing.md,
     flexGrow: 1,
+  },
+  messagesListEmpty: {
+    justifyContent: 'center',
+    flex: 1,
   },
 });

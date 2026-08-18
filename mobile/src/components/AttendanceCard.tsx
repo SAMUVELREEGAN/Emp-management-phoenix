@@ -95,6 +95,12 @@ export function AttendanceCard({
           <Text style={styles.lateText}>Late by {formatLateDuration(lateMinutes)}</Text>
         </View>
       ) : null}
+      {attendance.isWorkFromHome ? (
+        <View style={styles.wfhBanner}>
+          <MaterialCommunityIcons name="home-account" size={16} color={theme.colors.info} />
+          <Text style={styles.wfhText}>Work From Home</Text>
+        </View>
+      ) : null}
       <View style={styles.row}>
         <MaterialCommunityIcons name="login" size={18} color={theme.colors.primary} />
         <Text style={styles.label}>Check In:</Text>
@@ -244,6 +250,21 @@ const styles = StyleSheet.create({
   lateText: {
     fontSize: theme.fonts.sizes.xs,
     color: theme.colors.warning,
+    fontWeight: theme.fonts.weights.semibold,
+  },
+  wfhBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.infoLight,
+    borderRadius: theme.radii.md,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+  },
+  wfhText: {
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.info,
     fontWeight: theme.fonts.weights.semibold,
   },
   breakInfoRow: {

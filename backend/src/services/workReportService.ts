@@ -7,6 +7,8 @@ import { WorkReportStatus } from '../types';
 import { createNotification } from './notificationService';
 import { findActiveAdmins, findActiveManagers } from '../utils/roleHelpers';
 import { AttendanceSummarySnapshot } from '../models/WorkReport';
+import { getOfficeHours } from './officeSettingsService';
+import { normalizeReminderIntervalMinutes } from '../utils/reminderInterval';
 
 interface ListFilters {
   page: number;
@@ -17,7 +19,14 @@ interface ListFilters {
   employeeId?: string;
   search?: string;
   staffRole?: 'employee' | 'hr';
-  reportType?: 'daily_work' | 'attendance_summary';
+  reportType?: 'daily_work' | 'attendance_summary' | 'hourly_work';
+}
+
+interface HourlyWorkReportInput {
+  workSummary: string;
+  reportPeriodStart?: string;
+  reportPeriodEnd?: string;
+  workingHours?: number;
 }
 
 interface WorkReportInput {
@@ -70,6 +79,84 @@ async function notifyReportSubmitted(
   );
 }
 
+async function notifyHourlyReportSubmitted(report: IWorkReport) {
+  const recipients = await findActiveManagers();
+  const employee = await User.findById(report.employee).select('fullName');
+  const employeeName = employee?.fullName || 'An employee';
+
+  await Promise.all(
+    recipients.map((recipient) =>
+      createNotification({
+        recipient: recipient._id,
+        title: 'Hourly work report submitted',
+        message: `${employeeName} submitted an hourly work report: "${report.title}".`,
+        type: 'work_report',
+        relatedId: report._id,
+      }),
+    ),
+  );
+}
+
+function formatHourlyPeriodLabel(start: Date, end: Date): string {
+  const format = (date: Date) =>
+    date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  return `${format(start)} - ${format(end)}`;
+}
+
+export const createHourlyWorkReport = async (
+  employeeId: string,
+  data: HourlyWorkReportInput,
+) => {
+  const settings = await getOfficeHours();
+  const intervalMinutes = normalizeReminderIntervalMinutes(
+    settings.hourlyReportReminderIntervalMinutes,
+  );
+  const now = new Date();
+  const periodEnd = data.reportPeriodEnd ? new Date(data.reportPeriodEnd) : now;
+  const periodStart = data.reportPeriodStart
+    ? new Date(data.reportPeriodStart)
+    : new Date(periodEnd.getTime() - intervalMinutes * 60 * 1000);
+
+  if (Number.isNaN(periodStart.getTime()) || Number.isNaN(periodEnd.getTime())) {
+    throw ApiError.badRequest('Invalid report period');
+  }
+
+  const existing = await WorkReport.findOne({
+    employee: employeeId,
+    reportType: 'hourly_work',
+    reportPeriodStart: periodStart,
+    status: { $in: ['submitted', 'approved', 'rejected'] },
+  });
+  if (existing) {
+    throw ApiError.conflict('An hourly report for this period was already submitted');
+  }
+
+  const report = await WorkReport.create({
+    employee: employeeId,
+    reportDate: parseDateOnly(periodEnd),
+    reportType: 'hourly_work',
+    reportPeriodStart: periodStart,
+    reportPeriodEnd: periodEnd,
+    title: `Hourly Report (${formatHourlyPeriodLabel(periodStart, periodEnd)})`,
+    workSummary: data.workSummary.trim(),
+    completedTasks: '',
+    pendingTasks: '',
+    blockers: '',
+    tomorrowPlan: '',
+    workingHours: data.workingHours ?? intervalMinutes / 60,
+    status: 'submitted',
+    submittedAt: now,
+  });
+
+  await notifyHourlyReportSubmitted(report);
+
+  return report;
+};
+
 export const createWorkReport = async (
   employeeId: string,
   data: WorkReportInput,
@@ -82,6 +169,7 @@ export const createWorkReport = async (
     const existing = await WorkReport.findOne({
       employee: employeeId,
       reportDate,
+      reportType: 'daily_work',
       status: { $in: ['submitted', 'approved', 'rejected'] },
     });
     if (existing) {

@@ -1,19 +1,23 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AppButton, AppInput, ErrorMessage } from '../../components';
-import { theme } from '../../constants/theme';
+import { colors, spacing, radii, fonts } from '../../constants/theme';
 import { authApi } from '../../api/authApi';
 import { completeLoginSession } from '../../navigation/authSession';
 import { getErrorMessage } from '../../utils/errors';
@@ -24,6 +28,28 @@ import {
 } from '../../validations';
 import type { AuthStackParamList } from '../../navigation/types';
 
+const loginBackground = require('../../assets/images/login-background.png');
+
+const LOGIN_BG_WIDTH = 1024;
+const LOGIN_BG_HEIGHT = 1536;
+/** Vertical center of the main team group in the source image (0 = top, 1 = bottom). */
+const TEAM_FOCUS_Y_RATIO = 0.66;
+/** Where that team group should sit on screen (above the login sheet). */
+const TEAM_SCREEN_Y_RATIO = 0.22;
+
+function getLoginBackgroundLayout(windowWidth: number, windowHeight: number) {
+  const coverScale = Math.max(
+    windowWidth / LOGIN_BG_WIDTH,
+    windowHeight / LOGIN_BG_HEIGHT,
+  );
+  const width = LOGIN_BG_WIDTH * coverScale;
+  const height = LOGIN_BG_HEIGHT * coverScale;
+  const left = (windowWidth - width) / 2;
+  const top = windowHeight * TEAM_SCREEN_Y_RATIO - height * TEAM_FOCUS_Y_RATIO;
+
+  return { width, height, left, top };
+}
+
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 interface LoginForm {
@@ -32,6 +58,12 @@ interface LoginForm {
 }
 
 export default function LoginScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const backgroundLayout = useMemo(
+    () => getLoginBackgroundLayout(windowWidth, windowHeight),
+    [windowWidth, windowHeight],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -69,104 +101,226 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <MaterialCommunityIcons name="office-building" size={56} color={theme.colors.primary} />
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in with email or mobile number</Text>
+    <View style={styles.root}>
+      <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
+
+      <Image
+        source={loginBackground}
+        style={[styles.backgroundImage, backgroundLayout]}
+        resizeMode="cover"
+        accessibilityIgnoresInvertColors
+      />
+
+      <View style={styles.overlay} pointerEvents="none" />
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View
+          style={[
+            styles.hero,
+            { paddingTop: insets.top + spacing.lg, paddingBottom: spacing.md },
+          ]}
+        >
+          <Text style={styles.heroTitle}>Let&apos;s get you in!</Text>
+          <Text style={styles.heroSubtitle}>
+            Hi! Welcome back, you&apos;ve been missed
+          </Text>
         </View>
 
-        {error ? <ErrorMessage message={error} /> : null}
+        <View
+          style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.md },
+          ]}
+        >
+          <View style={styles.sheetHandle} />
 
-        <Controller
-          control={control}
-          name="identifier"
-          rules={{ validate: validateLoginIdentifier }}
-          render={({ field: { onChange, value }, fieldState: { error: fieldError } }) => (
-            <AppInput
-              label="Email or Mobile Number"
-              value={value}
-              onChangeText={onChange}
-              keyboardType={getIdentifierKeyboardType(value)}
-              autoCapitalize="none"
-              autoCorrect={false}
-              error={fieldError?.message}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.sheetContent}
+            bounces={false}
+          >
+            {error ? <ErrorMessage message={error} /> : null}
+
+            <Controller
+              control={control}
+              name="identifier"
+              rules={{ validate: validateLoginIdentifier }}
+              render={({ field: { onChange, value }, fieldState: { error: fieldError } }) => (
+                <AppInput
+                  label="Email or Mobile Number"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="you@company.com"
+                  keyboardType={getIdentifierKeyboardType(value)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  error={fieldError?.message}
+                  leadingIcon={
+                    <MaterialCommunityIcons
+                      name="email-outline"
+                      size={22}
+                      color={colors.textMuted}
+                    />
+                  }
+                  labelStyle={styles.inputLabel}
+                />
+              )}
             />
-          )}
-        />
 
-        <Controller
-          control={control}
-          name="password"
-          rules={{ validate: value => validatePassword(value) }}
-          render={({ field: { onChange, value }, fieldState: { error: fieldError } }) => (
-            <AppInput
-              label="Password"
-              value={value}
-              onChangeText={onChange}
-              secureTextEntry
-              error={fieldError?.message}
+            <Controller
+              control={control}
+              name="password"
+              rules={{ validate: value => validatePassword(value) }}
+              render={({ field: { onChange, value }, fieldState: { error: fieldError } }) => (
+                <AppInput
+                  label="Password"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Enter your password"
+                  secureTextEntry
+                  error={fieldError?.message}
+                  leadingIcon={
+                    <MaterialCommunityIcons
+                      name="lock-outline"
+                      size={22}
+                      color={colors.textMuted}
+                    />
+                  }
+                  labelStyle={styles.inputLabel}
+                />
+              )}
             />
-          )}
-        />
 
-        <Pressable onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={styles.forgot}>Forgot password?</Text>
-        </Pressable>
+            <Pressable onPress={() => navigation.navigate('ForgotPassword')}>
+              <Text style={styles.forgot}>Forgot password?</Text>
+            </Pressable>
 
-        <AppButton title="Sign In" onPress={handleSubmit(onSubmit)} loading={loading} />
+            <AppButton
+              title="Sign In"
+              onPress={handleSubmit(onSubmit)}
+              loading={loading}
+              style={styles.signInButton}
+            />
 
-        <Pressable
-          onPress={() =>
-            Alert.alert('Help', 'Use the email or mobile number and password provided by your administrator.')
-          }>
-          <Text style={styles.help}>Need help? Contact your admin.</Text>
-        </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <View style={styles.helpCard}>
+              <Text style={styles.helpTitle}>Need help signing in?</Text>
+              <Text style={styles.helpText}>
+                Contact your HR or admin team if you forgot your password or need
+                access to your account.
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#0f2a30',
+    overflow: 'hidden',
   },
-  content: {
-    flexGrow: 1,
-    padding: theme.spacing.lg,
-    justifyContent: 'center',
+  flex: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
-  header: {
+  backgroundImage: {
+    position: 'absolute',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 42, 48, 0.48)',
+  },
+  hero: {
+    flex: 1,
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    paddingHorizontal: spacing.xl,
   },
-  title: {
-    marginTop: theme.spacing.md,
-    fontSize: theme.fonts.sizes.xxl,
-    fontWeight: theme.fonts.weights.bold,
-    color: theme.colors.text,
-  },
-  subtitle: {
-    marginTop: theme.spacing.xs,
-    fontSize: theme.fonts.sizes.sm,
-    color: theme.colors.textSecondary,
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
     textAlign: 'center',
+    letterSpacing: -0.5,
+    marginBottom: spacing.sm,
+    textShadowColor: 'rgba(0, 0, 0, 0.35)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  heroSubtitle: {
+    fontSize: fonts.sizes.md,
+    color: 'rgba(255, 255, 255, 0.92)',
+    textAlign: 'center',
+    lineHeight: 24,
+    maxWidth: 300,
+    textShadowColor: 'rgba(0, 0, 0, 0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
+  sheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    maxHeight: '62%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    marginBottom: spacing.lg,
+  },
+  sheetContent: {
+    paddingBottom: spacing.md,
+  },
+  inputLabel: {
+    color: colors.text,
+    fontWeight: '600',
   },
   forgot: {
     textAlign: 'right',
-    color: theme.colors.primary,
-    fontSize: theme.fonts.sizes.sm,
-    marginBottom: theme.spacing.lg,
-    fontWeight: theme.fonts.weights.medium,
+    color: colors.primaryDark,
+    fontSize: fonts.sizes.sm,
+    marginBottom: spacing.md,
+    fontWeight: fonts.weights.medium,
   },
-  help: {
-    marginTop: theme.spacing.lg,
-    textAlign: 'center',
-    color: theme.colors.textMuted,
-    fontSize: theme.fonts.sizes.sm,
+  signInButton: {
+    marginTop: spacing.sm,
+    borderRadius: radii.lg,
+    minHeight: 52,
+  },
+  helpCard: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  helpTitle: {
+    fontSize: fonts.sizes.sm,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  helpText: {
+    fontSize: fonts.sizes.sm,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
 });

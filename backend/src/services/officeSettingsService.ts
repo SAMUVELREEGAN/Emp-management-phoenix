@@ -3,6 +3,7 @@ import { env } from '../config/env';
 import { OfficeSettings, type IOfficeSettings } from '../models/OfficeSettings';
 import { ApiError } from '../utils/ApiError';
 import { parseTimeToMinutes } from '../utils/dateHelpers';
+import { normalizeReminderIntervalMinutes } from '../utils/reminderInterval';
 
 export interface OfficeSettingsData {
   officeStartTime: string;
@@ -12,6 +13,8 @@ export interface OfficeSettingsData {
   officeLongitude?: number;
   geofenceRadiusMeters: number;
   officeLocationName?: string;
+  hourlyReportReminderEnabled: boolean;
+  hourlyReportReminderIntervalMinutes: number;
 }
 
 export type OfficeSettingsUpdate = Partial<OfficeSettingsData>;
@@ -33,6 +36,9 @@ function mapSettings(settings: {
   officeLongitude?: number;
   geofenceRadiusMeters?: number;
   officeLocationName?: string;
+  hourlyReportReminderEnabled?: boolean;
+  hourlyReportReminderIntervalMinutes?: number;
+  hourlyReportReminderIntervalHours?: number;
 }): OfficeSettingsData {
   return {
     officeStartTime: settings.officeStartTime,
@@ -42,6 +48,11 @@ function mapSettings(settings: {
     officeLongitude: settings.officeLongitude,
     geofenceRadiusMeters: settings.geofenceRadiusMeters ?? 200,
     officeLocationName: settings.officeLocationName ?? '',
+    hourlyReportReminderEnabled: settings.hourlyReportReminderEnabled ?? true,
+    hourlyReportReminderIntervalMinutes: normalizeReminderIntervalMinutes(
+      settings.hourlyReportReminderIntervalMinutes,
+      settings.hourlyReportReminderIntervalHours,
+    ),
   };
 }
 
@@ -61,6 +72,8 @@ async function resolveOfficeSettingsDocument(
       officeEndTime: env.OFFICE_END_TIME,
       geofenceEnabled: false,
       geofenceRadiusMeters: 200,
+      hourlyReportReminderEnabled: true,
+      hourlyReportReminderIntervalMinutes: 60,
     });
   }
 
@@ -102,6 +115,8 @@ export const updateOfficeHours = async (
       officeEndTime: env.OFFICE_END_TIME,
       geofenceEnabled: false,
       geofenceRadiusMeters: 200,
+      hourlyReportReminderEnabled: true,
+      hourlyReportReminderIntervalMinutes: 60,
       updatedBy: adminId,
     });
   }
@@ -129,6 +144,14 @@ export const updateOfficeHours = async (
       patch.officeLocationName !== undefined
         ? patch.officeLocationName
         : current.officeLocationName ?? '',
+    hourlyReportReminderEnabled:
+      patch.hourlyReportReminderEnabled !== undefined
+        ? patch.hourlyReportReminderEnabled
+        : current.hourlyReportReminderEnabled,
+    hourlyReportReminderIntervalMinutes:
+      patch.hourlyReportReminderIntervalMinutes !== undefined
+        ? normalizeReminderIntervalMinutes(patch.hourlyReportReminderIntervalMinutes)
+        : current.hourlyReportReminderIntervalMinutes,
   };
 
   if (
@@ -154,6 +177,9 @@ export const updateOfficeHours = async (
   settings.officeLongitude = merged.officeLongitude;
   settings.geofenceRadiusMeters = merged.geofenceRadiusMeters;
   settings.officeLocationName = merged.officeLocationName ?? '';
+  settings.hourlyReportReminderEnabled = merged.hourlyReportReminderEnabled;
+  settings.hourlyReportReminderIntervalMinutes =
+    merged.hourlyReportReminderIntervalMinutes;
   settings.updatedBy = new mongoose.Types.ObjectId(adminId);
   await settings.save();
 

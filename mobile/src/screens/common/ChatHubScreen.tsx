@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -8,10 +8,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AppHeader, ChatGroupCard, EmptyState, ErrorMessage, LoadingIndicator } from '../../components';
+import { chatTheme } from '../../constants/chatTheme';
 import { theme } from '../../constants/theme';
 import { chatApi } from '../../api/chatApi';
 import { useAuthStore } from '../../store/authStore';
@@ -29,6 +31,8 @@ interface ActiveThread {
 
 export default function ChatHubScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ChatStackParamList>>();
+  const route = useRoute<RouteProp<ChatStackParamList, 'ChatHub'>>();
+  const pendingGroupId = route.params?.groupId;
   const isAdmin = useAuthStore(state => state.user?.role === 'admin');
   const [groups, setGroups] = useState<ChatGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,16 +76,33 @@ export default function ChatHubScreen() {
     }, [activeThread, fetchGroups]),
   );
 
+  const openThread = useCallback(
+    (group: ChatGroup) => {
+      setActiveThread({
+        groupId: group._id,
+        groupName: group.name,
+        isTeamChat: group.type === 'team',
+      });
+      if (route.params?.groupId) {
+        navigation.setParams({ groupId: undefined });
+      }
+    },
+    [navigation, route.params?.groupId],
+  );
+
+  useEffect(() => {
+    if (!pendingGroupId || activeThread || groups.length === 0) {
+      return;
+    }
+
+    const group = groups.find(item => item._id === pendingGroupId);
+    if (group) {
+      openThread(group);
+    }
+  }, [pendingGroupId, groups, activeThread, openThread]);
+
   const teamChat = groups.find(group => group.type === 'team' || group.isTeamChat);
   const groupChats = groups.filter(group => group.type === 'group');
-
-  const openThread = (group: ChatGroup) => {
-    setActiveThread({
-      groupId: group._id,
-      groupName: group.name,
-      isTeamChat: group.type === 'team',
-    });
-  };
 
   const handleDeleteGroup = (group: ChatGroup) => {
     Alert.alert('Delete group', `Delete "${group.name}" and all its messages?`, [
@@ -155,31 +176,47 @@ export default function ChatHubScreen() {
           }
           ListHeaderComponent={
             <View>
-              <View style={styles.sectionHeader}>
-                <MaterialCommunityIcons name="account-voice" size={18} color={theme.colors.primary} />
-                <Text style={styles.sectionTitle}>Team Chat</Text>
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIconWrap}>
+                    <MaterialCommunityIcons
+                      name="account-voice"
+                      size={16}
+                      color={chatTheme.accent}
+                    />
+                  </View>
+                  <Text style={styles.sectionTitle}>Team Chat</Text>
+                </View>
+                {teamChat ? (
+                  <ChatGroupCard group={teamChat} onPress={() => openThread(teamChat)} />
+                ) : (
+                  <EmptyState
+                    icon="account-group-outline"
+                    title="Team chat loading"
+                    message="Pull to refresh if team chat does not appear."
+                  />
+                )}
               </View>
-              {teamChat ? (
-                <ChatGroupCard group={teamChat} onPress={() => openThread(teamChat)} />
-              ) : (
-                <EmptyState
-                  icon="account-group-outline"
-                  title="Team chat loading"
-                  message="Pull to refresh if team chat does not appear."
-                />
-              )}
 
-              <View style={[styles.sectionHeader, styles.sectionSpacing]}>
-                <MaterialCommunityIcons name="forum-outline" size={18} color={theme.colors.primary} />
-                <Text style={styles.sectionTitle}>Group Chats</Text>
-                {isAdmin ? (
-                  <Pressable
-                    style={styles.createInlineBtn}
-                    onPress={() => navigation.navigate('CreateChatGroup')}>
-                    <MaterialCommunityIcons name="plus" size={16} color={theme.colors.primary} />
-                    <Text style={styles.createInlineText}>New Group</Text>
-                  </Pressable>
-                ) : null}
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIconWrap}>
+                    <MaterialCommunityIcons
+                      name="forum-outline"
+                      size={16}
+                      color={chatTheme.accent}
+                    />
+                  </View>
+                  <Text style={styles.sectionTitle}>Group Chats</Text>
+                  {isAdmin ? (
+                    <Pressable
+                      style={styles.createInlineBtn}
+                      onPress={() => navigation.navigate('CreateChatGroup')}>
+                      <MaterialCommunityIcons name="plus" size={16} color={chatTheme.ownBubble} />
+                      <Text style={styles.createInlineText}>New Group</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
             </View>
           }
@@ -219,7 +256,7 @@ export default function ChatHubScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: chatTheme.hubBackground,
   },
   center: {
     flex: 1,
@@ -232,35 +269,46 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     flexGrow: 1,
   },
+  sectionCard: {
+    marginBottom: theme.spacing.md,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.xs,
+    gap: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
+    paddingHorizontal: 2,
   },
-  sectionSpacing: {
-    marginTop: theme.spacing.lg,
+  sectionIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: chatTheme.ownBubble,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: chatTheme.accent,
   },
   sectionTitle: {
     flex: 1,
     fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    fontWeight: theme.fonts.weights.bold,
+    color: chatTheme.otherBubbleText,
+    letterSpacing: 0.4,
   },
   createInlineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: theme.colors.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: chatTheme.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: theme.radii.full,
+    ...chatTheme.shadow,
   },
   createInlineText: {
     fontSize: theme.fonts.sizes.xs,
-    color: theme.colors.primary,
-    fontWeight: theme.fonts.weights.medium,
+    color: chatTheme.ownBubble,
+    fontWeight: theme.fonts.weights.bold,
   },
 });

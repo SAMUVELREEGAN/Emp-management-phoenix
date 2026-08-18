@@ -4,6 +4,7 @@ import { env } from './config/env';
 import { clearDemoData } from './seeds/clearDemoData';
 import { ensureDefaultAdmin } from './seeds/ensureDefaultAdmin';
 import { ensureOfficeSettingsDocument } from './services/officeSettingsService';
+import { startHourlyReportReminderScheduler } from './services/hourlyReportReminderService';
 import { logger } from './utils/logger';
 
 const startServer = async () => {
@@ -23,6 +24,7 @@ const startServer = async () => {
     logger.info(
       `Server running on http://0.0.0.0:${env.PORT} [${env.NODE_ENV}]`,
     );
+    startHourlyReportReminderScheduler();
   });
 };
 

@@ -11,6 +11,7 @@ import {
   LiveTrackingCard,
   LoadingIndicator,
   OfficeHoursSettingsCard,
+  HourlyReportReminderSettingsCard,
   OfficeGeofenceSettingsCard,
   QuickAccessGrid,
   WorkReportCard,
@@ -248,6 +249,12 @@ export default function AdminDashboardScreen() {
 
           {!isHr ? (
             <OfficeHoursSettingsCard
+              refreshKey={settingsRefreshKey}
+              onSaved={bumpSettingsRefresh}
+            />
+          ) : null}
+          {!isHr ? (
+            <HourlyReportReminderSettingsCard
               refreshKey={settingsRefreshKey}
               onSaved={bumpSettingsRefresh}
             />

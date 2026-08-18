@@ -12,6 +12,7 @@ export const checkIn = asyncHandler(async (req: AuthRequest, res: Response) => {
     req.body.location,
     req.body.deviceTimestamp,
     req.body.deviceTimezoneOffset,
+    req.body.workFromHome,
   );
   return sendSuccess(res, 'Attendance checked in successfully', {
     attendance,

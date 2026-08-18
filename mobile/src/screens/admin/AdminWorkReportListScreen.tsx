@@ -7,8 +7,10 @@ import {
   EmptyState,
   ErrorMessage,
   LoadingIndicator,
+  ReportKindTabs,
   StaffRoleTabs,
   WorkReportCard,
+  type ReportKindTab,
   type StaffRoleTab,
 } from '../../components';
 import { theme } from '../../constants/theme';
@@ -40,6 +42,7 @@ export default function AdminWorkReportListScreen({
       NativeStackNavigationProp<AdminReportsStackParamList | HrReportsStackParamList>
     >();
   const [staffTab, setStaffTab] = useState<StaffRoleTab>(fixedRole || 'employee');
+  const [reportKind, setReportKind] = useState<ReportKindTab>('daily');
   const [reports, setReports] = useState<WorkReport[]>([]);
   const [filter, setFilter] = useState<WorkReportStatus | undefined>('submitted');
   const [loading, setLoading] = useState(true);
@@ -52,15 +55,20 @@ export default function AdminWorkReportListScreen({
     onBeforeBack: () => {
       setReports([]);
       setStaffTab(fixedRole || 'employee');
+      setReportKind('daily');
       setFilter('submitted');
     },
   });
+
+  const isEmployeeStaff = staffTab === 'employee';
+  const isHourly = isEmployeeStaff && reportKind === 'hourly';
 
   const fetchReports = useCallback(
     async (
       isRefresh = false,
       statusFilter = filter,
       roleTab: StaffRoleTab = staffTab,
+      kind: ReportKindTab = reportKind,
     ) => {
       if (isRefresh) {
         setRefreshing(true);
@@ -74,6 +82,12 @@ export default function AdminWorkReportListScreen({
           limit: 50,
           status: statusFilter,
           role: roleTab,
+          reportType:
+            roleTab === 'hr'
+              ? 'attendance_summary'
+              : kind === 'hourly'
+                ? 'hourly_work'
+                : 'daily_work',
         });
         setReports(response.data.items);
       } catch (err) {
@@ -83,27 +97,51 @@ export default function AdminWorkReportListScreen({
         setRefreshing(false);
       }
     },
-    [filter, staffTab],
+    [filter, staffTab, reportKind],
   );
 
   useEffect(() => {
-    fetchReports(false, filter, staffTab);
-  }, [staffTab, fetchReports, filter]);
+    fetchReports(false, filter, staffTab, reportKind);
+  }, [staffTab, fetchReports, filter, reportKind]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchReports(false, filter, staffTab);
-    }, [fetchReports, filter, staffTab]),
+      fetchReports(false, filter, staffTab, reportKind);
+    }, [fetchReports, filter, staffTab, reportKind]),
   );
 
+  const handleStaffTabChange = (tab: StaffRoleTab) => {
+    setStaffTab(tab);
+    if (tab === 'hr') {
+      setReportKind('daily');
+    }
+  };
+
+  const handleReportKindChange = (kind: ReportKindTab) => {
+    setReportKind(kind);
+    setReports([]);
+    void fetchReports(false, filter, staffTab, kind);
+  };
+
   const tabLabel = staffTab === 'employee' ? 'Employee' : 'HR';
+  const listTitle = isHourly
+    ? 'Employee Hourly Reports'
+    : staffTab === 'hr'
+      ? 'HR Attendance Reports'
+      : 'Employee Daily Reports';
+
+  const showInitialLoader = loading && reports.length === 0 && !refreshing;
 
   return (
     <View style={styles.container} collapsable={false}>
       {!embedded ? (
         <AppHeader
           title="Work Reports"
-          subtitle={`Review ${tabLabel.toLowerCase()} daily work reports`}
+          subtitle={
+            isHourly
+              ? 'Review employee hourly work updates'
+              : `Review ${tabLabel.toLowerCase()} daily work reports`
+          }
           showBack={showBack}
           onBack={showBack ? handleBack : undefined}
         />
@@ -114,7 +152,11 @@ export default function AdminWorkReportListScreen({
       ) : (
         <>
           {!embedded && !fixedRole ? (
-            <StaffRoleTabs value={staffTab} onChange={setStaffTab} />
+            <StaffRoleTabs value={staffTab} onChange={handleStaffTabChange} />
+          ) : null}
+
+          {isEmployeeStaff ? (
+            <ReportKindTabs value={reportKind} onChange={handleReportKindChange} />
           ) : null}
 
           <View style={styles.filters} collapsable={false}>
@@ -130,9 +172,9 @@ export default function AdminWorkReportListScreen({
             ))}
           </View>
 
-          {loading ? (
+          {showInitialLoader ? (
             <LoadingIndicator fullScreen />
-          ) : error ? (
+          ) : error && reports.length === 0 ? (
             <View style={styles.center}>
               <ErrorMessage message={error} onRetry={() => fetchReports()} />
             </View>
@@ -145,17 +187,21 @@ export default function AdminWorkReportListScreen({
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={() => fetchReports(true)} />
               }
-              ListHeaderComponent={
-                <Text style={styles.listTitle}>{tabLabel} Reports</Text>
-              }
+              ListHeaderComponent={<Text style={styles.listTitle}>{listTitle}</Text>}
               ListEmptyComponent={
                 <EmptyState
-                  icon="file-search-outline"
-                  title={`No ${tabLabel.toLowerCase()} reports found`}
+                  icon={isHourly ? 'clock-outline' : 'file-search-outline'}
+                  title={
+                    isHourly
+                      ? 'No hourly reports found'
+                      : `No ${tabLabel.toLowerCase()} reports found`
+                  }
                   message={
-                    staffTab === 'hr'
-                      ? 'HR attendance summary reports will appear here when submitted.'
-                      : 'Try changing the status filter or check back later.'
+                    isHourly
+                      ? 'Employee hourly reports will appear here after they submit them.'
+                      : staffTab === 'hr'
+                        ? 'HR attendance summary reports will appear here when submitted.'
+                        : 'Try changing the status filter or check back later.'
                   }
                 />
               }

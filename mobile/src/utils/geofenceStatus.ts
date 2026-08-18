@@ -13,11 +13,13 @@ export function getGeofenceStatus(
   latitude: number,
   longitude: number,
   officeHours: OfficeHours,
+  options?: { skipGeofence?: boolean },
 ): GeofenceStatus {
   const officeName = officeHours.officeLocationName?.trim() || 'Office';
   const radiusMeters = officeHours.geofenceRadiusMeters ?? 200;
 
   if (
+    options?.skipGeofence ||
     !officeHours.geofenceEnabled ||
     officeHours.officeLatitude == null ||
     officeHours.officeLongitude == null

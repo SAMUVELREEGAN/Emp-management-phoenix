@@ -9,6 +9,9 @@ export interface IOfficeSettings extends Document {
   officeLongitude?: number;
   geofenceRadiusMeters: number;
   officeLocationName?: string;
+  hourlyReportReminderEnabled: boolean;
+  hourlyReportReminderIntervalMinutes: number;
+  hourlyReportReminderIntervalHours?: number;
   updatedBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -52,6 +55,21 @@ const officeSettingsSchema = new Schema<IOfficeSettings>(
       type: String,
       default: '',
       trim: true,
+    },
+    hourlyReportReminderEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    hourlyReportReminderIntervalMinutes: {
+      type: Number,
+      default: 60,
+      min: 15,
+      max: 480,
+    },
+    hourlyReportReminderIntervalHours: {
+      type: Number,
+      min: 1,
+      max: 8,
     },
     updatedBy: {
       type: Schema.Types.ObjectId,

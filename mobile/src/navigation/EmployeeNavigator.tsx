@@ -24,6 +24,7 @@ import LeaveDetailScreen from '../screens/employee/LeaveDetailScreen';
 import WorkReportListScreen from '../screens/employee/WorkReportListScreen';
 import WorkReportFormScreen from '../screens/employee/WorkReportFormScreen';
 import WorkReportDetailScreen from '../screens/employee/WorkReportDetailScreen';
+import HourlyReportFormScreen from '../screens/employee/HourlyReportFormScreen';
 import NotificationsScreen from '../screens/common/NotificationsScreen';
 import MoreHubScreen from '../screens/common/MoreHubScreen';
 import ProfileScreen from '../screens/common/ProfileScreen';
@@ -31,6 +32,7 @@ import ChangePasswordScreen from '../screens/common/ChangePasswordScreen';
 import { ChatStackNavigator } from './ChatStackNavigator';
 import { homeTabScreenOptions } from './homeTabOptions';
 import { moreTabScreenOptions } from './moreTabOptions';
+import { useHourlyReportReminder } from '../hooks/useHourlyReportReminder';
 
 const Tab = createBottomTabNavigator<EmployeeTabParamList>();
 const HomeStack = createNativeStackNavigator<EmployeeHomeStackParamList>();
@@ -61,6 +63,7 @@ function ReportsStackNavigator() {
     <ReportsStack.Navigator screenOptions={stackScreenOptions}>
       <ReportsStack.Screen name="WorkReportList" component={WorkReportListScreen} />
       <ReportsStack.Screen name="WorkReportForm" component={WorkReportFormScreen} />
+      <ReportsStack.Screen name="HourlyReportForm" component={HourlyReportFormScreen} />
       <ReportsStack.Screen name="WorkReportDetail" component={WorkReportDetailScreen} />
     </ReportsStack.Navigator>
   );
@@ -119,7 +122,7 @@ function MoreStackNavigator() {
 }
 
 const employeeTabIcons = {
-  Home: 'home',
+  Home: 'home-outline',
   Attendance: 'clock-outline',
   Chat: 'chat-outline',
   Reports: 'chart-bar',
@@ -127,9 +130,11 @@ const employeeTabIcons = {
 };
 
 export function EmployeeNavigator() {
+  useHourlyReportReminder();
+
   return (
     <LogoutGate>
-      <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(employeeTabIcons)}>
+      <Tab.Navigator screenOptions={createTabBarScreenOptions(employeeTabIcons)}>
         <Tab.Screen name="Home" component={HomeStackNavigator} options={homeTabScreenOptions} />
         <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />
         <Tab.Screen name="Chat" component={ChatStackNavigator} options={{ title: 'Chat' }} />

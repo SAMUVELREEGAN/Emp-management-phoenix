@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../constants/theme';
-import { formatDate } from '../utils/dates';
+import { formatDate, formatTime } from '../utils/dates';
 import type { UserSummary, WorkReport } from '../types';
 import { StatusBadge } from './StatusBadge';
 
@@ -20,9 +20,15 @@ function getEmployeeName(employee: UserSummary | string): string {
 
 export function WorkReportCard({ report, onPress, showEmployee = false }: WorkReportCardProps) {
   const isAttendanceSummary = report.reportType === 'attendance_summary';
+  const isHourlyReport = report.reportType === 'hourly_work';
   const summaryLine = isAttendanceSummary && report.attendanceSummary
     ? `Present ${report.attendanceSummary.present} • Absent ${report.attendanceSummary.absent} • Late ${report.attendanceSummary.late}`
     : report.workSummary;
+
+  const periodLabel =
+    isHourlyReport && report.reportPeriodStart && report.reportPeriodEnd
+      ? `${formatTime(report.reportPeriodStart)} - ${formatTime(report.reportPeriodEnd)}`
+      : null;
 
   const content = (
     <>
@@ -32,14 +38,26 @@ export function WorkReportCard({ report, onPress, showEmployee = false }: WorkRe
         </Text>
         <StatusBadge status={report.status} />
       </View>
+      {isHourlyReport ? (
+        <View style={styles.kindBadge}>
+          <Text style={styles.kindBadgeText}>Hourly</Text>
+        </View>
+      ) : null}
       {showEmployee ? (
         <Text style={styles.employee}>{getEmployeeName(report.employee)}</Text>
       ) : null}
-      <Text style={styles.date}>{formatDate(report.reportDate)}</Text>
+      <Text style={styles.date}>
+        {formatDate(report.reportDate)}
+        {periodLabel ? ` • ${periodLabel}` : ''}
+      </Text>
       <Text style={styles.summary} numberOfLines={2}>
         {summaryLine}
       </Text>
-      {!isAttendanceSummary ? <Text style={styles.hours}>{report.workingHours} hrs</Text> : null}
+      {!isAttendanceSummary ? (
+        <Text style={styles.hours}>
+          {isHourlyReport ? 'Hourly report' : `${report.workingHours} hrs`}
+        </Text>
+      ) : null}
     </>
   );
 
@@ -75,6 +93,19 @@ const styles = StyleSheet.create({
     fontSize: theme.fonts.sizes.md,
     fontWeight: theme.fonts.weights.semibold,
     color: theme.colors.text,
+  },
+  kindBadge: {
+    alignSelf: 'flex-start',
+    marginTop: theme.spacing.xs,
+    backgroundColor: theme.colors.infoLight,
+    borderRadius: theme.radii.full,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  kindBadgeText: {
+    fontSize: 10,
+    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.info,
   },
   employee: {
     marginTop: theme.spacing.xs,

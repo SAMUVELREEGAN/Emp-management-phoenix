@@ -11,10 +11,15 @@ import { getErrorMessage } from '../../utils/errors';
 import { formatDateTime } from '../../utils/dates';
 import type { Notification } from '../../types';
 import { useQuickAccessBack } from '../../navigation/safeStackBack';
+import {
+  getNotificationTargetLabel,
+  navigateFromNotification,
+} from '../../navigation/notificationNavigation';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation<NavigationProp<Record<string, object | undefined>>>();
-  const isAdmin = useAuthStore(state => state.user?.role === 'admin');
+  const userRole = useAuthStore(state => state.user?.role);
+  const isAdmin = userRole === 'admin';
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,6 +78,18 @@ export default function NotificationsScreen() {
     }
   };
 
+  const handleNotificationPress = async (item: Notification) => {
+    if (!item.isRead) {
+      await handleMarkRead(item._id);
+    }
+
+    if (!userRole) {
+      return;
+    }
+
+    navigateFromNotification(item, userRole);
+  };
+
   return (
     <View style={styles.container} collapsable={false}>
       <AppHeader
@@ -126,18 +143,31 @@ export default function NotificationsScreen() {
               message="You're all caught up!"
             />
           }
-          renderItem={({ item }) => (
-            <Pressable
-              style={[styles.card, !item.isRead && styles.unreadCard]}
-              onPress={() => !item.isRead && handleMarkRead(item._id)}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.title}>{item.title}</Text>
-                {!item.isRead ? <View style={styles.dot} /> : null}
-              </View>
-              <Text style={styles.message}>{item.message}</Text>
-              <Text style={styles.time}>{formatDateTime(item.createdAt)}</Text>
-            </Pressable>
-          )}
+          renderItem={({ item }) => {
+            const targetLabel = getNotificationTargetLabel(item);
+            return (
+              <Pressable
+                style={[styles.card, !item.isRead && styles.unreadCard]}
+                onPress={() => void handleNotificationPress(item)}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.title}>{item.title}</Text>
+                  {!item.isRead ? <View style={styles.dot} /> : null}
+                </View>
+                <Text style={styles.message}>{item.message}</Text>
+                {targetLabel ? (
+                  <View style={styles.targetRow}>
+                    <Text style={styles.targetText}>{targetLabel}</Text>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={18}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                ) : null}
+                <Text style={styles.time}>{formatDateTime(item.createdAt)}</Text>
+              </Pressable>
+            );
+          }}
         />
       )}
     </View>
@@ -207,6 +237,20 @@ const styles = StyleSheet.create({
     fontSize: theme.fonts.sizes.sm,
     color: theme.colors.textSecondary,
     lineHeight: 20,
+  },
+  targetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  targetText: {
+    fontSize: theme.fonts.sizes.sm,
+    color: theme.colors.primary,
+    fontWeight: theme.fonts.weights.semibold,
   },
   time: {
     marginTop: theme.spacing.sm,

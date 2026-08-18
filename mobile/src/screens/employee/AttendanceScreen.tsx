@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -70,6 +70,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   );
   const [previewLocation, setPreviewLocation] = useState<LocationPayload | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [workFromHomeEnabled, setWorkFromHomeEnabled] = useState(false);
 
   const { showBack, handleBack } = useQuickAccessBack({
     enabled: !embedded,
@@ -143,6 +144,17 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
 
   const canCheckIn = !attendance?.checkInTime;
   const canCheckOut = !!attendance?.checkInTime && !attendance?.checkOutTime;
+  const isWfhActive = workFromHomeEnabled || !!attendance?.isWorkFromHome;
+  const canToggleWfh = canCheckIn && !isHr;
+  const geofenceApplies = officeHours.geofenceEnabled && !isWfhActive;
+
+  useEffect(() => {
+    if (attendance?.isWorkFromHome) {
+      setWorkFromHomeEnabled(true);
+    } else if (!attendance?.checkInTime) {
+      setWorkFromHomeEnabled(false);
+    }
+  }, [attendance?.isWorkFromHome, attendance?.checkInTime]);
 
   const refreshLocationPreview = useCallback(async () => {
     setPreviewLoading(true);
@@ -169,6 +181,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
         previewLocation.latitude,
         previewLocation.longitude,
         officeHours,
+        { skipGeofence: isWfhActive },
       )
     : null;
 
@@ -176,8 +189,11 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     location: LocationPayload,
     action: 'check-in' | 'check-out',
     hours: OfficeHours = officeHours,
+    skipGeofence = false,
   ): boolean => {
-    const status = getGeofenceStatus(location.latitude, location.longitude, hours);
+    const status = getGeofenceStatus(location.latitude, location.longitude, hours, {
+      skipGeofence,
+    });
     if (!status.enforced || status.within) {
       return true;
     }
@@ -211,7 +227,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
       if (!location) {
         return;
       }
-      if (!validateGeofenceForAttendance(location, 'check-in', latestOfficeHours)) {
+      if (!validateGeofenceForAttendance(location, 'check-in', latestOfficeHours, workFromHomeEnabled)) {
         setPreviewLocation(location);
         return;
       }
@@ -219,6 +235,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
         location,
         deviceTimestamp: toIsoDateTime(),
         deviceTimezoneOffset: getDeviceTimezoneOffset(),
+        workFromHome: workFromHomeEnabled,
       });
       const checkedIn = await applyAttendance(response.data.attendance);
       pendingRouteAfterCheckInRef.current = true;
@@ -232,12 +249,13 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
           ? `You checked in late by ${lateLabel}.`
           : 'Checked in on time.';
       const placeLabel = formatLocationWithCoords(checkedIn?.checkInLocation ?? location);
+      const wfhNote = checkedIn?.isWorkFromHome ? '\n\nWorking from home — no office geofence required.' : '';
 
       setPreviewLocation(checkedIn?.checkInLocation ?? location);
 
       Alert.alert(
         'Checked In',
-        `${statusMessage}\n\nLocation:\n${placeLabel}`,
+        `${statusMessage}\n\nLocation:\n${placeLabel}${wfhNote}`,
         [
           {
             text: 'OK',
@@ -295,7 +313,14 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
       if (!location) {
         return;
       }
-      if (!validateGeofenceForAttendance(location, 'check-out', latestOfficeHours)) {
+      if (
+        !validateGeofenceForAttendance(
+          location,
+          'check-out',
+          latestOfficeHours,
+          !!attendance?.isWorkFromHome,
+        )
+      ) {
         setPreviewLocation(location);
         return;
       }
@@ -410,7 +435,42 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
             </Text>
           </View>
 
-          {officeHours.geofenceEnabled ? (
+          {!isHr ? (
+            <View style={[styles.wfhCard, isWfhActive && styles.wfhCardActive]}>
+              <View style={styles.wfhHeader}>
+                <MaterialCommunityIcons
+                  name="home-account"
+                  size={22}
+                  color={isWfhActive ? theme.colors.info : theme.colors.textSecondary}
+                />
+                <View style={styles.wfhTextBlock}>
+                  <Text style={styles.wfhTitle}>Work From Home</Text>
+                  <Text style={styles.wfhSubtitle}>
+                    {isWfhActive
+                      ? 'Office geofence is not required. You can check in and out from anywhere.'
+                      : 'Enable when you are working remotely today.'}
+                  </Text>
+                </View>
+                <Switch
+                  value={workFromHomeEnabled}
+                  onValueChange={setWorkFromHomeEnabled}
+                  disabled={!canToggleWfh || actionLoading}
+                  trackColor={{
+                    false: theme.colors.border,
+                    true: theme.colors.infoLight,
+                  }}
+                  thumbColor={workFromHomeEnabled ? theme.colors.info : theme.colors.white}
+                />
+              </View>
+              {attendance?.isWorkFromHome && !canCheckIn ? (
+                <Text style={styles.wfhLockedNote}>
+                  Work from home is active for today&apos;s session.
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {geofenceApplies ? (
             <View
               style={[
                 styles.geofenceCard,
@@ -472,7 +532,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
             </View>
           ) : null}
 
-          {!officeHours.geofenceEnabled ? (
+          {!geofenceApplies ? (
             <View style={styles.locationCard}>
               <View style={styles.geofenceHeader}>
                 <MaterialCommunityIcons
@@ -682,6 +742,44 @@ const styles = StyleSheet.create({
   },
   refreshButton: {
     marginBottom: 0,
+  },
+  wfhCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.card,
+  },
+  wfhCardActive: {
+    borderColor: theme.colors.info,
+    backgroundColor: theme.colors.infoLight,
+  },
+  wfhHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  wfhTextBlock: {
+    flex: 1,
+  },
+  wfhTitle: {
+    fontSize: theme.fonts.sizes.md,
+    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.text,
+  },
+  wfhSubtitle: {
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  wfhLockedNote: {
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.info,
+    fontWeight: theme.fonts.weights.medium,
+    marginTop: theme.spacing.sm,
   },
   statusCard: {
     backgroundColor: theme.colors.white,
