@@ -52,7 +52,7 @@ async function uploadPoints(points: LocationPayload[]): Promise<void> {
         latitude: point.latitude,
         longitude: point.longitude,
         address: point.address,
-        recordedAt: new Date().toISOString(),
+        recordedAt: point.locationTimestamp ?? new Date().toISOString(),
       })),
     },
     {
@@ -69,11 +69,25 @@ async function uploadPoints(points: LocationPayload[]): Promise<void> {
 function getCurrentPosition(): Promise<LocationPayload> {
   return new Promise((resolve, reject) => {
     Geolocation.getCurrentPosition(
-      position =>
-        resolve({
+      position => {
+        if (position.mocked === true) {
+          reject(new Error('Mock location detected'));
+          return;
+        }
+        const payload: LocationPayload = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-        }),
+          locationTimestamp: new Date(position.timestamp).toISOString(),
+        };
+        if (
+          position.coords.accuracy != null &&
+          Number.isFinite(position.coords.accuracy) &&
+          position.coords.accuracy > 0
+        ) {
+          payload.accuracy = Math.round(position.coords.accuracy * 10) / 10;
+        }
+        resolve(payload);
+      },
       error => reject(error),
       {
         enableHighAccuracy: true,

@@ -30,7 +30,7 @@ const env = {
 };
 
 if (isWindows) {
-  env.GRADLE_USER_HOME = 'C:\\gradle';
+  env.GRADLE_USER_HOME = process.env.GRADLE_USER_HOME || 'D:\\gradle';
 }
 
 console.log('Building production release APK...');

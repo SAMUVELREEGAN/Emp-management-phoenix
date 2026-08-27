@@ -7,7 +7,7 @@ import {
   startRouteTrackingService,
   stopRouteTrackingService,
 } from '../services/routeTrackingCleanup';
-import { isAttendanceLocationBusy, requestLocationPermission } from '../utils/location';
+import { isAttendanceLocationBusy, requestBackgroundLocationPermission, requestLocationPermission } from '../utils/location';
 import { useAuthStore } from '../store/authStore';
 import type { LocationPayload } from '../types';
 
@@ -106,6 +106,10 @@ export function useRouteRecorder(isActive: boolean) {
     };
 
     const recordPoint = (point: LocationPayload) => {
+      if (point.isMocked) {
+        return;
+      }
+
       if (
         lastPointRef.current &&
         distanceMeters(lastPointRef.current, point) < MIN_DISTANCE_METERS
@@ -133,7 +137,7 @@ export function useRouteRecorder(isActive: boolean) {
         return;
       }
 
-      const granted = await requestLocationPermission();
+      const granted = await requestBackgroundLocationPermission({ showDeniedAlert: false });
       if (!granted || cancelled) {
         return;
       }

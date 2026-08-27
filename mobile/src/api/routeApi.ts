@@ -17,7 +17,7 @@ export const routeApi = {
           latitude: point.latitude,
           longitude: point.longitude,
           address: point.address,
-          recordedAt: new Date().toISOString(),
+          recordedAt: point.locationTimestamp ?? new Date().toISOString(),
         })),
       },
     );

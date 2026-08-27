@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -14,9 +14,10 @@ import {
 } from '../../components';
 import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
+import { authApi } from '../../api/authApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
-import { formatLocationWithCoords, enrichAttendanceLocations, getLocationForAttendance, formatAccuracyMeters, isLowAccuracyLocation } from '../../utils/location';
+import { formatLocationWithCoords, enrichAttendanceLocations, getLocationForAttendance, formatAccuracyMeters, isLowAccuracyLocation, requestBackgroundLocationPermission } from '../../utils/location';
 import {
   buildOutsideGeofenceMessage,
   getGeofenceStatus,
@@ -57,6 +58,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   const navigation = useNavigation<NativeStackNavigationProp<AttendanceStackParamList>>();
   const userRole = useAuthStore(state => state.user?.role);
   const isFieldEmployee = useAuthStore(state => state.user?.isFieldEmployee === true);
+  const updateUser = useAuthStore(state => state.updateUser);
   const isHr = userRole === 'hr';
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [officeHours, setOfficeHours] = useState<OfficeHours>(
@@ -102,13 +104,16 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   useFocusEffect(
     useCallback(() => {
       fetchToday();
-    }, [fetchToday]),
+      void authApi
+        .me()
+        .then(response => updateUser(response.data.user))
+        .catch(() => undefined);
+    }, [fetchToday, updateUser]),
   );
 
   const isSessionActive = !!attendance?.checkInTime && !attendance?.checkOutTime;
   const onBreak = isOnBreak(attendance);
   const [routeRecordingEnabled, setRouteRecordingEnabled] = useState(false);
-  const pendingRouteAfterCheckInRef = useRef(false);
 
   useRouteRecorder(routeRecordingEnabled && isFieldEmployee && !actionLoading);
 
@@ -118,13 +123,9 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
       return;
     }
 
-    if (pendingRouteAfterCheckInRef.current) {
-      return;
-    }
-
     const timer = setTimeout(() => {
       setRouteRecordingEnabled(true);
-    }, 12000);
+    }, 3000);
 
     return () => {
       clearTimeout(timer);
@@ -241,7 +242,13 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
         workFromHome: workFromHomeEnabled,
       });
       const checkedIn = await applyAttendance(response.data.attendance);
-      pendingRouteAfterCheckInRef.current = true;
+
+      if (isFieldEmployee && !isHr) {
+        void requestBackgroundLocationPermission({ showDeniedAlert: true });
+        setTimeout(() => {
+          setRouteRecordingEnabled(true);
+        }, 2000);
+      }
 
       const lateMinutes = checkedIn?.checkInTime
         ? calculateLateMinutes(checkedIn.checkInTime, latestOfficeHours.officeStartTime)
@@ -259,17 +266,6 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
       Alert.alert(
         'Checked In',
         `${statusMessage}\n\nLocation:\n${placeLabel}${wfhNote}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setTimeout(() => {
-                pendingRouteAfterCheckInRef.current = false;
-                setRouteRecordingEnabled(true);
-              }, 5000);
-            },
-          },
-        ],
       );
     } catch (err) {
       Alert.alert('Error', getErrorMessage(err));
@@ -290,7 +286,6 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     });
     const checkedOut = await applyAttendance(response.data.attendance);
     setRouteRecordingEnabled(false);
-    pendingRouteAfterCheckInRef.current = false;
     setShowEarlyCheckoutModal(false);
     setPendingCheckoutLocation(null);
     Alert.alert(

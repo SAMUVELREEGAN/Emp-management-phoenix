@@ -144,6 +144,14 @@ export const appendPointsForEmployee = async (
   employeeId: string,
   points: RoutePointInput[],
 ) => {
+  const employee = await User.findById(employeeId).select('isFieldEmployee role status');
+  if (!employee || employee.role !== 'employee' || !employee.isFieldEmployee) {
+    throw ApiError.forbidden('Route tracking is only available for field employees.');
+  }
+  if (employee.status !== 'active') {
+    throw ApiError.forbidden('Your account is inactive.');
+  }
+
   const session = await RouteSession.findOne({
     employee: employeeId,
     isActive: true,
