@@ -157,3 +157,36 @@ export const changePassword = async (
   user.password = newPassword;
   await user.save();
 };
+
+export const updateProfile = async (
+  userId: string,
+  data: { fullName?: string },
+  profilePhoto?: string,
+) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  const hasNameUpdate = data.fullName !== undefined;
+  const hasPhotoUpdate = Boolean(profilePhoto);
+
+  if (!hasNameUpdate && !hasPhotoUpdate) {
+    throw ApiError.badRequest('Provide a name or profile photo to update');
+  }
+
+  if (hasNameUpdate) {
+    const trimmed = data.fullName!.trim();
+    if (!trimmed) {
+      throw ApiError.badRequest('Full name cannot be empty');
+    }
+    user.fullName = trimmed;
+  }
+
+  if (profilePhoto) {
+    user.profilePhoto = profilePhoto;
+  }
+
+  await user.save();
+  return user;
+};

@@ -34,3 +34,5 @@ export { RouteMapView, RouteTimeline } from './RouteMapView';
 export { MessageBubble } from './MessageBubble';
 export { ChatInputBar } from './ChatInputBar';
 export { ChatGroupCard } from './ChatGroupCard';
+export { GeoCamPhotoSection } from './GeoCamPhotoSection';
+export { GeoCamOverlay } from './GeoCamOverlay';

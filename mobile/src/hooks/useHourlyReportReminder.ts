@@ -30,13 +30,10 @@ function openHourlyReportForm(periodStart: string, periodEnd: string) {
 
   navigationRef.dispatch(
     CommonActions.navigate({
-      name: 'Employee',
+      name: 'Reports',
       params: {
-        screen: 'Reports',
-        params: {
-          screen: 'HourlyReportForm',
-          params: { periodStart, periodEnd },
-        },
+        screen: 'HourlyReportForm',
+        params: { periodStart, periodEnd },
       },
     }),
   );
@@ -44,10 +41,11 @@ function openHourlyReportForm(periodStart: string, periodEnd: string) {
 
 export function useHourlyReportReminder() {
   const userRole = useAuthStore(state => state.user?.role);
+  const isFieldEmployee = useAuthStore(state => state.user?.isFieldEmployee === true);
   const lastPromptAtRef = useRef(0);
 
   useEffect(() => {
-    if (userRole !== 'employee') {
+    if (userRole !== 'employee' || !isFieldEmployee) {
       return;
     }
 
@@ -109,12 +107,12 @@ export function useHourlyReportReminder() {
         const intervalLabel = formatReminderIntervalLabel(intervalMinutes);
 
         Alert.alert(
-          'Hourly Report Due',
-          `Kindly send your hourly work report to Admin and HR. It has been ${intervalLabel} since your last update.`,
+          'GeoCam Hourly Report Due',
+          `Capture your hourly field report with photo and location. It has been ${intervalLabel} since your last update.`,
           [
             { text: 'Later', style: 'cancel' },
             {
-              text: 'Submit Report',
+              text: 'Open GeoCam',
               onPress: () => openHourlyReportForm(periodStart, periodEnd),
             },
           ],
@@ -142,5 +140,5 @@ export function useHourlyReportReminder() {
       }
       subscription.remove();
     };
-  }, [userRole]);
+  }, [userRole, isFieldEmployee]);
 }

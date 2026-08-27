@@ -91,15 +91,35 @@ export const workReportApi = {
     return response.data;
   },
 
-  createHourly: async (payload: {
-    workSummary: string;
-    reportPeriodStart?: string;
-    reportPeriodEnd?: string;
-    workingHours?: number;
-  }) => {
+  createHourly: async (
+    payload: {
+      workSummary?: string;
+      reportPeriodStart?: string;
+      reportPeriodEnd?: string;
+      workingHours?: number;
+      latitude: number;
+      longitude: number;
+      address?: string;
+      accuracy?: number;
+      capturedAt?: string;
+    },
+    attachment: { uri: string; type?: string; name?: string },
+  ) => {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+    formData.append('attachment', {
+      uri: attachment.uri,
+      type: attachment.type || 'image/jpeg',
+      name: attachment.name || 'geocam.jpg',
+    } as unknown as Blob);
     const response = await apiClient.post<ApiResponse<{ report: WorkReport }>>(
       '/work-reports/hourly',
-      payload,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 },
     );
     return response.data;
   },

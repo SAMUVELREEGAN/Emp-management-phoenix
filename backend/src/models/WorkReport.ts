@@ -27,6 +27,13 @@ export interface IWorkReport extends Document {
   workingHours: number;
   attendanceSummary?: AttendanceSummarySnapshot;
   attachment?: string;
+  geoLocation?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+    accuracy?: number;
+    capturedAt?: Date;
+  };
   status: WorkReportStatus;
   adminComment?: string;
   reviewedBy?: Types.ObjectId;
@@ -104,6 +111,13 @@ const workReportSchema = new Schema<IWorkReport>(
     attachment: {
       type: String,
       default: '',
+    },
+    geoLocation: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+      address: { type: String, default: '' },
+      accuracy: { type: Number },
+      capturedAt: { type: Date },
     },
     status: {
       type: String,

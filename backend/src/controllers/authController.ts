@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/ApiResponse';
 import * as authService from '../services/authService';
+import * as verificationService from '../services/verificationService';
 import { User } from '../models/User';
 import { ApiError } from '../utils/ApiError';
 
@@ -34,6 +35,22 @@ export const resendVerification = asyncHandler(
   },
 );
 
+export const forgotPassword = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { email } = req.body;
+  const result = await verificationService.sendPasswordResetCode(email);
+  return sendSuccess(
+    res,
+    'If an account exists for this email, a password reset code has been sent.',
+    result,
+  );
+});
+
+export const resetPassword = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { email, code, newPassword } = req.body;
+  await verificationService.resetPasswordWithCode(email, code, newPassword);
+  return sendSuccess(res, 'Password reset successfully. You can now sign in with your new password.');
+});
+
 export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = await User.findById(req.user!._id);
   if (!user) {
@@ -53,6 +70,16 @@ export const changePassword = asyncHandler(
     return sendSuccess(res, 'Password changed successfully');
   },
 );
+
+export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const profilePhoto = req.file ? `/uploads/${req.file.filename}` : undefined;
+  const user = await authService.updateProfile(
+    req.user!._id.toString(),
+    { fullName: req.body.fullName },
+    profilePhoto,
+  );
+  return sendSuccess(res, 'Profile updated successfully', { user: user.toJSON() });
+});
 
 export const logout = asyncHandler(async (_req: AuthRequest, res: Response) => {
   return sendSuccess(res, 'Logged out successfully');

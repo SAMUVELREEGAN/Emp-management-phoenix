@@ -19,6 +19,7 @@ export interface IUser extends Document {
   status: UserStatus;
   isVerified: boolean;
   phoneNormalized: string;
+  isFieldEmployee: boolean;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
@@ -89,6 +90,10 @@ const userSchema = new Schema<IUser>(
       default: 'active',
     },
     isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isFieldEmployee: {
       type: Boolean,
       default: false,
     },

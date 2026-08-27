@@ -37,6 +37,7 @@ export const createHourlyReport = asyncHandler(
     const report = await workReportService.createHourlyWorkReport(
       req.user!._id.toString(),
       req.body,
+      req.file,
     );
     return sendSuccess(res, 'Hourly work report submitted successfully', {
       report,

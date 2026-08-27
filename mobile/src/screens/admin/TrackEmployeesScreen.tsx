@@ -49,7 +49,7 @@ export default function TrackEmployeesScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchEmployees();
-      const timer = setInterval(() => fetchEmployees(true), 15000);
+      const timer = setInterval(() => fetchEmployees(true), 5000);
       return () => clearInterval(timer);
     }, [fetchEmployees]),
   );
@@ -57,8 +57,8 @@ export default function TrackEmployeesScreen() {
   return (
     <View style={styles.container} collapsable={false}>
       <AppHeader
-        title="Track Employees"
-        subtitle="Live routes after check-in"
+        title="Track Field Employees"
+        subtitle="Live GPS routes for field sales staff"
         showBack={showBack}
         onBack={showBack ? handleBack : undefined}
       />
@@ -80,8 +80,8 @@ export default function TrackEmployeesScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="map-marker-path"
-              title="No employees"
-              message="Active employees will appear here for route tracking."
+              title="No field employees"
+              message="Mark employees as Field Sales during account creation to enable live route tracking."
             />
           }
           renderItem={({ item }) => (

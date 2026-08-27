@@ -101,7 +101,7 @@ export default function EmployeeRouteTrackScreen() {
         if (tab === 'live' && !leavingRef.current) {
           void fetchLive();
         }
-      }, 10000);
+      }, 4000);
       return () => clearInterval(timer);
     }, [fetchData, fetchLive, tab, leavingRef]),
   );
@@ -175,7 +175,12 @@ export default function EmployeeRouteTrackScreen() {
             />
           )}
           {showMap ? (
-            <RouteMapView points={points} height={380} isLive={!!session?.isActive} />
+            <RouteMapView
+              points={points}
+              height={380}
+              isLive={!!session?.isActive}
+              employeeName={employeeName}
+            />
           ) : null}
           {showMap ? <RouteTimeline points={points} /> : null}
         </ScrollView>

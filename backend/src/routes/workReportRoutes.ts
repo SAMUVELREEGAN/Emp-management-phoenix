@@ -35,6 +35,7 @@ router.post(
 router.post(
   '/hourly',
   authorize('employee'),
+  upload.single('attachment'),
   validate(hourlyWorkReportSchema),
   workReportController.createHourlyReport,
 );

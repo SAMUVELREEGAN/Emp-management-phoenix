@@ -1,4 +1,5 @@
 import { FilterQuery, Types } from 'mongoose';
+import path from 'path';
 import { WorkReport, IWorkReport } from '../models/WorkReport';
 import { User } from '../models/User';
 import { ApiError } from '../utils/ApiError';
@@ -9,6 +10,8 @@ import { findActiveAdmins, findActiveManagers } from '../utils/roleHelpers';
 import { AttendanceSummarySnapshot } from '../models/WorkReport';
 import { getOfficeHours } from './officeSettingsService';
 import { normalizeReminderIntervalMinutes } from '../utils/reminderInterval';
+import { stampGeoLocationOnImage } from './geoStampService';
+import { env } from '../config/env';
 
 interface ListFilters {
   page: number;
@@ -23,10 +26,15 @@ interface ListFilters {
 }
 
 interface HourlyWorkReportInput {
-  workSummary: string;
+  workSummary?: string;
   reportPeriodStart?: string;
   reportPeriodEnd?: string;
   workingHours?: number;
+  latitude: number;
+  longitude: number;
+  address?: string;
+  accuracy?: number;
+  capturedAt?: string;
 }
 
 interface WorkReportInput {
@@ -110,7 +118,19 @@ function formatHourlyPeriodLabel(start: Date, end: Date): string {
 export const createHourlyWorkReport = async (
   employeeId: string,
   data: HourlyWorkReportInput,
+  file?: Express.Multer.File,
 ) => {
+  const employee = await User.findById(employeeId).select('isFieldEmployee role status');
+  if (!employee || employee.role !== 'employee' || employee.status !== 'active') {
+    throw ApiError.forbidden('Only active employees can submit hourly reports');
+  }
+  if (!employee.isFieldEmployee) {
+    throw ApiError.forbidden('Hourly GeoCam reports are only available for field sales employees');
+  }
+  if (!file) {
+    throw ApiError.badRequest('GeoCam photo is required for hourly field reports');
+  }
+
   const settings = await getOfficeHours();
   const intervalMinutes = normalizeReminderIntervalMinutes(
     settings.hourlyReportReminderIntervalMinutes,
@@ -135,19 +155,41 @@ export const createHourlyWorkReport = async (
     throw ApiError.conflict('An hourly report for this period was already submitted');
   }
 
+  const capturedAt = data.capturedAt ? new Date(data.capturedAt) : now;
+  const uploadRoot = path.resolve(process.cwd(), env.UPLOAD_DIR);
+  const stampedFilename = `geocam-${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`;
+  const stampedPath = path.join(uploadRoot, stampedFilename);
+
+  await stampGeoLocationOnImage(file.path, stampedPath, {
+    address: data.address,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    accuracy: data.accuracy,
+    capturedAt: capturedAt.toISOString(),
+  });
+
+  const summary = data.workSummary?.trim() || 'Field hourly GeoCam report';
   const report = await WorkReport.create({
     employee: employeeId,
     reportDate: parseDateOnly(periodEnd),
     reportType: 'hourly_work',
     reportPeriodStart: periodStart,
     reportPeriodEnd: periodEnd,
-    title: `Hourly Report (${formatHourlyPeriodLabel(periodStart, periodEnd)})`,
-    workSummary: data.workSummary.trim(),
+    title: `GeoCam Hourly (${formatHourlyPeriodLabel(periodStart, periodEnd)})`,
+    workSummary: summary,
     completedTasks: '',
     pendingTasks: '',
     blockers: '',
     tomorrowPlan: '',
     workingHours: data.workingHours ?? intervalMinutes / 60,
+    attachment: `/uploads/${stampedFilename}`,
+    geoLocation: {
+      latitude: data.latitude,
+      longitude: data.longitude,
+      address: data.address || '',
+      accuracy: data.accuracy,
+      capturedAt,
+    },
     status: 'submitted',
     submittedAt: now,
   });

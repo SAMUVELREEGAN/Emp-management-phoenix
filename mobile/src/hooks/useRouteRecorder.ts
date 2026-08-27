@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState, InteractionManager, type AppStateStatus } from 'react-native';
+import Geolocation, { type GeoPosition } from 'react-native-geolocation-service';
 import { routeApi } from '../api/routeApi';
 import { MIN_DISTANCE_METERS, UPLOAD_INTERVAL_MS } from '../services/routeTrackingTask';
-import { getCurrentLocation, isAttendanceLocationBusy, requestLocationPermission } from '../utils/location';
+import {
+  startRouteTrackingService,
+  stopRouteTrackingService,
+} from '../services/routeTrackingCleanup';
+import { isAttendanceLocationBusy, requestLocationPermission } from '../utils/location';
 import { useAuthStore } from '../store/authStore';
 import type { LocationPayload } from '../types';
 
-const ROUTE_START_DELAY_MS = 10000;
-const POLL_INTERVAL_MS = 15000;
+const ROUTE_START_DELAY_MS = 2000;
+const MAX_BUFFER_SIZE = 3;
 
 function distanceMeters(a: LocationPayload, b: LocationPayload): number {
   const toRad = (value: number) => (value * Math.PI) / 180;
@@ -22,16 +27,37 @@ function distanceMeters(a: LocationPayload, b: LocationPayload): number {
   return 2 * earthRadius * Math.asin(Math.sqrt(h));
 }
 
+function toLocationPayload(position: GeoPosition): LocationPayload {
+  const payload: LocationPayload = {
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    locationTimestamp: new Date(position.timestamp).toISOString(),
+    isMocked: position.mocked === true,
+  };
+
+  if (
+    position.coords.accuracy != null &&
+    Number.isFinite(position.coords.accuracy) &&
+    position.coords.accuracy > 0
+  ) {
+    payload.accuracy = Math.round(position.coords.accuracy * 10) / 10;
+  }
+
+  return payload;
+}
+
 export function useRouteRecorder(isActive: boolean) {
   const isLoggingOut = useAuthStore(state => state.isLoggingOut);
   const [ready, setReady] = useState(false);
   const bufferRef = useRef<LocationPayload[]>([]);
   const lastPointRef = useRef<LocationPayload | null>(null);
+  const watchIdRef = useRef<number | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     if (!isActive || isLoggingOut) {
       setReady(false);
+      void stopRouteTrackingService();
       return;
     }
 
@@ -55,6 +81,7 @@ export function useRouteRecorder(isActive: boolean) {
       setReady(false);
       bufferRef.current = [];
       lastPointRef.current = null;
+      void stopRouteTrackingService();
     };
   }, [isActive, isLoggingOut]);
 
@@ -78,48 +105,81 @@ export function useRouteRecorder(isActive: boolean) {
       }
     };
 
-    const pollLocation = async () => {
-      if (cancelled || appStateRef.current !== 'active' || isAttendanceLocationBusy()) {
+    const recordPoint = (point: LocationPayload) => {
+      if (
+        lastPointRef.current &&
+        distanceMeters(lastPointRef.current, point) < MIN_DISTANCE_METERS
+      ) {
         return;
       }
 
-      try {
-        const granted = await requestLocationPermission();
-        if (!granted || cancelled) {
-          return;
-        }
+      lastPointRef.current = point;
+      bufferRef.current.push(point);
 
-        const point = await getCurrentLocation();
-        if (cancelled) {
-          return;
-        }
-
-        if (
-          lastPointRef.current &&
-          distanceMeters(lastPointRef.current, point) < MIN_DISTANCE_METERS
-        ) {
-          return;
-        }
-
-        lastPointRef.current = point;
-        bufferRef.current.push(point);
-
-        if (bufferRef.current.length >= 5) {
-          await flush();
-        }
-      } catch {
-        // Ignore transient GPS errors and retry on the next poll.
+      if (bufferRef.current.length >= MAX_BUFFER_SIZE) {
+        void flush();
       }
     };
 
-    const appStateSub = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      appStateRef.current = nextAppState;
+    const stopForegroundWatch = () => {
+      if (watchIdRef.current != null) {
+        Geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+
+    const startForegroundWatch = async () => {
+      if (cancelled || watchIdRef.current != null || isAttendanceLocationBusy()) {
+        return;
+      }
+
+      const granted = await requestLocationPermission();
+      if (!granted || cancelled) {
+        return;
+      }
+
+      watchIdRef.current = Geolocation.watchPosition(
+        position => {
+          if (cancelled || appStateRef.current !== 'active' || isAttendanceLocationBusy()) {
+            return;
+          }
+          recordPoint(toLocationPayload(position));
+        },
+        () => {
+          // Ignore transient GPS errors; next update will retry.
+        },
+        {
+          enableHighAccuracy: true,
+          distanceFilter: MIN_DISTANCE_METERS,
+          interval: 5000,
+          fastestInterval: 4000,
+          showLocationDialog: true,
+          forceRequestLocation: true,
+          accuracy: { android: 'high', ios: 'best' },
+        },
+      );
+    };
+
+    const syncTrackingMode = async (nextState: AppStateStatus) => {
+      appStateRef.current = nextState;
+
+      if (nextState === 'active') {
+        await stopRouteTrackingService();
+        await startForegroundWatch();
+        return;
+      }
+
+      stopForegroundWatch();
+      await flush();
+      await startRouteTrackingService();
+    };
+
+    void syncTrackingMode(AppState.currentState);
+
+    const appStateSub = AppState.addEventListener('change', nextState => {
+      void syncTrackingMode(nextState);
     });
 
-    void pollLocation();
-    const pollTimer = setInterval(() => {
-      void pollLocation();
-    }, POLL_INTERVAL_MS);
     const flushTimer = setInterval(() => {
       void flush();
     }, UPLOAD_INTERVAL_MS);
@@ -127,9 +187,10 @@ export function useRouteRecorder(isActive: boolean) {
     return () => {
       cancelled = true;
       appStateSub.remove();
-      clearInterval(pollTimer);
       clearInterval(flushTimer);
+      stopForegroundWatch();
       void flush();
+      void stopRouteTrackingService();
     };
   }, [ready, isLoggingOut]);
 }

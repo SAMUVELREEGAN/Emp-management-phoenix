@@ -6,6 +6,8 @@ interface NominatimAddress {
   house_number?: string;
   building?: string;
   road?: string;
+  hamlet?: string;
+  locality?: string;
   neighbourhood?: string;
   suburb?: string;
   city?: string;
@@ -13,6 +15,7 @@ interface NominatimAddress {
   village?: string;
   county?: string;
   state?: string;
+  state_district?: string;
   postcode?: string;
   country?: string;
 }
@@ -22,8 +25,15 @@ interface NominatimResponse {
   address?: NominatimAddress;
 }
 
+interface GoogleAddressComponent {
+  long_name: string;
+  short_name: string;
+  types: string[];
+}
+
 interface GoogleGeocodeResult {
   formatted_address?: string;
+  address_components?: GoogleAddressComponent[];
   geometry?: {
     location_type?: string;
   };
@@ -47,8 +57,337 @@ const GOOGLE_PRECISION_RANK: Record<string, number> = {
   APPROXIMATE: 1,
 };
 
+const GOOGLE_TYPE_SPECIFICITY: Record<string, number> = {
+  premise: 100,
+  subpremise: 95,
+  street_address: 90,
+  route: 80,
+  neighborhood: 75,
+  sublocality_level_2: 70,
+  sublocality_level_1: 65,
+  sublocality: 60,
+  locality: 55,
+  administrative_area_level_3: 50,
+  postal_town: 45,
+  administrative_area_level_2: 20,
+  administrative_area_level_1: 10,
+  country: 1,
+};
+
+const INDIAN_STATE_NAMES = new Set(
+  [
+    'andhra pradesh',
+    'arunachal pradesh',
+    'assam',
+    'bihar',
+    'chhattisgarh',
+    'goa',
+    'gujarat',
+    'haryana',
+    'himachal pradesh',
+    'jharkhand',
+    'karnataka',
+    'kerala',
+    'madhya pradesh',
+    'maharashtra',
+    'manipur',
+    'meghalaya',
+    'mizoram',
+    'nagaland',
+    'odisha',
+    'punjab',
+    'rajasthan',
+    'sikkim',
+    'tamil nadu',
+    'telangana',
+    'tripura',
+    'uttar pradesh',
+    'uttarakhand',
+    'west bengal',
+    'delhi',
+    'puducherry',
+    'jammu and kashmir',
+    'ladakh',
+  ].map(name => name.toLowerCase()),
+);
+
 function looksLikeCoordinates(value: string): boolean {
   return /^-?\d+\.\d+\s*,\s*-?\d+\.\d+$/.test(value.trim());
+}
+
+function getAddressParts(address: string): string[] {
+  return address
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .filter(part => !['india', 'ind'].includes(part.toLowerCase()))
+    .filter(part => !/^\d{5,6}$/.test(part));
+}
+
+function hasStreetLevelDetail(parts: string[]): boolean {
+  return parts.some(
+    part =>
+      /\d/.test(part) ||
+      /\b(road|street|st|main|colony|nagar|ward|lane|avenue|ave|highway|hwy|petrol|temple|home|building)\b/i.test(
+        part,
+      ),
+  );
+}
+
+function isAdminOnlyAddress(address?: string): boolean {
+  const parts = getAddressParts(address ?? '');
+  if (parts.length < 2) {
+    return true;
+  }
+
+  const lastPart = parts[parts.length - 1].toLowerCase();
+  if (!INDIAN_STATE_NAMES.has(lastPart)) {
+    return false;
+  }
+
+  if (hasStreetLevelDetail(parts)) {
+    return false;
+  }
+
+  // "Manamadurai, Tamil Nadu"
+  if (parts.length === 2) {
+    return true;
+  }
+
+  // "Manamadurai, Sivaganga, Tamil Nadu" — town + district + state only.
+  if (parts.length === 3) {
+    return true;
+  }
+
+  if (parts.length === 4 && /^\d{5,6}$/.test(parts[3])) {
+    return true;
+  }
+
+  // "Maranadu, Manamadurai, Sivaganga, Tamil Nadu" — village differs from town.
+  if (parts.length >= 4) {
+    return parts[0].toLowerCase() === parts[1].toLowerCase();
+  }
+
+  return false;
+}
+
+function isGenericAddress(address?: string): boolean {
+  if (!address?.trim() || looksLikeCoordinates(address)) {
+    return true;
+  }
+
+  return isAdminOnlyAddress(address);
+}
+
+function addressSpecificityScore(address: string): number {
+  const parts = getAddressParts(address);
+  if (isAdminOnlyAddress(address)) {
+    return -100;
+  }
+
+  let score = parts.length * 10;
+
+  if (parts.length >= 2 && parts[0].toLowerCase() !== parts[1].toLowerCase()) {
+    score += 35;
+  }
+
+  if (hasStreetLevelDetail(parts)) {
+    score += 40;
+  }
+
+  return score;
+}
+
+function getGoogleComponent(
+  components: GoogleAddressComponent[] | undefined,
+  ...types: string[]
+): string | undefined {
+  for (const type of types) {
+    const match = components?.find(component => component.types.includes(type));
+    if (match?.long_name?.trim()) {
+      return match.long_name.trim();
+    }
+  }
+  return undefined;
+}
+
+function extractFinestPlaceFromGoogleComponents(
+  components?: GoogleAddressComponent[],
+): string | null {
+  if (!components?.length) {
+    return null;
+  }
+
+  const sublocality = getGoogleComponent(
+    components,
+    'sublocality_level_3',
+    'sublocality_level_2',
+    'sublocality_level_1',
+    'sublocality',
+    'neighborhood',
+  );
+  const adminLevel3 = getGoogleComponent(components, 'administrative_area_level_3');
+  const locality = getGoogleComponent(components, 'locality');
+  const postalTown = getGoogleComponent(components, 'postal_town');
+
+  const candidates = [sublocality, adminLevel3, locality].filter(Boolean) as string[];
+
+  for (const name of candidates) {
+    if (postalTown && name.toLowerCase() === postalTown.toLowerCase()) {
+      continue;
+    }
+    if (locality && name.toLowerCase() !== locality.toLowerCase()) {
+      return name;
+    }
+    if (!postalTown || name.toLowerCase() !== postalTown.toLowerCase()) {
+      return name;
+    }
+  }
+
+  return candidates[0] ?? postalTown ?? locality ?? null;
+}
+
+function buildGooglePlaceLabel(components?: GoogleAddressComponent[]): string | null {
+  if (!components?.length) {
+    return null;
+  }
+
+  const streetLine = [
+    getGoogleComponent(components, 'street_number'),
+    getGoogleComponent(components, 'route'),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  const premise = getGoogleComponent(components, 'premise', 'establishment', 'point_of_interest');
+  const neighborhood = getGoogleComponent(components, 'neighborhood');
+  const sublocality = getGoogleComponent(
+    components,
+    'sublocality_level_2',
+    'sublocality_level_1',
+    'sublocality',
+  );
+
+  const finestPlace = extractFinestPlaceFromGoogleComponents(components);
+  const nearbyTown =
+    getGoogleComponent(components, 'postal_town') ||
+    getGoogleComponent(components, 'locality');
+  const district = getGoogleComponent(components, 'administrative_area_level_2');
+  const state = getGoogleComponent(components, 'administrative_area_level_1');
+  const postcode = getGoogleComponent(components, 'postal_code');
+
+  const secondaryPlace =
+    nearbyTown && finestPlace && nearbyTown.toLowerCase() !== finestPlace.toLowerCase()
+      ? nearbyTown
+      : undefined;
+
+  const parts = [
+    streetLine || premise,
+    neighborhood,
+    sublocality,
+    finestPlace,
+    secondaryPlace,
+    district && district !== finestPlace ? district : undefined,
+    state,
+    postcode,
+  ].filter((part, index, arr): part is string => !!part && arr.indexOf(part) === index);
+
+  return parts.length ? parts.join(', ') : null;
+}
+
+function formatGoogleAddressFromComponents(
+  components?: GoogleAddressComponent[],
+): string | null {
+  return buildGooglePlaceLabel(components);
+}
+
+function scoreGoogleResult(result: GoogleGeocodeResult): number {
+  let typeScore = 0;
+  for (const type of result.types ?? []) {
+    typeScore = Math.max(typeScore, GOOGLE_TYPE_SPECIFICITY[type] ?? 0);
+  }
+
+  const locationRank = GOOGLE_PRECISION_RANK[result.geometry?.location_type ?? ''] ?? 0;
+  return typeScore * 10 + locationRank;
+}
+
+function addressDetailScore(address: string): number {
+  return addressSpecificityScore(address);
+}
+
+function formatOsmAddressFromComponents(address?: NominatimAddress): string | null {
+  if (!address) {
+    return null;
+  }
+
+  const streetLine = [address.house_number, address.building, address.road]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  const villageOrHamlet =
+    address.village ||
+    address.hamlet ||
+    address.locality ||
+    address.neighbourhood ||
+    address.suburb;
+
+  const nearbyTown =
+    address.town && address.town !== villageOrHamlet ? address.town : undefined;
+  const cityName =
+    address.city && address.city !== villageOrHamlet && address.city !== nearbyTown
+      ? address.city
+      : undefined;
+
+  const district = address.state_district || address.county;
+
+  const parts = [
+    streetLine || address.road,
+    villageOrHamlet,
+    nearbyTown,
+    cityName,
+    district && district !== villageOrHamlet ? district : undefined,
+    address.state,
+    address.postcode,
+  ].filter((part, index, arr): part is string => !!part && arr.indexOf(part) === index);
+
+  return parts.length ? parts.join(', ') : null;
+}
+
+function extractPrimaryLocalityFromDisplayName(displayName?: string): string | null {
+  if (!displayName?.trim()) {
+    return null;
+  }
+
+  const parts = displayName
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .filter(part => !['india', 'ind'].includes(part.toLowerCase()))
+    .filter(part => !INDIAN_STATE_NAMES.has(part.toLowerCase()));
+
+  return parts[0] ?? null;
+}
+
+function formatOsmDisplayName(displayName?: string): string | null {
+  if (!displayName?.trim()) {
+    return null;
+  }
+
+  const parts = displayName
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .filter(part => !['india', 'ind'].includes(part.toLowerCase()));
+
+  if (!parts.length) {
+    return null;
+  }
+
+  const primary = parts[0];
+  const rest = parts.slice(1, 5);
+  return [primary, ...rest].join(', ');
 }
 
 export function cleanGoogleFormattedAddress(formatted: string): string {
@@ -63,50 +402,114 @@ export function cleanGoogleFormattedAddress(formatted: string): string {
   return cleaned.trim();
 }
 
+function collectPlaceLabelsFromGoogleResults(results?: GoogleGeocodeResult[]): string[] {
+  if (!results?.length) {
+    return [];
+  }
+
+  const labels = new Set<string>();
+
+  for (const result of results) {
+    const fromComponents = buildGooglePlaceLabel(result.address_components);
+    if (fromComponents && !looksLikeCoordinates(fromComponents)) {
+      labels.add(fromComponents);
+    }
+
+    const finestPlace = extractFinestPlaceFromGoogleComponents(result.address_components);
+    if (finestPlace) {
+      const state = getGoogleComponent(
+        result.address_components,
+        'administrative_area_level_1',
+      );
+      const district = getGoogleComponent(
+        result.address_components,
+        'administrative_area_level_2',
+      );
+      const nearbyTown =
+        getGoogleComponent(result.address_components, 'postal_town') ||
+        getGoogleComponent(result.address_components, 'locality');
+
+      const parts = [finestPlace];
+      if (nearbyTown && nearbyTown.toLowerCase() !== finestPlace.toLowerCase()) {
+        parts.push(nearbyTown);
+      }
+      if (district && !parts.some(part => part.toLowerCase() === district.toLowerCase())) {
+        parts.push(district);
+      }
+      if (state) {
+        parts.push(state);
+      }
+      labels.add(parts.join(', '));
+    }
+
+    const primary = extractPrimaryLocalityFromDisplayName(result.formatted_address);
+    if (primary) {
+      const state = getGoogleComponent(
+        result.address_components,
+        'administrative_area_level_1',
+      );
+      labels.add(state ? `${primary}, ${state}` : primary);
+    }
+
+    const formatted = result.formatted_address?.trim();
+    if (formatted) {
+      const cleaned = cleanGoogleFormattedAddress(formatted);
+      if (cleaned) {
+        labels.add(cleaned);
+      }
+    }
+  }
+
+  return Array.from(labels);
+}
+
 function pickBestGoogleFormattedAddress(results?: GoogleGeocodeResult[]): string | null {
   if (!results?.length) {
     return null;
   }
 
-  let best: { rank: number; address: string } | null = null;
+  const allLabels = collectPlaceLabelsFromGoogleResults(results);
+  let best: { score: number; address: string } | null = null;
 
   for (const result of results) {
-    const formatted = result.formatted_address?.trim();
-    if (!formatted) {
-      continue;
-    }
+    const resultScore = scoreGoogleResult(result);
+    const candidates = collectPlaceLabelsFromGoogleResults([result]);
 
-    const cleaned = cleanGoogleFormattedAddress(formatted);
-    if (!cleaned || looksLikeCoordinates(cleaned)) {
-      continue;
-    }
+    for (const address of candidates) {
+      if (looksLikeCoordinates(address)) {
+        continue;
+      }
 
-    const rank = GOOGLE_PRECISION_RANK[result.geometry?.location_type ?? ''] ?? 0;
-    if (!best || rank > best.rank) {
-      best = { rank, address: cleaned };
+      const totalScore = resultScore + addressDetailScore(address);
+      if (!best || totalScore > best.score) {
+        best = { score: totalScore, address };
+      }
     }
   }
 
-  if (best?.address) {
+  for (const address of allLabels) {
+    if (looksLikeCoordinates(address) || isGenericAddress(address)) {
+      continue;
+    }
+
+    const totalScore = addressDetailScore(address);
+    if (!best || totalScore > best.score) {
+      best = { score: totalScore, address };
+    }
+  }
+
+  if (best?.address && !isGenericAddress(best.address)) {
     return best.address;
+  }
+
+  for (const address of allLabels) {
+    if (!looksLikeCoordinates(address) && !isGenericAddress(address)) {
+      return address;
+    }
   }
 
   const fallback = results[0]?.formatted_address?.trim();
   return fallback ? cleanGoogleFormattedAddress(fallback) : null;
-}
-
-function formatOsmDisplayName(displayName?: string): string | null {
-  if (!displayName?.trim()) {
-    return null;
-  }
-
-  const parts = displayName
-    .split(',')
-    .map(part => part.trim())
-    .filter(Boolean)
-    .filter(part => !['india', 'ind'].includes(part.toLowerCase()));
-
-  return parts.length ? parts.slice(0, 4).join(', ') : null;
 }
 
 function coordinateFallback(latitude: number, longitude: number): string {
@@ -180,6 +583,7 @@ async function googleReverseGeocode(
     latlng: `${latitude},${longitude}`,
     key: apiKey,
     language: 'en',
+    region: 'in',
   });
 
   try {
@@ -201,27 +605,174 @@ async function googleReverseGeocode(
   }
 }
 
+async function nominatimReverseGeocodeAtZoom(
+  latitude: number,
+  longitude: number,
+  zoom: number,
+): Promise<NominatimResponse | null> {
+  const params = new URLSearchParams({
+    format: 'json',
+    lat: String(latitude),
+    lon: String(longitude),
+    zoom: String(zoom),
+    addressdetails: '1',
+  });
+
+  return httpsGetJson<NominatimResponse>(
+    `https://nominatim.openstreetmap.org/reverse?${params.toString()}`,
+    {
+      'User-Agent': 'EmployeeManagementApp/1.0 (attendance-checkin; contact@company.local)',
+    },
+  );
+}
+
+function resolveOsmAddress(data: NominatimResponse): string | null {
+  const primaryFromDisplay = extractPrimaryLocalityFromDisplayName(data.display_name);
+  const town = data.address?.town;
+  const city = data.address?.city;
+  const postTown = town || city;
+  const village = data.address?.village || data.address?.hamlet;
+
+  let finestPlace =
+    village ||
+    (primaryFromDisplay &&
+    postTown &&
+    primaryFromDisplay.toLowerCase() !== postTown.toLowerCase()
+      ? primaryFromDisplay
+      : undefined) ||
+    data.address?.locality ||
+    data.address?.neighbourhood ||
+    data.address?.suburb ||
+    primaryFromDisplay ||
+    postTown;
+
+  const nearbyTown =
+    postTown && finestPlace && postTown.toLowerCase() !== finestPlace.toLowerCase()
+      ? postTown
+      : undefined;
+  const district = data.address?.state_district || data.address?.county;
+  const state = data.address?.state;
+  const postcode = data.address?.postcode;
+
+  const streetLine = [data.address?.house_number, data.address?.building, data.address?.road]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  const parts = [
+    streetLine || data.address?.road,
+    finestPlace,
+    nearbyTown,
+    district && district !== finestPlace ? district : undefined,
+    state,
+    postcode,
+  ].filter((part, index, arr): part is string => !!part && arr.indexOf(part) === index);
+
+  if (parts.length) {
+    const label = parts.join(', ');
+    if (!isAdminOnlyAddress(label)) {
+      return label;
+    }
+  }
+
+  const fromDisplay = formatOsmDisplayName(data.display_name);
+  if (fromDisplay && !isAdminOnlyAddress(fromDisplay)) {
+    return fromDisplay;
+  }
+
+  return parts.length ? parts.join(', ') : fromDisplay;
+}
+
+function pickBestResolvedAddress(
+  googleAddress: string | null,
+  osmAddress: string | null,
+  latitude: number,
+  longitude: number,
+): string {
+  const fallback = coordinateFallback(latitude, longitude);
+  const candidates = [googleAddress, osmAddress].filter(
+    (address): address is string =>
+      !!address?.trim() && !looksLikeCoordinates(address),
+  );
+
+  if (!candidates.length) {
+    return fallback;
+  }
+
+  let best: { score: number; address: string } | null = null;
+  for (const address of candidates) {
+    const score = addressSpecificityScore(address);
+    if (!best || score > best.score) {
+      best = { score, address };
+    }
+  }
+
+  if (best && best.score > 0) {
+    logger.info('Reverse geocode resolved', {
+      latitude,
+      longitude,
+      address: best.address,
+      score: best.score,
+    });
+    return best.address;
+  }
+
+  const nonAdmin = candidates.find(address => !isAdminOnlyAddress(address));
+  if (nonAdmin) {
+    return nonAdmin;
+  }
+
+  return fallback;
+}
+
 async function nominatimReverseGeocode(
   latitude: number,
   longitude: number,
 ): Promise<string | null> {
   try {
-    const params = new URLSearchParams({
-      format: 'json',
-      lat: String(latitude),
-      lon: String(longitude),
-      zoom: '18',
-      addressdetails: '1',
-    });
+    const zoomLevels = [18, 17, 16, 15, 14];
+    const responses: NominatimResponse[] = [];
 
-    const data = await httpsGetJson<NominatimResponse>(
-      `https://nominatim.openstreetmap.org/reverse?${params.toString()}`,
-      {
-        'User-Agent': 'EmployeeManagementApp/1.0 (attendance-checkin; contact@company.local)',
-      },
-    );
+    for (const zoom of zoomLevels) {
+      const data = await nominatimReverseGeocodeAtZoom(latitude, longitude, zoom);
+      if (data) {
+        responses.push(data);
+      }
+    }
 
-    return formatOsmDisplayName(data.display_name);
+    for (const data of responses) {
+      if (data.address?.village || data.address?.hamlet) {
+        const resolved = resolveOsmAddress(data);
+        if (resolved && !isAdminOnlyAddress(resolved)) {
+          return resolved;
+        }
+      }
+    }
+
+    for (const data of responses) {
+      const primary = extractPrimaryLocalityFromDisplayName(data.display_name);
+      const town = data.address?.town || data.address?.city;
+      if (
+        primary &&
+        town &&
+        primary.toLowerCase() !== town.toLowerCase()
+      ) {
+        const resolved = resolveOsmAddress(data);
+        if (resolved && !isAdminOnlyAddress(resolved)) {
+          return resolved;
+        }
+      }
+    }
+
+    for (const data of responses) {
+      const resolved = resolveOsmAddress(data);
+      if (resolved && !isAdminOnlyAddress(resolved)) {
+        return resolved;
+      }
+    }
+
+    const fallbackData = responses[0];
+    return fallbackData ? resolveOsmAddress(fallbackData) : null;
   } catch (error) {
     logger.warn('OpenStreetMap reverse geocoding failed', error);
     return null;
@@ -245,13 +796,12 @@ export async function reverseGeocode(
     return googleAddress || fallback;
   }
 
-  const googleAddress = await googleReverseGeocode(latitude, longitude);
-  if (googleAddress) {
-    return googleAddress;
-  }
+  const [googleAddress, osmAddress] = await Promise.all([
+    googleReverseGeocode(latitude, longitude),
+    nominatimReverseGeocode(latitude, longitude),
+  ]);
 
-  const osmAddress = await nominatimReverseGeocode(latitude, longitude);
-  return osmAddress || fallback;
+  return pickBestResolvedAddress(googleAddress, osmAddress, latitude, longitude);
 }
 
 export async function resolveLocationAddress(location: {
@@ -259,18 +809,28 @@ export async function resolveLocationAddress(location: {
   longitude: number;
   address?: string;
   accuracy?: number;
+  locationTimestamp?: string;
+  isMocked?: boolean;
 }): Promise<{
   latitude: number;
   longitude: number;
   address: string;
   accuracy?: number;
+  locationTimestamp?: string;
+  isMocked?: boolean;
 }> {
-  const address = await reverseGeocode(location.latitude, location.longitude);
+  const existingAddress = location.address?.trim();
+  const resolvedAddress =
+    existingAddress && !isGenericAddress(existingAddress)
+      ? existingAddress
+      : await reverseGeocode(location.latitude, location.longitude);
 
   return {
     latitude: location.latitude,
     longitude: location.longitude,
-    address,
+    address: resolvedAddress,
     accuracy: location.accuracy,
+    locationTimestamp: location.locationTimestamp,
+    isMocked: location.isMocked,
   };
 }

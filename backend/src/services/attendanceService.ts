@@ -128,7 +128,32 @@ function enrichAttendanceRecords<
 }
 
 async function enrichLocation(location: LocationPayload): Promise<LocationPayload> {
-  return resolveLocationAddress(location);
+  if (location.isMocked) {
+    throw ApiError.badRequest(
+      'Mock or fake location detected. Disable mock-location apps and try again.',
+    );
+  }
+
+  if (
+    location.accuracy != null &&
+    Number.isFinite(location.accuracy) &&
+    location.accuracy > 150
+  ) {
+    throw ApiError.badRequest(
+      `GPS accuracy is too low (${Math.round(location.accuracy)} meters). Move to an open area and try again.`,
+    );
+  }
+
+  const resolved = await resolveLocationAddress(location);
+
+  return {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    accuracy: location.accuracy,
+    address: resolved.address,
+    locationTimestamp: location.locationTimestamp,
+    isMocked: location.isMocked,
+  };
 }
 
 async function assertWithinOfficeGeofence(
@@ -277,7 +302,9 @@ export const checkIn = async (
     { lateMinutes, workFromHome },
   );
 
-  await startRouteSession(employeeId, result._id, today, resolvedLocation);
+  if (user.isFieldEmployee) {
+    await startRouteSession(employeeId, result._id, today, resolvedLocation);
+  }
 
   const officeHours = await getOfficeHours();
 
@@ -384,7 +411,9 @@ export const checkOut = async (
       : undefined,
   );
 
-  await endRouteSession(attendance._id.toString(), resolvedLocation);
+  if (user.isFieldEmployee) {
+    await endRouteSession(attendance._id.toString(), resolvedLocation);
+  }
 
   return enrichAttendanceRecord(
     await Attendance.findById(attendance._id).populate('employee', employeePopulateFields),
@@ -754,4 +783,129 @@ export const getAttendanceSummary = async (dateInput?: string) => {
     hr,
     date,
   };
+};
+
+interface AttendanceCorrectionInput {
+  employeeId: string;
+  date: string;
+  checkInTime: string;
+  checkOutTime?: string;
+  correctionRemark: string;
+  attendanceId?: string;
+}
+
+export const applyAttendanceCorrection = async (
+  actorId: string,
+  input: AttendanceCorrectionInput,
+) => {
+  const actor = await User.findById(actorId);
+  if (!actor) {
+    throw ApiError.notFound('User not found');
+  }
+
+  const employee = await User.findById(input.employeeId);
+  if (!employee) {
+    throw ApiError.notFound('Employee not found');
+  }
+
+  if (!['employee', 'hr'].includes(employee.role)) {
+    throw ApiError.badRequest('Attendance can only be corrected for employees or HR staff');
+  }
+
+  const day = parseDateOnly(input.date);
+  const checkIn = new Date(input.checkInTime);
+  if (Number.isNaN(checkIn.getTime())) {
+    throw ApiError.badRequest('Invalid check-in time');
+  }
+
+  const checkOut = input.checkOutTime ? new Date(input.checkOutTime) : undefined;
+  if (checkOut && Number.isNaN(checkOut.getTime())) {
+    throw ApiError.badRequest('Invalid check-out time');
+  }
+
+  if (checkOut && checkOut <= checkIn) {
+    throw ApiError.badRequest('Check-out must be after check-in');
+  }
+
+  let attendance: IAttendance | null = null;
+  if (input.attendanceId) {
+    attendance = await Attendance.findById(input.attendanceId);
+    if (!attendance) {
+      throw ApiError.notFound('Attendance record not found');
+    }
+    if (attendance.employee.toString() !== input.employeeId) {
+      throw ApiError.badRequest('Attendance record does not belong to this employee');
+    }
+  } else {
+    attendance = await Attendance.findOne({
+      employee: input.employeeId,
+      date: day,
+    });
+  }
+
+  const officeHours = await getOfficeHours();
+  const { status, lateMinutes } = await determineAttendanceStatus(checkIn);
+  const breakMinutes = attendance?.totalBreakMinutes ?? 0;
+
+  let totalWorkingMinutes = 0;
+  let overtimeMinutes = 0;
+  let isEarly = false;
+
+  if (checkOut) {
+    totalWorkingMinutes = calculateNetWorkingMinutes(checkIn, checkOut, breakMinutes);
+    overtimeMinutes = calculateOvertimeMinutes(checkOut, officeHours.officeEndTime);
+    isEarly = isEarlyCheckout(checkOut, officeHours.officeEndTime);
+  } else if (attendance?.checkInTime && !checkOut) {
+    totalWorkingMinutes = calculateNetWorkingMinutes(
+      checkIn,
+      new Date(),
+      breakMinutes,
+    );
+  }
+
+  const correctionData = {
+    employee: employee._id,
+    date: day,
+    checkInTime: checkIn,
+    checkOutTime: checkOut,
+    attendanceStatus: status,
+    lateMinutes,
+    totalWorkingMinutes,
+    overtimeMinutes,
+    isEarlyCheckout: isEarly,
+    isManualCorrection: true,
+    correctionRemark: input.correctionRemark.trim(),
+    correctedBy: actor._id,
+    correctedAt: new Date(),
+  };
+
+  if (attendance) {
+    Object.assign(attendance, correctionData);
+    if (!isEarly) {
+      attendance.earlyCheckoutRemark = '';
+    }
+    await attendance.save();
+  } else {
+    attendance = await Attendance.create({
+      ...correctionData,
+      totalBreakMinutes: 0,
+      breakSessions: [],
+      earlyCheckoutRemark: '',
+      isWorkFromHome: false,
+    });
+  }
+
+  const dateLabel = day.toLocaleDateString();
+  await createNotification({
+    recipient: employee._id,
+    title: 'Attendance updated by HR',
+    message: `${actor.fullName} updated your attendance for ${dateLabel}. Reason: ${input.correctionRemark.trim()}`,
+    type: 'attendance',
+    relatedId: attendance._id,
+  });
+
+  return enrichAttendanceRecord(
+    await Attendance.findById(attendance._id).populate('employee', employeePopulateFields),
+    officeHours.officeEndTime,
+  );
 };

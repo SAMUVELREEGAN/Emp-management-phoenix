@@ -48,7 +48,7 @@ export async function processHourlyReportReminders(): Promise<void> {
   const activeSessions = await Attendance.find({
     checkInTime: { $exists: true, $ne: null },
     checkOutTime: { $exists: false },
-  }).populate('employee', 'fullName role status');
+  }).populate('employee', 'fullName role status isFieldEmployee');
 
   for (const attendance of activeSessions) {
     const employee = attendance.employee as {
@@ -56,9 +56,15 @@ export async function processHourlyReportReminders(): Promise<void> {
       fullName?: string;
       role?: string;
       status?: string;
+      isFieldEmployee?: boolean;
     } | null;
 
-    if (!employee || employee.status !== 'active' || employee.role !== 'employee') {
+    if (
+      !employee ||
+      employee.status !== 'active' ||
+      employee.role !== 'employee' ||
+      !employee.isFieldEmployee
+    ) {
       continue;
     }
 

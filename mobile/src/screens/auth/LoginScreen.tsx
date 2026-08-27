@@ -209,8 +209,8 @@ export default function LoginScreen({ navigation }: Props) {
             <View style={styles.helpCard}>
               <Text style={styles.helpTitle}>Need help signing in?</Text>
               <Text style={styles.helpText}>
-                Contact your HR or admin team if you forgot your password or need
-                access to your account.
+                Use Forgot password to receive a reset code by email, or contact your HR or
+                admin team if you need account access.
               </Text>
             </View>
           </ScrollView>

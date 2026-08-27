@@ -10,6 +10,7 @@ interface AuthState {
   isLoggingOut: boolean;
   hydrated: boolean;
   setAuth: (token: string, user: User) => void;
+  updateUser: (user: User) => void;
   logout: () => void;
   setLoggingOut: (value: boolean) => void;
   hydrate: () => Promise<void>;
@@ -27,6 +28,10 @@ export const useAuthStore = create<AuthState>()(
 
       setAuth: (token, user) => {
         set({ token, user, isAuthenticated: true, isLoggingOut: false });
+      },
+
+      updateUser: user => {
+        set({ user });
       },
 
       logout: () => {

@@ -134,6 +134,12 @@ export default function EmployeeDetailScreen() {
           <InfoRow label="Phone" value={employee.phone} />
           <InfoRow label="Department" value={employee.department} />
           <InfoRow label="Designation" value={employee.designation} />
+          {employee.role === 'employee' ? (
+            <InfoRow
+              label="Live Tracking"
+              value={employee.isFieldEmployee ? 'Enabled (Field Sales)' : 'Disabled'}
+            />
+          ) : null}
           <InfoRow label="Joining Date" value={formatDate(employee.joiningDate)} />
           {employee.address ? <InfoRow label="Address" value={employee.address} /> : null}
 

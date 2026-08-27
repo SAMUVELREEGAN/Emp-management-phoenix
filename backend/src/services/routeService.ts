@@ -7,7 +7,8 @@ import { ApiError } from '../utils/ApiError';
 import { LocationPayload } from '../types';
 import { endOfDay, parseDateOnly, startOfDay } from '../utils/dateHelpers';
 
-const employeePopulateFields = 'fullName employeeId department designation role';
+const employeePopulateFields =
+  'fullName employeeId department designation role isFieldEmployee';
 
 interface RoutePointInput {
   latitude: number;
@@ -158,9 +159,15 @@ export const appendPointsForEmployee = async (
 export const getLiveTracking = async () => {
   const sessions = await RouteSession.find({ isActive: true })
     .sort({ lastRecordedAt: -1 })
-    .populate('employee', employeePopulateFields);
+    .populate({
+      path: 'employee',
+      match: { isFieldEmployee: true, role: 'employee', status: 'active' },
+      select: employeePopulateFields,
+    });
 
-  return sessions.map((session) => ({
+  return sessions
+    .filter(session => session.employee)
+    .map(session => ({
     sessionId: session._id,
     employee: session.employee,
     startedAt: session.startedAt,
@@ -248,6 +255,7 @@ export const getEmployeeByIdForTrack = async (employeeId: string) => {
     _id: employeeId,
     role: 'employee',
     status: 'active',
+    isFieldEmployee: true,
   }).select(employeePopulateFields);
 
   if (!employee) {
@@ -261,6 +269,7 @@ export const listTrackableEmployees = async () => {
   const employees = await User.find({
     role: 'employee',
     status: 'active',
+    isFieldEmployee: true,
   })
     .select(employeePopulateFields)
     .sort({ fullName: 1 });

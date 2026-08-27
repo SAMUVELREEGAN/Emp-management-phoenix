@@ -7,9 +7,14 @@ export type ReportKindTab = 'daily' | 'hourly';
 interface ReportKindTabsProps {
   value: ReportKindTab;
   onChange: (value: ReportKindTab) => void;
+  showHourly?: boolean;
 }
 
-export function ReportKindTabs({ value, onChange }: ReportKindTabsProps) {
+export function ReportKindTabs({ value, onChange, showHourly = true }: ReportKindTabsProps) {
+  if (!showHourly) {
+    return null;
+  }
+
   return (
     <View style={styles.row}>
       <Pressable
@@ -20,7 +25,7 @@ export function ReportKindTabs({ value, onChange }: ReportKindTabsProps) {
       <Pressable
         style={[styles.tab, value === 'hourly' && styles.tabActive]}
         onPress={() => onChange('hourly')}>
-        <Text style={[styles.tabText, value === 'hourly' && styles.tabTextActive]}>Hourly Reports</Text>
+        <Text style={[styles.tabText, value === 'hourly' && styles.tabTextActive]}>GeoCam Hourly</Text>
       </Pressable>
     </View>
   );

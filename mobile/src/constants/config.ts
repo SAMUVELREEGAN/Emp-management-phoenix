@@ -5,7 +5,7 @@ const PRODUCTION_API_BASE_URL =
 
 // Used only in development when the native env module is unavailable.
 // Keep in sync with mobile/.env when your PC LAN IP changes.
-const DEV_API_BASE_URL = 'http://192.168.220.208:5000/api';
+const DEV_API_BASE_URL = 'http://10.34.35.208:5000/api';
 
 const nativeConfig = loadNativeEnv();
 const nativeApiBaseUrl = String(nativeConfig.API_BASE_URL ?? '').trim();

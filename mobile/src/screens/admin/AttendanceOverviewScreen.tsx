@@ -55,6 +55,23 @@ const CATEGORY_LABELS: Record<AttendanceBreakdownCategory, string> = {
   checked_out: 'Checked Out',
 };
 
+function getEmployeeName(employee: Attendance['employee']): string {
+  if (typeof employee === 'string') {
+    return 'Staff member';
+  }
+  return `${employee.fullName} (${employee.employeeId})`;
+}
+
+function getEmployeeId(attendance: Attendance): string {
+  if (attendance._id.startsWith('absent-')) {
+    return attendance._id.replace('absent-', '');
+  }
+  if (typeof attendance.employee === 'string') {
+    return attendance.employee;
+  }
+  return attendance.employee._id;
+}
+
 function RoleSummaryCards({
   summary,
   interactive = false,
@@ -252,6 +269,17 @@ export default function AttendanceOverviewScreen({
     navigation.navigate('AttendanceDetail', { attendanceId });
   };
 
+  const openCorrection = (item: Attendance) => {
+    navigation.navigate('AttendanceCorrection', {
+      employeeId: getEmployeeId(item),
+      employeeName: getEmployeeName(item.employee),
+      date: toDateInputValue(item.date),
+      attendanceId: item._id.startsWith('absent-') ? undefined : item._id,
+      checkInTime: item.checkInTime,
+      checkOutTime: item.checkOutTime,
+    });
+  };
+
   const handleExportReport = async (fromDate: string, toDate: string) => {
     try {
       const response = await attendanceApi.exportReport({
@@ -383,16 +411,36 @@ export default function AttendanceOverviewScreen({
               message={emptyMessage}
             />
           }
-          renderItem={({ item }) => (
-            <AttendanceCard
-              attendance={item}
-              showEmployee
-              officeStartTime={officeStartTime}
-              onPress={
-                item._id.startsWith('absent-') ? undefined : () => openDetail(item._id)
-              }
-            />
-          )}
+          renderItem={({ item }) => {
+            const isAbsent = item._id.startsWith('absent-');
+            return (
+              <View style={styles.recordItem}>
+                <AttendanceCard
+                  attendance={item}
+                  showEmployee
+                  officeStartTime={officeStartTime}
+                  onPress={isAbsent ? undefined : () => openDetail(item._id)}
+                />
+                <Pressable
+                  style={styles.correctionButton}
+                  onPress={() => openCorrection(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    isAbsent ? 'Mark attendance for absent employee' : 'Correct attendance'
+                  }
+                >
+                  <MaterialCommunityIcons
+                    name={isAbsent ? 'account-check-outline' : 'calendar-edit'}
+                    size={18}
+                    color={theme.colors.primaryDark}
+                  />
+                  <Text style={styles.correctionButtonText}>
+                    {isAbsent ? 'Mark Attendance' : 'Correct Attendance'}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          }}
         />
       )}
     </View>
@@ -422,6 +470,27 @@ const styles = StyleSheet.create({
     fontWeight: theme.fonts.weights.semibold,
   },
   list: { padding: theme.spacing.md, flexGrow: 1 },
+  recordItem: {
+    marginBottom: theme.spacing.sm,
+  },
+  correctionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.xs,
+    marginTop: -theme.spacing.xs,
+    marginBottom: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.primaryLight,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.35)',
+  },
+  correctionButtonText: {
+    fontSize: theme.fonts.sizes.sm,
+    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.primaryDark,
+  },
   summary: { marginBottom: theme.spacing.sm },
   summaryBlock: { marginBottom: theme.spacing.md },
   sectionTitle: {

@@ -35,6 +35,7 @@ interface CreateEmployeeInput {
   address?: string;
   role?: UserRole;
   status?: UserStatus;
+  isFieldEmployee?: boolean;
 }
 
 export const listEmployees = async (filters: EmployeeFilters) => {
@@ -126,6 +127,7 @@ export const createEmployee = async (
     profilePhoto: profilePhoto || '',
     role: data.role || 'employee',
     status: data.status || 'active',
+    isFieldEmployee: data.role === 'hr' ? false : Boolean(data.isFieldEmployee),
     isVerified: true,
   });
 
@@ -196,6 +198,10 @@ export const updateEmployee = async (
   if (data.address !== undefined) employee.address = data.address;
   if (data.role !== undefined) employee.role = data.role;
   if (data.status !== undefined) employee.status = data.status;
+  if (data.isFieldEmployee !== undefined) {
+    employee.isFieldEmployee =
+      employee.role === 'hr' ? false : Boolean(data.isFieldEmployee);
+  }
   if (data.joiningDate) {
     employee.joiningDate = parseDateOnly(data.joiningDate);
   }

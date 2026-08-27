@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   Attendance,
   AttendanceBreakdownCategory,
+  AttendanceCorrectionPayload,
   AttendanceSummary,
   CheckInOutPayload,
   PaginatedResponse,
@@ -109,6 +110,14 @@ export const attendanceApi = {
         base64: string;
       }>
     >('/attendance/export', { params, timeout: 60000 });
+    return response.data;
+  },
+
+  correct: async (payload: AttendanceCorrectionPayload) => {
+    const response = await apiClient.post<ApiResponse<{ attendance: Attendance }>>(
+      '/attendance/correct',
+      payload,
+    );
     return response.data;
   },
 };

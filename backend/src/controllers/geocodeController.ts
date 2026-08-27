@@ -17,7 +17,13 @@ export const reverseGeocode = asyncHandler(async (req: AuthRequest, res: Respons
     throw ApiError.badRequest('Latitude or longitude is out of range');
   }
 
-  const location = await resolveLocationAddress({ latitude, longitude });
+  const location = await resolveLocationAddress({
+    latitude,
+    longitude,
+    accuracy: Number.isFinite(Number(req.query.accuracy))
+      ? Number(req.query.accuracy)
+      : undefined,
+  });
 
   return sendSuccess(res, 'Address resolved successfully', { location });
 });

@@ -11,6 +11,7 @@ import {
   ErrorMessage,
   LoadingIndicator,
   StatusBadge,
+  GeoCamPhotoSection,
 } from '../../components';
 import { theme } from '../../constants/theme';
 import { workReportApi } from '../../api/workReportApi';
@@ -141,10 +142,12 @@ export default function AdminWorkReportDetailScreen() {
           {isHourlyReport ? (
             <View style={styles.hourlyNote}>
               <Text style={styles.hourlyNoteText}>
-                Hourly update sent by the employee. These reports are view-only.
+                GeoCam hourly field report with photo and GPS location.
               </Text>
             </View>
           ) : null}
+
+          {isHourlyReport ? <GeoCamPhotoSection report={report} /> : null}
 
           {isAttendanceSummary && report.attendanceSummary ? (
             <View style={styles.summaryGrid}>

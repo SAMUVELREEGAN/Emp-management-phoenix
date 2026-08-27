@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
 import { validate } from '../middleware/errorHandler';
-import { checkInSchema, checkOutSchema, breakActionSchema, attendanceBreakdownSchema, attendanceExportSchema } from '../validators/schemas';
+import { checkInSchema, checkOutSchema, breakActionSchema, attendanceBreakdownSchema, attendanceExportSchema, attendanceCorrectionSchema } from '../validators/schemas';
 import * as attendanceController from '../controllers/attendanceController';
 
 const router = Router();
@@ -64,6 +64,12 @@ router.get(
   attendanceController.exportReport,
 );
 router.get('/', authorize('admin', 'hr'), attendanceController.listAttendance);
+router.post(
+  '/correct',
+  authorize('admin', 'hr'),
+  validate(attendanceCorrectionSchema),
+  attendanceController.correctAttendance,
+);
 router.get('/:id', authorize('admin', 'hr'), attendanceController.getAttendanceById);
 
 export default router;

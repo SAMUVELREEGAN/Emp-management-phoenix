@@ -24,6 +24,10 @@ export interface IAttendance extends Document {
   attendanceStatus: AttendanceStatus;
   isWorkFromHome: boolean;
   lastHourlyReminderAt?: Date;
+  isManualCorrection?: boolean;
+  correctionRemark?: string;
+  correctedBy?: Types.ObjectId;
+  correctedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +38,8 @@ const locationSchema = new Schema<LocationPayload>(
     longitude: { type: Number, required: true },
     address: { type: String },
     accuracy: { type: Number },
+    locationTimestamp: { type: String },
+    isMocked: { type: Boolean },
   },
   { _id: false },
 );
@@ -111,6 +117,22 @@ const attendanceSchema = new Schema<IAttendance>(
       default: false,
     },
     lastHourlyReminderAt: {
+      type: Date,
+    },
+    isManualCorrection: {
+      type: Boolean,
+      default: false,
+    },
+    correctionRemark: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    correctedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    correctedAt: {
       type: Date,
     },
   },

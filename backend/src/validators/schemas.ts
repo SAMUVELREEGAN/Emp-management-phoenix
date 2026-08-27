@@ -30,6 +30,26 @@ export const resendVerificationSchema = z.object({
   identifier: z.string().trim().min(1, 'Email or mobile number is required'),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email('Valid email is required'),
+});
+
+export const resetPasswordSchema = z.object({
+  email: z.string().trim().email('Valid email is required'),
+  code: z
+    .string()
+    .trim()
+    .length(6, 'Verification code must be 6 digits')
+    .regex(/^\d{6}$/, 'Verification code must contain only numbers'),
+  newPassword: z
+    .string()
+    .min(8, 'New password must be at least 8 characters')
+    .regex(
+      /^(?=.*[A-Za-z])(?=.*\d).+$/,
+      'New password must contain letters and numbers',
+    ),
+});
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z
@@ -39,6 +59,10 @@ export const changePasswordSchema = z.object({
       /^(?=.*[A-Za-z])(?=.*\d).+$/,
       'New password must contain letters and numbers',
     ),
+});
+
+export const updateProfileSchema = z.object({
+  fullName: nonEmpty('Full name').optional(),
 });
 
 export const createEmployeeSchema = z.object({
@@ -57,6 +81,11 @@ export const createEmployeeSchema = z.object({
   address: z.string().trim().optional().default(''),
   role: z.enum(['employee', 'hr']).default('employee'),
   status: z.enum(['active', 'inactive']).default('inactive'),
+  isFieldEmployee: z
+    .union([z.boolean(), z.string()])
+    .optional()
+    .transform(value => value === true || value === 'true')
+    .default(false),
 });
 
 export const updateEmployeeSchema = createEmployeeSchema
@@ -77,6 +106,9 @@ export const locationSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   address: z.string().optional(),
+  accuracy: z.number().positive().optional(),
+  locationTimestamp: z.string().optional(),
+  isMocked: z.boolean().optional(),
 });
 
 export const checkInSchema = z.object({
@@ -188,10 +220,15 @@ export const workReportSchema = z.object({
 });
 
 export const hourlyWorkReportSchema = z.object({
-  workSummary: nonEmpty('Work summary'),
+  workSummary: z.string().trim().optional().default(''),
   reportPeriodStart: z.string().optional(),
   reportPeriodEnd: z.string().optional(),
   workingHours: z.coerce.number().min(0.5).max(24).optional(),
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
+  address: z.string().trim().optional().default(''),
+  accuracy: z.coerce.number().positive().optional(),
+  capturedAt: z.string().optional(),
 });
 
 export const reviewReportSchema = z.object({
@@ -236,6 +273,52 @@ export const attendanceExportSchema = z.object({
   toDate: z.string().min(1, 'To date is required'),
   role: z.enum(['employee', 'hr']),
 });
+
+export const attendanceCorrectionSchema = z
+  .object({
+    employeeId: z.string().min(1, 'Employee is required'),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+    checkInTime: z.string().min(1, 'Check-in time is required'),
+    checkOutTime: z.string().optional(),
+    correctionRemark: z
+      .string()
+      .trim()
+      .min(3, 'Please enter a reason for this correction'),
+    attendanceId: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.checkOutTime) {
+      return;
+    }
+
+    const checkIn = new Date(data.checkInTime);
+    const checkOut = new Date(data.checkOutTime);
+
+    if (Number.isNaN(checkIn.getTime())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid check-in time',
+        path: ['checkInTime'],
+      });
+    }
+
+    if (Number.isNaN(checkOut.getTime())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid check-out time',
+        path: ['checkOutTime'],
+      });
+      return;
+    }
+
+    if (checkOut <= checkIn) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Check-out must be after check-in',
+        path: ['checkOutTime'],
+      });
+    }
+  });
 
 export const assignTaskSchema = z.object({
   assignedTo: z.string().min(1, 'Employee is required'),

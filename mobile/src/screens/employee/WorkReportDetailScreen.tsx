@@ -3,7 +3,7 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AppButton, AppHeader, ErrorMessage, LoadingIndicator, StatusBadge } from '../../components';
+import { AppButton, AppHeader, ErrorMessage, GeoCamPhotoSection, LoadingIndicator, StatusBadge } from '../../components';
 import { theme } from '../../constants/theme';
 import { workReportApi } from '../../api/workReportApi';
 import { getErrorMessage } from '../../utils/errors';
@@ -94,6 +94,7 @@ export default function WorkReportDetailScreen() {
               </Text>
 
               <Section title="Work Summary" content={report.workSummary} />
+              {isHourlyReport ? <GeoCamPhotoSection report={report} /> : null}
               {!isHourlyReport ? (
                 <>
                   <Section title="Completed Tasks" content={report.completedTasks || '-'} />

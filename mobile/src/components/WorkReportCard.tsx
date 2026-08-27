@@ -40,7 +40,7 @@ export function WorkReportCard({ report, onPress, showEmployee = false }: WorkRe
       </View>
       {isHourlyReport ? (
         <View style={styles.kindBadge}>
-          <Text style={styles.kindBadgeText}>Hourly</Text>
+          <Text style={styles.kindBadgeText}>{report.attachment ? 'GeoCam Hourly' : 'Hourly'}</Text>
         </View>
       ) : null}
       {showEmployee ? (

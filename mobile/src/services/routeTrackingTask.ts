@@ -6,9 +6,9 @@ import { API_BASE_URL } from '../constants/config';
 import type { LocationPayload } from '../types';
 
 export const ROUTE_TRACKING_TASK_NAME = 'RouteTracking';
-export const UPLOAD_INTERVAL_MS = 30000;
-export const MIN_DISTANCE_METERS = 15;
-export const POLL_INTERVAL_MS = 10000;
+export const UPLOAD_INTERVAL_MS = 8000;
+export const MIN_DISTANCE_METERS = 8;
+export const POLL_INTERVAL_MS = 5000;
 
 const AUTH_STORAGE_KEY = 'auth-storage';
 

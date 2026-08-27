@@ -99,6 +99,16 @@ export const getAttendanceById = asyncHandler(
   },
 );
 
+export const correctAttendance = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const attendance = await attendanceService.applyAttendanceCorrection(
+      req.user!._id.toString(),
+      req.body,
+    );
+    return sendSuccess(res, 'Attendance corrected successfully', { attendance });
+  },
+);
+
 export const getSummary = asyncHandler(
   async (req: AuthRequest, res: Response) => {
     const summary = await attendanceService.getAttendanceSummary(

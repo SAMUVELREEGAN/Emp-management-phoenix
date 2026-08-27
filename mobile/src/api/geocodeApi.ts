@@ -2,11 +2,15 @@ import apiClient from './client';
 import type { ApiResponse, LocationPayload } from '../types';
 
 export const geocodeApi = {
-  reverse: async (latitude: number, longitude: number) => {
+  reverse: async (latitude: number, longitude: number, accuracy?: number) => {
     const response = await apiClient.get<
       ApiResponse<{ location: LocationPayload }>
     >('/geocode/reverse', {
-      params: { lat: latitude, lon: longitude },
+      params: {
+        lat: latitude,
+        lon: longitude,
+        ...(accuracy != null ? { accuracy } : {}),
+      },
       timeout: 15000,
     });
     return response.data;

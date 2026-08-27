@@ -16,7 +16,7 @@ import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
-import { formatLocationWithCoords, enrichAttendanceLocations, getLocationForAttendance } from '../../utils/location';
+import { formatLocationWithCoords, enrichAttendanceLocations, getLocationForAttendance, formatAccuracyMeters, isLowAccuracyLocation } from '../../utils/location';
 import {
   buildOutsideGeofenceMessage,
   getGeofenceStatus,
@@ -56,6 +56,7 @@ import { useQuickAccessBack } from '../../navigation/safeStackBack';
 export default function AttendanceScreen({ embedded = false }: AttendanceScreenProps) {
   const navigation = useNavigation<NativeStackNavigationProp<AttendanceStackParamList>>();
   const userRole = useAuthStore(state => state.user?.role);
+  const isFieldEmployee = useAuthStore(state => state.user?.isFieldEmployee === true);
   const isHr = userRole === 'hr';
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [officeHours, setOfficeHours] = useState<OfficeHours>(
@@ -109,10 +110,10 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   const [routeRecordingEnabled, setRouteRecordingEnabled] = useState(false);
   const pendingRouteAfterCheckInRef = useRef(false);
 
-  useRouteRecorder(routeRecordingEnabled && !actionLoading);
+  useRouteRecorder(routeRecordingEnabled && isFieldEmployee && !actionLoading);
 
   useEffect(() => {
-    if (!isSessionActive || isHr) {
+    if (!isSessionActive || isHr || !isFieldEmployee) {
       setRouteRecordingEnabled(false);
       return;
     }
@@ -128,7 +129,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
     return () => {
       clearTimeout(timer);
     };
-  }, [isSessionActive, isHr]);
+  }, [isSessionActive, isHr, isFieldEmployee]);
 
   useEffect(() => {
     if (!isSessionActive) {
@@ -159,9 +160,11 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
   const refreshLocationPreview = useCallback(async () => {
     setPreviewLoading(true);
     try {
-      const location = await getLocationForAttendance();
+      const location = await getLocationForAttendance({ showAlerts: false });
       if (location) {
         setPreviewLocation(location);
+      } else {
+        setPreviewLocation(null);
       }
     } catch {
       setPreviewLocation(null);
@@ -510,14 +513,32 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
                 </Text>
               ) : null}
               {previewLocation ? (
-                <Text style={styles.geofenceLocation}>
-                  Current location:{'\n'}
-                  {formatLocationWithCoords(previewLocation)}
-                </Text>
+                <>
+                  <Text style={styles.geofenceLocation}>
+                    Current location:{'\n'}
+                    {formatLocationWithCoords(previewLocation)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.accuracyText,
+                      isLowAccuracyLocation(previewLocation.accuracy)
+                        ? styles.accuracyTextWarning
+                        : styles.accuracyTextGood,
+                    ]}
+                  >
+                    Location accuracy: {formatAccuracyMeters(previewLocation.accuracy)}
+                  </Text>
+                  {isLowAccuracyLocation(previewLocation.accuracy) ? (
+                    <Text style={styles.accuracyWarning}>
+                      Your location accuracy is low. Turn on GPS, enable Precise location,
+                      and move to an open area before check-in.
+                    </Text>
+                  ) : null}
+                </>
               ) : (
                 <Text style={styles.geofenceLocation}>
                   {previewLoading
-                    ? 'Detecting your current location...'
+                    ? 'Getting your precise location...'
                     : 'Tap Refresh Location to check if you are inside the office area.'}
                 </Text>
               )}
@@ -543,13 +564,31 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
                 <Text style={styles.geofenceTitle}>Current Location</Text>
               </View>
               {previewLocation ? (
-                <Text style={styles.geofenceLocation}>
-                  {formatLocationWithCoords(previewLocation)}
-                </Text>
+                <>
+                  <Text style={styles.geofenceLocation}>
+                    {formatLocationWithCoords(previewLocation)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.accuracyText,
+                      isLowAccuracyLocation(previewLocation.accuracy)
+                        ? styles.accuracyTextWarning
+                        : styles.accuracyTextGood,
+                    ]}
+                  >
+                    Location accuracy: {formatAccuracyMeters(previewLocation.accuracy)}
+                  </Text>
+                  {isLowAccuracyLocation(previewLocation.accuracy) ? (
+                    <Text style={styles.accuracyWarning}>
+                      Your location accuracy is low. Turn on GPS, enable Precise location,
+                      and move to an open area before check-in.
+                    </Text>
+                  ) : null}
+                </>
               ) : (
                 <Text style={styles.geofenceLocation}>
                   {previewLoading
-                    ? 'Detecting your current location...'
+                    ? 'Getting your precise location...'
                     : 'Tap Refresh Location to detect your place name.'}
                 </Text>
               )}
@@ -585,11 +624,11 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
             </View>
           ) : null}
 
-          {isSessionActive && !isHr && routeRecordingEnabled ? (
+          {isSessionActive && isFieldEmployee && routeRecordingEnabled ? (
             <View style={styles.recordingBanner}>
               <MaterialCommunityIcons name="map-marker-path" size={18} color={theme.colors.success} />
               <Text style={styles.recordingText}>
-                Route recording is active while the app is open and shared with admin
+                Live route tracking is active. Your movement is shared with admin in real time.
               </Text>
             </View>
           ) : null}
@@ -737,6 +776,23 @@ const styles = StyleSheet.create({
   geofenceLocation: {
     fontSize: theme.fonts.sizes.sm,
     color: theme.colors.text,
+    lineHeight: 20,
+    marginBottom: theme.spacing.sm,
+  },
+  accuracyText: {
+    fontSize: theme.fonts.sizes.sm,
+    fontWeight: theme.fonts.weights.semibold,
+    marginBottom: theme.spacing.xs,
+  },
+  accuracyTextGood: {
+    color: theme.colors.success,
+  },
+  accuracyTextWarning: {
+    color: theme.colors.warning,
+  },
+  accuracyWarning: {
+    fontSize: theme.fonts.sizes.sm,
+    color: theme.colors.warning,
     lineHeight: 20,
     marginBottom: theme.spacing.sm,
   },

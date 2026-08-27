@@ -31,6 +31,8 @@ export interface LocationPayload {
   longitude: number;
   address?: string;
   accuracy?: number;
+  locationTimestamp?: string;
+  isMocked?: boolean;
 }
 
 export interface JwtPayload {

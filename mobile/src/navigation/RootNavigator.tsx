@@ -1,6 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { RootStackParamList } from './types';
+import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/authApi';
 import SplashScreen from '../screens/common/SplashScreen';
@@ -8,19 +6,17 @@ import { AuthNavigator } from './AuthNavigator';
 import { EmployeeNavigator } from './EmployeeNavigator';
 import { AdminNavigator } from './AdminNavigator';
 import { HrNavigator } from './HrNavigator';
-import { theme } from '../constants/theme';
-import {
-  navigationRef,
-  resetForAuthenticatedUser,
-  resetToAuth,
-} from './navigationRef';
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
+import { LogoutShell } from './LogoutShell';
 
 export function RootNavigator() {
-  const { hydrated, hydrate, setAuth, logout } = useAuthStore();
+  const hydrated = useAuthStore(state => state.hydrated);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const user = useAuthStore(state => state.user);
+  const isLoggingOut = useAuthStore(state => state.isLoggingOut);
+  const hydrate = useAuthStore(state => state.hydrate);
+  const setAuth = useAuthStore(state => state.setAuth);
+  const logout = useAuthStore(state => state.logout);
   const [ready, setReady] = useState(false);
-  const bootstrappedRef = useRef(false);
 
   useEffect(() => {
     const init = async () => {
@@ -36,47 +32,28 @@ export function RootNavigator() {
       }
       setReady(true);
     };
-    init();
+    void init();
   }, [hydrate, setAuth, logout]);
 
-  useEffect(() => {
-    if (!hydrated || !ready || bootstrappedRef.current) {
-      return;
-    }
+  if (!hydrated || !ready) {
+    return <SplashScreen />;
+  }
 
-    const bootstrapNavigation = () => {
-      if (!navigationRef.isReady()) {
-        requestAnimationFrame(bootstrapNavigation);
-        return;
-      }
+  if (isLoggingOut) {
+    return <LogoutShell />;
+  }
 
-      bootstrappedRef.current = true;
-      const { isAuthenticated, user } = useAuthStore.getState();
+  if (!isAuthenticated || !user) {
+    return <AuthNavigator />;
+  }
 
-      if (!isAuthenticated || !user) {
-        resetToAuth();
-        return;
-      }
+  if (user.role === 'admin') {
+    return <AdminNavigator />;
+  }
 
-      resetForAuthenticatedUser(user.role);
-    };
+  if (user.role === 'hr') {
+    return <HrNavigator />;
+  }
 
-    bootstrapNavigation();
-  }, [hydrated, ready]);
-
-  return (
-    <Stack.Navigator
-      initialRouteName="Splash"
-      screenOptions={{
-        headerShown: false,
-        animation: 'none',
-        contentStyle: { backgroundColor: theme.colors.background },
-      }}>
-      <Stack.Screen name="Splash" component={SplashScreen} />
-      <Stack.Screen name="Auth" component={AuthNavigator} />
-      <Stack.Screen name="Admin" component={AdminNavigator} />
-      <Stack.Screen name="Hr" component={HrNavigator} />
-      <Stack.Screen name="Employee" component={EmployeeNavigator} />
-    </Stack.Navigator>
-  );
+  return <EmployeeNavigator />;
 }

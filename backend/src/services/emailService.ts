@@ -63,3 +63,40 @@ export async function sendOtpEmail(
 
   logger.info(`Verification email sent to ${email}`);
 }
+
+export async function sendPasswordResetEmail(
+  email: string,
+  code: string,
+  fullName: string,
+): Promise<void> {
+  if (!isEmailConfigured()) {
+    logger.info(`[PASSWORD RESET EMAIL - not configured] To: ${email} | Code: ${code}`);
+    return;
+  }
+
+  const mailer = getTransporter();
+  await mailer.sendMail({
+    from: env.SMTP_FROM,
+    to: email,
+    subject: `${APP_NAME} - Password Reset Code`,
+    text: [
+      `Hello ${fullName},`,
+      '',
+      `Your ${APP_NAME} password reset code is: ${code}`,
+      '',
+      `This code expires in ${env.OTP_EXPIRY_MINUTES} minutes.`,
+      'If you did not request a password reset, please ignore this email.',
+    ].join('\n'),
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#222;">
+        <p>Hello ${fullName},</p>
+        <p>Your <strong>${APP_NAME}</strong> password reset code is:</p>
+        <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${code}</p>
+        <p>This code expires in ${env.OTP_EXPIRY_MINUTES} minutes.</p>
+        <p style="color:#666;font-size:13px;">If you did not request a password reset, please ignore this email.</p>
+      </div>
+    `,
+  });
+
+  logger.info(`Password reset email sent to ${email}`);
+}

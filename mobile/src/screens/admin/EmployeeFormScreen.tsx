@@ -7,10 +7,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -37,6 +38,7 @@ interface EmployeeFormValues {
   joiningDate: string;
   address: string;
   accountType: Extract<UserRole, 'employee' | 'hr'>;
+  isFieldEmployee: boolean;
 }
 
 export default function EmployeeFormScreen({ navigation, route }: Props) {
@@ -61,8 +63,11 @@ export default function EmployeeFormScreen({ navigation, route }: Props) {
       joiningDate: toDateInputValue(),
       address: '',
       accountType: defaultRole,
+      isFieldEmployee: false,
     },
   });
+  const accountType = useWatch({ control, name: 'accountType' });
+  const showFieldSalesToggle = !isHrForm && accountType === 'employee';
 
   useEffect(() => {
     if (!employeeId) {
@@ -83,6 +88,8 @@ export default function EmployeeFormScreen({ navigation, route }: Props) {
           designation: employee.designation,
           joiningDate: toDateInputValue(employee.joiningDate),
           address: employee.address || '',
+          accountType: employee.role === 'hr' ? 'hr' : 'employee',
+          isFieldEmployee: employee.isFieldEmployee === true,
         });
         setExistingPhoto(employee.profilePhoto);
       } catch (err) {
@@ -115,7 +122,7 @@ export default function EmployeeFormScreen({ navigation, route }: Props) {
     setError('');
     try {
       if (employeeId) {
-        const payload: Record<string, string> = {
+        const payload: Record<string, string | boolean> = {
           employeeId: values.employeeId.trim(),
           fullName: values.fullName.trim(),
           email: values.email.trim(),
@@ -124,6 +131,7 @@ export default function EmployeeFormScreen({ navigation, route }: Props) {
           designation: values.designation.trim(),
           joiningDate: values.joiningDate,
           address: values.address.trim(),
+          isFieldEmployee: values.isFieldEmployee,
         };
         if (values.password.trim()) {
           payload.password = values.password;
@@ -142,6 +150,7 @@ export default function EmployeeFormScreen({ navigation, route }: Props) {
             joiningDate: values.joiningDate,
             address: values.address.trim(),
             role: values.accountType,
+            isFieldEmployee: values.accountType === 'employee' && values.isFieldEmployee,
           },
           photo,
         );
@@ -275,6 +284,30 @@ export default function EmployeeFormScreen({ navigation, route }: Props) {
             <AppInput label="Address" value={value} onChangeText={onChange} multiline numberOfLines={2} />
           )} />
 
+          {showFieldSalesToggle ? (
+            <Controller
+              control={control}
+              name="isFieldEmployee"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.fieldToggleCard}>
+                  <View style={styles.fieldToggleTextWrap}>
+                    <Text style={styles.fieldToggleTitle}>Field Sales Employee</Text>
+                    <Text style={styles.fieldToggleHint}>
+                      Enable live GPS route tracking for this employee. Only field employees are
+                      tracked on the admin live map after check-in.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={value}
+                    onValueChange={onChange}
+                    trackColor={{ false: theme.colors.border, true: theme.colors.primaryLight }}
+                    thumbColor={value ? theme.colors.primary : theme.colors.white}
+                  />
+                </View>
+              )}
+            />
+          ) : null}
+
           <AppButton
             title={employeeId ? 'Update Account' : isHrForm ? 'Create HR Account' : 'Create Employee'}
             onPress={handleSubmit(onSubmit)}
@@ -352,6 +385,31 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     fontSize: theme.fonts.sizes.xs,
     color: theme.colors.textMuted,
+    lineHeight: 18,
+  },
+  fieldToggleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    padding: theme.spacing.md,
+    borderRadius: theme.radii.lg,
+    backgroundColor: theme.colors.white,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  fieldToggleTextWrap: {
+    flex: 1,
+  },
+  fieldToggleTitle: {
+    fontSize: theme.fonts.sizes.sm,
+    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  fieldToggleHint: {
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.textSecondary,
     lineHeight: 18,
   },
 });

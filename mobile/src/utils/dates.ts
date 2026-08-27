@@ -136,6 +136,32 @@ export function toDateInputValue(value?: string | Date | null): string {
   return `${year}-${month}-${day}`;
 }
 
+export function combineDateAndTime(dateValue: string, timeValue: string): string {
+  const { year, month, day } = dateInputToParts(dateValue);
+  const [hours, minutes] = timeValue.split(':').map(Number);
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+    Number.isNaN(hours) ? 0 : hours,
+    Number.isNaN(minutes) ? 0 : minutes,
+    0,
+    0,
+  );
+  return date.toISOString();
+}
+
+export function isoToTimeString(value?: string | null): string {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return dateToTimeString(date);
+}
+
 const MONTH_LABELS = [
   'January',
   'February',

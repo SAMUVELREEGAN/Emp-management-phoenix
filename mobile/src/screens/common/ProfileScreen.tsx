@@ -26,7 +26,6 @@ type Props = CompositeScreenProps<
 
 export default function ProfileScreen({ navigation }: Props) {
   const user = useAuthStore(state => state.user);
-  const setLoggingOut = useAuthStore(state => state.setLoggingOut);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
   const { showBack, handleBack } = useQuickAccessBack({ moreHubFallback: true });
@@ -34,14 +33,13 @@ export default function ProfileScreen({ navigation }: Props) {
   const handleConfirmLogout = useCallback(() => {
     setShowLogoutConfirm(false);
     setLogoutPending(true);
-    setLoggingOut(true);
 
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       void performLogout().finally(() => {
         setLogoutPending(false);
       });
-    }, 450);
-  }, [setLoggingOut]);
+    });
+  }, []);
 
   if (!user) {
     return <View style={styles.container} collapsable={false} />;
@@ -75,6 +73,11 @@ export default function ProfileScreen({ navigation }: Props) {
           {user.address ? <InfoRow icon="map-marker-outline" label="Address" value={user.address} /> : null}
         </View>
 
+        <AppButton
+          title="Edit Profile"
+          onPress={() => navigation.navigate('EditProfile')}
+          style={styles.button}
+        />
         <AppButton
           title="Change Password"
           variant="outline"

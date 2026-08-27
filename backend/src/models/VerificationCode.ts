@@ -1,12 +1,14 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
 
 export type VerificationChannel = 'email' | 'sms';
+export type VerificationPurpose = 'activation' | 'password_reset';
 
 export interface IVerificationCode extends Document {
   _id: Types.ObjectId;
   user: Types.ObjectId;
   codeHash: string;
   channel: VerificationChannel;
+  purpose: VerificationPurpose;
   expiresAt: Date;
   attempts: number;
   createdAt: Date;
@@ -30,6 +32,13 @@ const verificationCodeSchema = new Schema<IVerificationCode>(
       enum: ['email', 'sms'],
       required: true,
     },
+    purpose: {
+      type: String,
+      enum: ['activation', 'password_reset'],
+      default: 'activation',
+      required: true,
+      index: true,
+    },
     expiresAt: {
       type: Date,
       required: true,
@@ -43,7 +52,7 @@ const verificationCodeSchema = new Schema<IVerificationCode>(
   { timestamps: true },
 );
 
-verificationCodeSchema.index({ user: 1, channel: 1 });
+verificationCodeSchema.index({ user: 1, channel: 1, purpose: 1 });
 
 export const VerificationCode = mongoose.model<IVerificationCode>(
   'VerificationCode',

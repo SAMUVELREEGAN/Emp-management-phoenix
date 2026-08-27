@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -16,6 +16,7 @@ import {
 } from '../../components';
 import { theme } from '../../constants/theme';
 import { workReportApi } from '../../api/workReportApi';
+import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import type { WorkReport } from '../../types';
 import type { EmployeeReportsStackParamList } from '../../navigation/types';
@@ -25,9 +26,12 @@ export default function WorkReportListScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<EmployeeReportsStackParamList>>();
   const route = useRoute<RouteProp<EmployeeReportsStackParamList, 'WorkReportList'>>();
+  const isFieldEmployee = useAuthStore(state => state.user?.isFieldEmployee === true);
   const [reportKind, setReportKind] = useState<ReportKindTab>(
-    route.params?.reportKind === 'hourly' ? 'hourly' : 'daily',
+    route.params?.reportKind === 'hourly' && isFieldEmployee ? 'hourly' : 'daily',
   );
+  const reportKindRef = useRef(reportKind);
+  reportKindRef.current = reportKind;
   const [reports, setReports] = useState<WorkReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,43 +42,50 @@ export default function WorkReportListScreen() {
     onBeforeBack: () => setReports([]),
   });
 
-  const isHourly = reportKind === 'hourly';
+  const isHourly = reportKind === 'hourly' && isFieldEmployee;
 
-  const fetchReports = useCallback(
-    async (isRefresh = false, kind: ReportKindTab = reportKind) => {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError('');
-      try {
-        const response = await workReportApi.myReports({
-          page: 1,
-          limit: 50,
-          reportType: kind === 'hourly' ? 'hourly_work' : 'daily_work',
-        });
-        setReports(response.data.items);
-      } catch (err) {
-        setError(getErrorMessage(err));
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [reportKind],
-  );
+  const fetchReports = useCallback(async (isRefresh = false, kind?: ReportKindTab) => {
+    const effectiveKind = kind ?? reportKindRef.current;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError('');
+    try {
+      const response = await workReportApi.myReports({
+        page: 1,
+        limit: 50,
+        reportType: effectiveKind === 'hourly' ? 'hourly_work' : 'daily_work',
+      });
+      setReports(response.data.items);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (route.params?.reportKind) {
-        setReportKind(route.params.reportKind);
+      const kind = route.params?.reportKind;
+      if (kind && kind !== reportKindRef.current) {
+        setReportKind(kind);
+        void fetchReports(false, kind);
+        return;
       }
-      fetchReports(false, route.params?.reportKind ?? reportKind);
-    }, [fetchReports, reportKind, route.params?.reportKind]),
+      void fetchReports(false);
+    }, [fetchReports, route.params?.reportKind]),
   );
 
   const handleKindChange = (kind: ReportKindTab) => {
+    if (kind === 'hourly' && !isFieldEmployee) {
+      return;
+    }
+    if (kind === reportKind) {
+      return;
+    }
     setReportKind(kind);
     setReports([]);
     void fetchReports(false, kind);
@@ -106,18 +117,23 @@ export default function WorkReportListScreen() {
         }
       />
 
-      <ReportKindTabs value={reportKind} onChange={handleKindChange} />
+      <ReportKindTabs
+        value={reportKind}
+        onChange={handleKindChange}
+        showHourly={isFieldEmployee}
+      />
 
       {isHourly ? (
         <View style={styles.hourlyAction}>
-          <AppButton title="Submit Hourly Report" onPress={openCreate} />
+          <AppButton title="Submit GeoCam Hourly Report" onPress={openCreate} />
         </View>
       ) : null}
 
-      {isLeaving ? (
-        <LoadingIndicator fullScreen />
+      {isLeaving || showInitialLoader ? (
+        <LoadingIndicator fullScreen message="Loading reports..." />
       ) : (
         <FlatList
+          style={styles.listFlex}
           data={reports}
           keyExtractor={item => item._id}
           contentContainerStyle={styles.list}
@@ -126,9 +142,7 @@ export default function WorkReportListScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={() => fetchReports(true)} />
           }
           ListEmptyComponent={
-            showInitialLoader ? (
-              <LoadingIndicator />
-            ) : error ? (
+            error ? (
               <ErrorMessage message={error} onRetry={() => fetchReports()} />
             ) : (
               <EmptyState
@@ -170,6 +184,9 @@ const styles = StyleSheet.create({
   hourlyAction: {
     paddingHorizontal: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
+  },
+  listFlex: {
+    flex: 1,
   },
   list: {
     padding: theme.spacing.md,

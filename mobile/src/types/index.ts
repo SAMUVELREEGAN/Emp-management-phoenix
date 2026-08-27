@@ -46,6 +46,8 @@ export interface LocationPayload {
   longitude: number;
   address?: string;
   accuracy?: number;
+  locationTimestamp?: string;
+  isMocked?: boolean;
 }
 
 export interface User {
@@ -62,6 +64,7 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   isVerified?: boolean;
+  isFieldEmployee?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -99,6 +102,10 @@ export interface Attendance {
   earlyCheckoutRemark?: string;
   attendanceStatus: AttendanceStatus;
   isWorkFromHome?: boolean;
+  isManualCorrection?: boolean;
+  correctionRemark?: string;
+  correctedBy?: UserSummary | string;
+  correctedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -119,6 +126,13 @@ export interface WorkReport {
   workingHours: number;
   attendanceSummary?: AttendanceSummarySnapshot;
   attachment?: string;
+  geoLocation?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+    accuracy?: number;
+    capturedAt?: string;
+  };
   status: WorkReportStatus;
   adminComment?: string;
   reviewedBy?: UserSummary | string;
@@ -236,12 +250,37 @@ export interface ResendVerificationPayload {
   identifier: string;
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+export interface PasswordResetCodeResponse {
+  maskedDestination: string;
+  expiresInMinutes: number;
+  devCode?: string;
+}
+
 export interface CheckInOutPayload {
   location: LocationPayload;
   deviceTimestamp?: string;
   deviceTimezoneOffset?: number;
   earlyCheckoutRemark?: string;
   workFromHome?: boolean;
+}
+
+export interface AttendanceCorrectionPayload {
+  employeeId: string;
+  date: string;
+  checkInTime: string;
+  checkOutTime?: string;
+  correctionRemark: string;
+  attendanceId?: string;
 }
 
 export interface OfficeHours {
@@ -273,6 +312,7 @@ export interface CreateEmployeePayload {
   address?: string;
   role?: UserRole;
   status?: UserStatus;
+  isFieldEmployee?: boolean;
 }
 
 export interface UpdateEmployeePayload extends Partial<Omit<CreateEmployeePayload, 'password'>> {

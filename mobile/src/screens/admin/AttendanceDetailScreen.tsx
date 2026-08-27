@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { AppHeader, AttendanceCard, ErrorMessage, LoadingIndicator, StatusBadge } from '../../components';
+import { AppButton, AppHeader, AttendanceCard, ErrorMessage, LoadingIndicator, StatusBadge } from '../../components';
 import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
 import { settingsApi } from '../../api/settingsApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import { formatLocationWithCoords } from '../../utils/location';
-import { formatLateDuration, formatWorkingHours } from '../../utils/dates';
+import { formatDate, formatLateDuration, formatWorkingHours, toDateInputValue } from '../../utils/dates';
 import { getAttendanceStatusPresentation, getEffectiveLateMinutes } from '../../utils/attendanceHours';
 import { normalizeOfficeHours } from '../../utils/officeHours';
 import type { Attendance, UserSummary } from '../../types';
@@ -30,10 +31,12 @@ function getEmployeeName(employee: UserSummary | string): string {
 }
 
 export default function AttendanceDetailScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<AttendanceDetailStack>>();
   const route = useRoute<RouteProp<AttendanceDetailStack, 'AttendanceDetail'>>();
   const { attendanceId } = route.params;
   const userRole = useAuthStore(state => state.user?.role);
   const isHr = userRole === 'hr';
+  const canCorrect = userRole === 'hr' || userRole === 'admin';
 
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [officeStartTime, setOfficeStartTime] = useState<string | undefined>();
@@ -102,6 +105,26 @@ export default function AttendanceDetailScreen() {
     ? getEffectiveLateMinutes(attendance, officeStartTime)
     : 0;
 
+  const openCorrection = () => {
+    if (!attendance) {
+      return;
+    }
+
+    const employee =
+      typeof attendance.employee === 'string'
+        ? { _id: attendance.employee, fullName: 'Staff member', employeeId: '' }
+        : attendance.employee;
+
+    navigation.navigate('AttendanceCorrection', {
+      employeeId: employee._id,
+      employeeName: getEmployeeName(attendance.employee),
+      date: toDateInputValue(attendance.date),
+      attendanceId: attendance._id,
+      checkInTime: attendance.checkInTime,
+      checkOutTime: attendance.checkOutTime,
+    });
+  };
+
   return (
     <View style={styles.container} collapsable={false}>
       <AppHeader title="Attendance Details" showBack onBack={handleBack} />
@@ -121,6 +144,17 @@ export default function AttendanceDetailScreen() {
             />
           </View>
           <AttendanceCard attendance={attendance} officeStartTime={officeStartTime} />
+          {attendance.isManualCorrection && attendance.correctionRemark ? (
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>HR Correction</Text>
+              <Text style={styles.infoText}>{attendance.correctionRemark}</Text>
+              {attendance.correctedAt ? (
+                <Text style={styles.infoMeta}>
+                  Updated on {formatDate(attendance.correctedAt)}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
           {attendance.checkInTime && lateMinutes > 0 ? (
             <View style={styles.infoCard}>
               <Text style={styles.infoTitle}>Late Arrival</Text>
@@ -148,6 +182,14 @@ export default function AttendanceDetailScreen() {
           ) : null}
           {attendance.checkOutLocation ? (
             <LocationBlock title="Check-Out Location" location={attendance.checkOutLocation} />
+          ) : null}
+          {canCorrect ? (
+            <AppButton
+              title="Correct Attendance"
+              variant="outline"
+              onPress={openCorrection}
+              style={styles.correctButton}
+            />
           ) : null}
         </ScrollView>
       ) : null}
@@ -237,5 +279,13 @@ const styles = StyleSheet.create({
     fontSize: theme.fonts.sizes.sm,
     color: theme.colors.text,
     lineHeight: 20,
+  },
+  infoMeta: {
+    marginTop: theme.spacing.xs,
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.textMuted,
+  },
+  correctButton: {
+    marginTop: theme.spacing.lg,
   },
 });

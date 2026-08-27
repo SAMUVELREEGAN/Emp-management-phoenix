@@ -3,6 +3,11 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 export type AuthStackParamList = {
   Login: undefined;
   ForgotPassword: undefined;
+  ResetPassword: {
+    email: string;
+    maskedDestination: string;
+    devCode?: string;
+  };
   VerifyCode: {
     identifier: string;
     channel: 'email' | 'sms';
@@ -13,6 +18,7 @@ export type AuthStackParamList = {
 
 export type ProfileStackParamList = {
   ProfileMain: undefined;
+  EditProfile: undefined;
   ChangePassword: undefined;
 };
 
@@ -77,6 +83,14 @@ export type AdminEmployeesStackParamList = {
 export type AdminAttendanceStackParamList = {
   AttendanceOverview: undefined;
   AttendanceDetail: { attendanceId: string };
+  AttendanceCorrection: {
+    employeeId: string;
+    employeeName: string;
+    date: string;
+    attendanceId?: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+  };
 };
 
 export type AdminReportsStackParamList = {
@@ -142,6 +156,14 @@ export type HrAttendanceStackParamList = {
   AttendanceMain: undefined;
   AttendanceHistory: undefined;
   AttendanceDetail: { attendanceId: string };
+  AttendanceCorrection: {
+    employeeId: string;
+    employeeName: string;
+    date: string;
+    attendanceId?: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+  };
 };
 
 export type HrReportsStackParamList = {

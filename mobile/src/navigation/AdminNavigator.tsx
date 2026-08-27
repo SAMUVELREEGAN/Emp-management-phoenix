@@ -15,13 +15,13 @@ import type {
   ProfileStackParamList,
 } from './types';
 import { createTabBarScreenOptions } from '../constants/tabBarOptions';
-import { LogoutGate } from './LogoutGate';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import EmployeeListScreen from '../screens/admin/EmployeeListScreen';
 import EmployeeFormScreen from '../screens/admin/EmployeeFormScreen';
 import EmployeeDetailScreen from '../screens/admin/EmployeeDetailScreen';
 import AttendanceOverviewScreen from '../screens/admin/AttendanceOverviewScreen';
 import AttendanceDetailScreen from '../screens/admin/AttendanceDetailScreen';
+import AttendanceCorrectionScreen from '../screens/admin/AttendanceCorrectionScreen';
 import AdminWorkReportListScreen from '../screens/admin/AdminWorkReportListScreen';
 import AdminWorkReportDetailScreen from '../screens/admin/AdminWorkReportDetailScreen';
 import AdminTaskListScreen from '../screens/admin/AdminTaskListScreen';
@@ -36,6 +36,7 @@ import NotificationsScreen from '../screens/common/NotificationsScreen';
 import MoreHubScreen from '../screens/common/MoreHubScreen';
 import ProfileScreen from '../screens/common/ProfileScreen';
 import ChangePasswordScreen from '../screens/common/ChangePasswordScreen';
+import EditProfileScreen from '../screens/common/EditProfileScreen';
 import { ChatStackNavigator } from './ChatStackNavigator';
 import { homeTabScreenOptions } from './homeTabOptions';
 import { moreTabScreenOptions } from './moreTabOptions';
@@ -73,6 +74,7 @@ function AttendanceStackNavigator() {
     <AttendanceStack.Navigator screenOptions={stackScreenOptions}>
       <AttendanceStack.Screen name="AttendanceOverview" component={AttendanceOverviewScreen} />
       <AttendanceStack.Screen name="AttendanceDetail" component={AttendanceDetailScreen} />
+      <AttendanceStack.Screen name="AttendanceCorrection" component={AttendanceCorrectionScreen} />
     </AttendanceStack.Navigator>
   );
 }
@@ -127,6 +129,7 @@ function ProfileStackNavigator() {
   return (
     <ProfileStack.Navigator screenOptions={stackScreenOptions}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
     </ProfileStack.Navigator>
   );
@@ -170,14 +173,12 @@ const adminTabIcons = {
 
 export function AdminNavigator() {
   return (
-    <LogoutGate>
-      <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(adminTabIcons)}>
+    <Tab.Navigator screenOptions={createTabBarScreenOptions(adminTabIcons)}>
         <Tab.Screen name="Home" component={HomeStackNavigator} options={homeTabScreenOptions} />
         <Tab.Screen name="Employees" component={EmployeesStackNavigator} />
         <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />
         <Tab.Screen name="Chat" component={ChatStackNavigator} options={{ title: 'Chat' }} />
         <Tab.Screen name="More" component={MoreStackNavigator} options={moreTabScreenOptions} />
       </Tab.Navigator>
-    </LogoutGate>
   );
 }
