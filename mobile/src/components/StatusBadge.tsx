@@ -19,7 +19,9 @@ type StatusType =
   | 'completed'
   | 'partial'
   | 'pending'
-  | 'cancelled';
+  | 'cancelled'
+  | 'acknowledged'
+  | 'not_checked_in';
 
 interface StatusBadgeProps {
   status: StatusType | string;
@@ -44,6 +46,12 @@ const statusConfig: Record<string, { bg: string; color: string; label: string }>
   partial: { bg: theme.colors.infoLight, color: theme.colors.info, label: 'Partial' },
   pending: { bg: theme.colors.warningLight, color: theme.colors.warning, label: 'Pending' },
   cancelled: { bg: theme.colors.surface, color: theme.colors.textSecondary, label: 'Cancelled' },
+  acknowledged: { bg: theme.colors.successLight, color: theme.colors.success, label: 'Acknowledged' },
+  not_checked_in: { bg: theme.colors.surface, color: theme.colors.textMuted, label: 'Not Checked In' },
+  pending_documents: { bg: theme.colors.warningLight, color: theme.colors.warning, label: 'Pending Docs' },
+  hr_review: { bg: theme.colors.primaryLight, color: theme.colors.primary, label: 'HR Review' },
+  finalized: { bg: theme.colors.successLight, color: theme.colors.success, label: 'Finalized' },
+  published: { bg: theme.colors.successLight, color: theme.colors.success, label: 'Published' },
 };
 
 export function StatusBadge({ status, label }: StatusBadgeProps) {

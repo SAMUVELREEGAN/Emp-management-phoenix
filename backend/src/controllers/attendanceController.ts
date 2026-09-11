@@ -74,6 +74,15 @@ export const getMyHistory = asyncHandler(
   },
 );
 
+export const getMyMonthlySummary = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const summary = await attendanceService.getMyMonthlyAttendanceSummary(
+      req.user!._id.toString(),
+    );
+    return sendSuccess(res, 'Monthly attendance summary fetched successfully', summary);
+  },
+);
+
 export const listAttendance = asyncHandler(
   async (req: AuthRequest, res: Response) => {
     const result = await attendanceService.listAttendance({

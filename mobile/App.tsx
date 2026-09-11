@@ -9,8 +9,8 @@ import { theme } from './src/constants/theme';
 function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <NavigationContainer ref={navigationRef}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
         <RootNavigator />
       </NavigationContainer>
     </SafeAreaProvider>

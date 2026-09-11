@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/authApi';
 import SplashScreen from '../screens/common/SplashScreen';
@@ -6,54 +7,62 @@ import { AuthNavigator } from './AuthNavigator';
 import { EmployeeNavigator } from './EmployeeNavigator';
 import { AdminNavigator } from './AdminNavigator';
 import { HrNavigator } from './HrNavigator';
-import { LogoutShell } from './LogoutShell';
+import type { RootStackParamList } from './types';
+import {
+  resetForAuthenticatedUser,
+  resetToAuth,
+  waitForNavigationReady,
+} from './navigationRef';
+
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+
+const rootScreenOptions = {
+  headerShown: false,
+  animation: 'none' as const,
+};
 
 export function RootNavigator() {
-  const hydrated = useAuthStore(state => state.hydrated);
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  const user = useAuthStore(state => state.user);
-  const isLoggingOut = useAuthStore(state => state.isLoggingOut);
   const hydrate = useAuthStore(state => state.hydrate);
   const setAuth = useAuthStore(state => state.setAuth);
   const logout = useAuthStore(state => state.logout);
-  const [ready, setReady] = useState(false);
+  const bootstrapped = useRef(false);
 
   useEffect(() => {
+    if (bootstrapped.current) {
+      return;
+    }
+
     const init = async () => {
       await hydrate();
+      await waitForNavigationReady();
+
       const { token, user: storedUser } = useAuthStore.getState();
       if (token && storedUser) {
         try {
           const response = await authApi.me();
           setAuth(token, response.data.user);
+          resetForAuthenticatedUser(response.data.user.role);
         } catch {
           logout();
+          resetToAuth();
         }
+      } else {
+        resetToAuth();
       }
-      setReady(true);
+
+      bootstrapped.current = true;
     };
+
     void init();
   }, [hydrate, setAuth, logout]);
 
-  if (!hydrated || !ready) {
-    return <SplashScreen />;
-  }
-
-  if (isLoggingOut) {
-    return <LogoutShell />;
-  }
-
-  if (!isAuthenticated || !user) {
-    return <AuthNavigator />;
-  }
-
-  if (user.role === 'admin') {
-    return <AdminNavigator />;
-  }
-
-  if (user.role === 'hr') {
-    return <HrNavigator />;
-  }
-
-  return <EmployeeNavigator />;
+  return (
+    <RootStack.Navigator screenOptions={rootScreenOptions} initialRouteName="Splash">
+      <RootStack.Screen name="Splash" component={SplashScreen} />
+      <RootStack.Screen name="Auth" component={AuthNavigator} />
+      <RootStack.Screen name="Admin" component={AdminNavigator} />
+      <RootStack.Screen name="Employee" component={EmployeeNavigator} />
+      <RootStack.Screen name="Hr" component={HrNavigator} />
+    </RootStack.Navigator>
+  );
 }

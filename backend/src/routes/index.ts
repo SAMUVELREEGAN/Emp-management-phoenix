@@ -12,6 +12,10 @@ import routeRoutes from './routeRoutes';
 import announcementRoutes from './announcementRoutes';
 import chatRoutes from './chatRoutes';
 import geocodeRoutes from './geocodeRoutes';
+import shiftRoutes from './shiftRoutes';
+import payrollRoutes from './payrollRoutes';
+import onboardingRoutes from './onboardingRoutes';
+import assistantRoutes from './assistantRoutes';
 
 const router = Router();
 
@@ -28,5 +32,9 @@ router.use('/routes', routeRoutes);
 router.use('/announcements', announcementRoutes);
 router.use('/chat', chatRoutes);
 router.use('/geocode', geocodeRoutes);
+router.use('/shifts', shiftRoutes);
+router.use('/payroll', payrollRoutes);
+router.use('/onboarding', onboardingRoutes);
+router.use('/assistant', assistantRoutes);
 
 export default router;

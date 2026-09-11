@@ -9,6 +9,7 @@ import type {
   PaginatedResponse,
   PaginationParams,
   TodayAttendanceData,
+  MonthlyAttendanceSummary,
 } from '../types';
 
 export const attendanceApi = {
@@ -47,6 +48,13 @@ export const attendanceApi = {
   today: async () => {
     const response = await apiClient.get<ApiResponse<TodayAttendanceData>>(
       '/attendance/today',
+    );
+    return response.data;
+  },
+
+  myMonthlySummary: async () => {
+    const response = await apiClient.get<ApiResponse<MonthlyAttendanceSummary>>(
+      '/attendance/my-monthly-summary',
     );
     return response.data;
   },

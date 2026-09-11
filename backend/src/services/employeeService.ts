@@ -13,6 +13,8 @@ import { parseDateOnly } from '../utils/dateHelpers';
 import { phoneLookupKey } from '../utils/phoneHelpers';
 import { UserRole, UserStatus } from '../types';
 import { createNotification } from './notificationService';
+import { createOnboardingForEmployee } from './onboardingService';
+import { setEmployeeCompensation } from './payrollService';
 
 interface EmployeeFilters {
   page: number;
@@ -36,6 +38,8 @@ interface CreateEmployeeInput {
   role?: UserRole;
   status?: UserStatus;
   isFieldEmployee?: boolean;
+  monthlySalary?: number;
+  enableOnboarding?: boolean;
 }
 
 export const listEmployees = async (filters: EmployeeFilters) => {
@@ -113,6 +117,10 @@ export const createEmployee = async (
     throw ApiError.conflict('Phone number already exists');
   }
 
+  const isEmployeeRole = (data.role || 'employee') === 'employee';
+  const enableOnboarding = isEmployeeRole && Boolean(data.enableOnboarding ?? true);
+  const monthlySalary = Number(data.monthlySalary) || 0;
+
   const employee = await User.create({
     employeeId: data.employeeId.toUpperCase(),
     fullName: data.fullName,
@@ -126,10 +134,16 @@ export const createEmployee = async (
     address: data.address || '',
     profilePhoto: profilePhoto || '',
     role: data.role || 'employee',
-    status: data.status || 'active',
+    status: enableOnboarding ? 'inactive' : data.status || 'active',
     isFieldEmployee: data.role === 'hr' ? false : Boolean(data.isFieldEmployee),
     isVerified: true,
   });
+
+  if (isEmployeeRole && enableOnboarding) {
+    await createOnboardingForEmployee(employee._id.toString(), monthlySalary);
+  } else if (isEmployeeRole && monthlySalary > 0 && _adminId) {
+    await setEmployeeCompensation(employee._id.toString(), _adminId, monthlySalary, 'Set during employee creation');
+  }
 
   await createNotification({
     recipient: employee._id,

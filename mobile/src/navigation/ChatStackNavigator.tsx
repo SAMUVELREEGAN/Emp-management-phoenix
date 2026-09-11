@@ -9,7 +9,7 @@ const ChatStack = createNativeStackNavigator<ChatStackParamList>();
 const stackScreenOptions = {
   headerShown: false,
   animation: 'none' as const,
-  freezeOnBlur: true,
+  freezeOnBlur: false,
 };
 
 export function ChatStackNavigator() {

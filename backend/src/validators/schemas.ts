@@ -86,6 +86,12 @@ export const createEmployeeSchema = z.object({
     .optional()
     .transform(value => value === true || value === 'true')
     .default(false),
+  monthlySalary: z.coerce.number().min(0).optional().default(0),
+  enableOnboarding: z
+    .union([z.boolean(), z.string()])
+    .optional()
+    .transform(value => value === true || value === 'true')
+    .default(true),
 });
 
 export const updateEmployeeSchema = createEmployeeSchema
@@ -406,4 +412,116 @@ export const chatMessageUploadSchema = z.object({
   content: z.string().trim().optional().default(''),
   messageType: z.enum(['image', 'file', 'voice']).optional(),
   voiceDuration: z.coerce.number().min(0).optional(),
+});
+
+const timeStringSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must be in HH:mm format');
+
+export const createShiftSchema = z.object({
+  name: nonEmpty('Shift name'),
+  code: nonEmpty('Shift code'),
+  startTime: timeStringSchema,
+  endTime: timeStringSchema,
+  workingDays: z
+    .array(z.coerce.number().min(0).max(6))
+    .min(1, 'Select at least one working day'),
+  graceMinutes: z.coerce.number().min(0).max(120).optional(),
+  breakDurationMinutes: z.coerce.number().min(0).max(240).optional(),
+  description: z.string().trim().optional().default(''),
+  color: z.string().trim().optional(),
+});
+
+export const updateShiftSchema = createShiftSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
+
+export const assignShiftSchema = z.object({
+  shiftId: z.string().min(1, 'Shift is required'),
+  employeeIds: z.array(z.string().min(1)).min(1, 'Select at least one employee'),
+  effectiveFrom: z.string().min(1, 'Effective from date is required'),
+  effectiveTo: z.string().optional(),
+  notes: z.string().trim().optional().default(''),
+});
+
+export const createShiftChangeRequestSchema = z.object({
+  requestedShiftId: z.string().min(1, 'Requested shift is required'),
+  effectiveDate: z.string().min(1, 'Effective date is required'),
+  reason: nonEmpty('Reason'),
+});
+
+export const reviewShiftChangeRequestSchema = z.object({
+  status: z.enum(['approved', 'rejected']),
+  adminComment: z.string().trim().optional().default(''),
+});
+
+export const submitShiftReportSchema = z.object({
+  periodFrom: z.string().min(1, 'Period start is required'),
+  periodTo: z.string().min(1, 'Period end is required'),
+  title: nonEmpty('Report title'),
+  notes: z.string().trim().optional().default(''),
+});
+
+export const shiftAttendanceQuerySchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+});
+
+export const updatePayrollPolicySchema = z.object({
+  standardWorkingDaysPerMonth: z.coerce.number().min(1).max(31).optional(),
+  weeklyOffDays: z.array(z.coerce.number().min(0).max(6)).optional(),
+  lateDeductionPerDay: z.coerce.number().min(0).optional(),
+  lateDeductionPerMinute: z.coerce.number().min(0).optional(),
+  leaveDeductionEnabled: z.boolean().optional(),
+  halfDayLeaveFactor: z.coerce.number().min(0).max(1).optional(),
+  overtimeEnabled: z.boolean().optional(),
+  overtimeMultiplier: z.coerce.number().min(1).optional(),
+  overtimeHourlyDivisor: z.coerce.number().min(1).optional(),
+  proRataJoiningExit: z.boolean().optional(),
+});
+
+export const setCompensationSchema = z.object({
+  monthlySalary: z.coerce.number().min(1, 'Monthly salary is required'),
+  notes: z.string().trim().optional().default(''),
+});
+
+export const createPayrollRunSchema = z.object({
+  month: z.coerce.number().min(1).max(12),
+  year: z.coerce.number().min(2000),
+});
+
+export const onboardingUpdateSchema = z.object({
+  bankAccountNumber: z.string().trim().optional(),
+  bankIfsc: z.string().trim().optional(),
+  bankName: z.string().trim().optional(),
+  panNumber: z.string().trim().optional(),
+  employeeNotes: z.string().trim().optional(),
+});
+
+export const onboardingDocumentSchema = z.object({
+  category: z.enum(['id_proof', 'address_proof', 'bank_proof', 'education', 'other']),
+  title: z.string().trim().optional(),
+});
+
+export const onboardingReviewSchema = z.object({
+  status: z.enum(['approved', 'rejected', 'hr_review']),
+  approvedMonthlySalary: z.coerce.number().min(0).optional(),
+  hrNotes: z.string().trim().optional().default(''),
+});
+
+export const onboardingSalarySchema = z.object({
+  monthlySalary: z.coerce.number().min(1, 'Monthly salary is required'),
+  notes: z.string().trim().optional().default(''),
+});
+
+export const assistantAskSchema = z.object({
+  questionId: z.enum([
+    'leave-balance',
+    'check-in-yesterday',
+    'hours-this-month',
+    'pending-tasks',
+    'frequent-late',
+    'increasing-absenteeism',
+    'low-task-completion',
+    'excessive-overtime',
+  ]),
 });

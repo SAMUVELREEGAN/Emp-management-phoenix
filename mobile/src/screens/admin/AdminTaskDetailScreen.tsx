@@ -16,6 +16,13 @@ import type { Task, UserSummary } from '../../types';
 import type { AdminTasksStackParamList } from '../../navigation/types';
 import { useFabricSafeBack } from '../../navigation/safeStackBack';
 
+function getName(user: UserSummary | string): string {
+  if (typeof user === 'string') {
+    return 'User';
+  }
+  return user.fullName;
+}
+
 export default function AdminTaskDetailScreen() {
   const route = useRoute<RouteProp<AdminTasksStackParamList, 'AdminTaskDetail'>>();
   const { taskId } = route.params;

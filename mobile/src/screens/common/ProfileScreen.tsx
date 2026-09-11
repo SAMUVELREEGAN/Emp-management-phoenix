@@ -1,10 +1,10 @@
-import React, { useCallback, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { Alert, Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { AppButton, AppHeader, ConfirmationModal } from '../../components';
+import { AppButton, AppHeader } from '../../components';
 import { UPLOADS_BASE_URL } from '../../constants/config';
 import { theme } from '../../constants/theme';
 import { performLogout } from '../../navigation/authSession';
@@ -26,19 +26,26 @@ type Props = CompositeScreenProps<
 
 export default function ProfileScreen({ navigation }: Props) {
   const user = useAuthStore(state => state.user);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [logoutPending, setLogoutPending] = useState(false);
   const { showBack, handleBack } = useQuickAccessBack({ moreHubFallback: true });
 
-  const handleConfirmLogout = useCallback(() => {
-    setShowLogoutConfirm(false);
-    setLogoutPending(true);
-
-    requestAnimationFrame(() => {
-      void performLogout().finally(() => {
-        setLogoutPending(false);
-      });
-    });
+  const handleLogoutPress = useCallback(() => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          const runLogout = () => {
+            void performLogout();
+          };
+          if (Platform.OS === 'android') {
+            setTimeout(runLogout, 150);
+          } else {
+            runLogout();
+          }
+        },
+      },
+    ]);
   }, []);
 
   if (!user) {
@@ -87,27 +94,10 @@ export default function ProfileScreen({ navigation }: Props) {
         <AppButton
           title="Logout"
           variant="danger"
-          onPress={() => setShowLogoutConfirm(true)}
+          onPress={handleLogoutPress}
           style={styles.button}
         />
       </ScrollView>
-
-      <ConfirmationModal
-        inline
-        visible={showLogoutConfirm}
-        title="Logout"
-        message="Are you sure you want to logout?"
-        confirmLabel="Logout"
-        cancelLabel="Cancel"
-        destructive
-        loading={logoutPending}
-        onConfirm={handleConfirmLogout}
-        onCancel={() => {
-          if (!logoutPending) {
-            setShowLogoutConfirm(false);
-          }
-        }}
-      />
     </View>
   );
 }

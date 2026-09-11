@@ -30,6 +30,41 @@ export type ChatStackParamList = {
 export type EmployeeAttendanceStackParamList = {
   AttendanceMain: undefined;
   AttendanceHistory: undefined;
+  AttendanceSummary: undefined;
+  MyShift: undefined;
+  ShiftChangeRequestForm: undefined;
+  ShiftChangeRequestList: undefined;
+};
+
+export type EmployeePayrollStackParamList = {
+  EmployeeOnboarding: undefined;
+  PayslipList: undefined;
+  PayslipDetail: { payslipId: string };
+};
+
+export type PayrollStackParamList = {
+  HrPayrollHub: undefined;
+  AdminSalaryRoster: undefined;
+  PayrollPolicySettings: undefined;
+  OnboardingReviewList: undefined;
+  OnboardingReviewDetail: { employeeId: string };
+  PayrollRunList: undefined;
+  PayrollRunDetail: { runId: string };
+  PayrollRunCreate: undefined;
+};
+
+export type AdminShiftsStackParamList = {
+  HrShiftsHub: undefined;
+  ShiftList: undefined;
+  ShiftForm: { shiftId?: string };
+  ShiftDetail: { shiftId: string };
+  ShiftAssignment: { shiftId: string };
+  ShiftAttendance: { shiftId: string; shiftName: string };
+  ShiftChangeRequestList: undefined;
+  ShiftChangeRequestDetail: { requestId: string };
+  ShiftReportList: undefined;
+  ShiftReportForm: undefined;
+  ShiftReportDetail: { reportId: string };
 };
 
 export type EmployeeLeaveStackParamList = {
@@ -54,14 +89,17 @@ export type EmployeeHomeStackParamList = {
   Dashboard: undefined;
   Tasks: NavigatorScreenParams<EmployeeTasksStackParamList>;
   Leave: NavigatorScreenParams<EmployeeLeaveStackParamList>;
+  Payroll: NavigatorScreenParams<EmployeePayrollStackParamList>;
   Notifications: { returnToHome?: boolean } | undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
 
 export type EmployeeMoreStackParamList = {
   MoreHub: undefined;
+  AiAssistant: undefined;
   Tasks: NavigatorScreenParams<EmployeeTasksStackParamList>;
   Leave: NavigatorScreenParams<EmployeeLeaveStackParamList>;
+  Payroll: NavigatorScreenParams<EmployeePayrollStackParamList>;
   Notifications: undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
@@ -125,16 +163,21 @@ export type AdminHomeStackParamList = {
   Leave: NavigatorScreenParams<AdminLeaveStackParamList>;
   Track: NavigatorScreenParams<AdminTrackStackParamList>;
   Reports: NavigatorScreenParams<AdminReportsStackParamList>;
+  Shifts: NavigatorScreenParams<AdminShiftsStackParamList>;
+  Payroll: NavigatorScreenParams<PayrollStackParamList>;
   Notifications: NavigatorScreenParams<AdminNotificationsStackParamList>;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
 
 export type AdminMoreStackParamList = {
   MoreHub: undefined;
+  AiAssistant: undefined;
   Tasks: NavigatorScreenParams<AdminTasksStackParamList>;
   Leave: NavigatorScreenParams<AdminLeaveStackParamList>;
   Track: NavigatorScreenParams<AdminTrackStackParamList>;
   Reports: NavigatorScreenParams<AdminReportsStackParamList>;
+  Shifts: NavigatorScreenParams<AdminShiftsStackParamList>;
+  Payroll: NavigatorScreenParams<PayrollStackParamList>;
   Notifications: NavigatorScreenParams<AdminNotificationsStackParamList>;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
@@ -180,14 +223,19 @@ export type HrHomeStackParamList = {
   Dashboard: undefined;
   Leave: NavigatorScreenParams<HrLeaveStackParamList>;
   Reports: NavigatorScreenParams<HrReportsStackParamList>;
+  Shifts: NavigatorScreenParams<AdminShiftsStackParamList>;
+  Payroll: NavigatorScreenParams<PayrollStackParamList>;
   Notifications: { returnToHome?: boolean } | undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
 
 export type HrMoreStackParamList = {
   MoreHub: undefined;
+  AiAssistant: undefined;
   Leave: NavigatorScreenParams<HrLeaveStackParamList>;
   Reports: NavigatorScreenParams<HrReportsStackParamList>;
+  Shifts: NavigatorScreenParams<AdminShiftsStackParamList>;
+  Payroll: NavigatorScreenParams<PayrollStackParamList>;
   Notifications: undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };

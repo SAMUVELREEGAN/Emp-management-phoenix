@@ -33,7 +33,7 @@ const notificationSchema = new Schema<INotification>(
     },
     type: {
       type: String,
-      enum: ['attendance', 'work_report', 'system', 'employee', 'task', 'leave', 'announcement', 'chat'],
+      enum: ['attendance', 'work_report', 'system', 'employee', 'task', 'leave', 'announcement', 'chat', 'shift', 'payroll', 'onboarding'],
       default: 'system',
     },
     relatedId: {

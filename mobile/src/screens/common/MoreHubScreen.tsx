@@ -55,6 +55,24 @@ export default function MoreHubScreen() {
       screen: 'Track',
     },
     {
+      key: 'shifts',
+      label: 'Shift Management',
+      subtitle: 'Shifts, assignments, and reports',
+      icon: 'clock-time-four-outline',
+      color: theme.colors.purple,
+      iconBg: theme.colors.purpleLight,
+      screen: 'Shifts',
+    },
+    {
+      key: 'payroll',
+      label: 'Payroll',
+      subtitle: 'Salary roster and payroll runs',
+      icon: 'cash-multiple',
+      color: theme.colors.success,
+      iconBg: theme.colors.successLight,
+      screen: 'Payroll',
+    },
+    {
       key: 'reports',
       label: 'Reports',
       subtitle: 'Work report approvals',
@@ -86,6 +104,24 @@ export default function MoreHubScreen() {
 
   const hrItems: MoreMenuItem[] = [
     {
+      key: 'payroll',
+      label: 'Payroll',
+      subtitle: 'Onboarding, salary, and payslips',
+      icon: 'cash-multiple',
+      color: theme.colors.success,
+      iconBg: theme.colors.successLight,
+      screen: 'Payroll',
+    },
+    {
+      key: 'shifts',
+      label: 'Shift Management',
+      subtitle: 'Assign shifts and send reports',
+      icon: 'clock-time-four-outline',
+      color: theme.colors.purple,
+      iconBg: theme.colors.purpleLight,
+      screen: 'Shifts',
+    },
+    {
       key: 'reports',
       label: 'Reports',
       subtitle: 'Review work reports',
@@ -116,6 +152,42 @@ export default function MoreHubScreen() {
   ];
 
   const employeeItems: MoreMenuItem[] = [
+    {
+      key: 'onboarding',
+      label: 'Onboarding',
+      subtitle: 'Submit documents and bank details',
+      icon: 'file-document-outline',
+      color: theme.colors.info,
+      iconBg: theme.colors.infoLight,
+      screen: 'EmployeeOnboarding',
+    },
+    {
+      key: 'attendance-summary',
+      label: 'My Attendance',
+      subtitle: 'This month and previous month summary',
+      icon: 'calendar-month-outline',
+      color: theme.colors.info,
+      iconBg: theme.colors.infoLight,
+      screen: 'AttendanceSummary',
+    },
+    {
+      key: 'payslips',
+      label: 'My Payslips',
+      subtitle: 'View salary slips and deductions',
+      icon: 'cash',
+      color: theme.colors.success,
+      iconBg: theme.colors.successLight,
+      screen: 'PayslipList',
+    },
+    {
+      key: 'my-shift',
+      label: 'My Shift',
+      subtitle: 'View schedule and request changes',
+      icon: 'clock-outline',
+      color: theme.colors.purple,
+      iconBg: theme.colors.purpleLight,
+      screen: 'MyShift',
+    },
     {
       key: 'tasks',
       label: 'Tasks',
@@ -156,16 +228,58 @@ export default function MoreHubScreen() {
   ];
 
   const items = role === 'employee' ? employeeItems : role === 'hr' ? hrItems : adminItems;
+  const isHrMode = role === 'hr' || role === 'admin';
 
   return (
     <View style={styles.container} collapsable={false}>
       <AppHeader title="More" subtitle="All features" />
       <ScrollView contentContainerStyle={styles.content}>
+        <Pressable
+          style={[styles.aiCard, theme.shadows.card]}
+          onPress={() => navigation.navigate('AiAssistant')}
+          accessibilityRole="button">
+          <View style={styles.aiIconWrap}>
+            <MaterialCommunityIcons
+              name={isHrMode ? 'chart-timeline-variant' : 'robot-outline'}
+              size={28}
+              color={theme.colors.primary}
+            />
+          </View>
+          <View style={styles.aiTextWrap}>
+            <Text style={styles.aiTitle}>
+              {isHrMode ? 'AI HR Analytics' : 'AI Employee Assistant'}
+            </Text>
+            <Text style={styles.aiSubtitle}>
+              {isHrMode
+                ? 'Late arrivals, absenteeism, tasks & overtime insights'
+                : 'Ask about leaves, check-in, hours worked & tasks'}
+            </Text>
+          </View>
+          <View style={styles.aiBadge}>
+            <Text style={styles.aiBadgeText}>AI</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={theme.colors.textMuted} />
+        </Pressable>
+
         {items.map(item => (
           <Pressable
             key={item.key}
             style={[styles.row, theme.shadows.card]}
-            onPress={() => navigation.navigate(item.screen)}
+            onPress={() => {
+              if (item.key === 'my-shift' && role === 'employee') {
+                navigation.getParent()?.navigate('Attendance', { screen: 'MyShift' });
+                return;
+              }
+              if (item.key === 'attendance-summary' && role === 'employee') {
+                navigation.getParent()?.navigate('Attendance', { screen: 'AttendanceSummary' });
+                return;
+              }
+              if ((item.key === 'onboarding' || item.key === 'payslips') && role === 'employee') {
+                navigation.navigate('Payroll', { screen: item.screen });
+                return;
+              }
+              navigation.navigate(item.screen);
+            }}
             accessibilityRole="button">
             <View style={[styles.iconWrap, { backgroundColor: item.iconBg }]}>
               <MaterialCommunityIcons name={item.icon} size={24} color={item.color} />
@@ -196,6 +310,51 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.xxl,
     gap: theme.spacing.sm,
+  },
+  aiCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.primaryLight,
+    marginBottom: theme.spacing.sm,
+  },
+  aiIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiTextWrap: {
+    flex: 1,
+  },
+  aiTitle: {
+    fontSize: theme.fonts.sizes.md,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.text,
+  },
+  aiSubtitle: {
+    fontSize: theme.fonts.sizes.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  aiBadge: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radii.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: theme.spacing.xs,
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.accent,
   },
   row: {
     flexDirection: 'row',

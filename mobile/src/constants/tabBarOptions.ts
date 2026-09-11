@@ -10,7 +10,8 @@ export function createTabBarScreenOptions(
   return ({ route }) => ({
     headerShown: false,
     lazy: true,
-    freezeOnBlur: true,
+    freezeOnBlur: false,
+    detachInactiveScreens: false,
     tabBarHideOnKeyboard: true,
     tabBarActiveTintColor: theme.colors.primaryDark,
     tabBarInactiveTintColor: theme.colors.textMuted,

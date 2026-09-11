@@ -3,12 +3,17 @@ import { authApi } from '../api/authApi';
 import { stopRouteTrackingService } from '../services/routeTrackingCleanup';
 import { useAuthStore } from '../store/authStore';
 import type { User } from '../types';
+import { resetForAuthenticatedUser, resetToAuth, waitForNavigationReady } from './navigationRef';
 
-const LOGOUT_SETTLE_MS = 1200;
+const LOGOUT_SETTLE_MS = 450;
 
 let logoutInProgress = false;
 
-function waitForUiTeardown(): Promise<void> {
+function wait(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function waitForNavigationSettle(): Promise<void> {
   return new Promise(resolve => {
     InteractionManager.runAfterInteractions(() => {
       requestAnimationFrame(() => {
@@ -20,7 +25,7 @@ function waitForUiTeardown(): Promise<void> {
   });
 }
 
-/** Unmount role navigators first, then clear persisted auth (Fabric-safe logout). */
+/** Reset to login inside the same NavigationContainer, then clear persisted auth. */
 export async function performLogout(): Promise<void> {
   if (logoutInProgress) {
     return;
@@ -32,7 +37,9 @@ export async function performLogout(): Promise<void> {
     useAuthStore.getState().setLoggingOut(true);
 
     await stopRouteTrackingService();
-    await waitForUiTeardown();
+    await waitForNavigationReady();
+    resetToAuth();
+    await waitForNavigationSettle();
 
     try {
       await authApi.logout();
@@ -48,4 +55,7 @@ export async function performLogout(): Promise<void> {
 
 export function completeLoginSession(token: string, user: User): void {
   useAuthStore.getState().setAuth(token, user);
+  void waitForNavigationReady().then(() => {
+    resetForAuthenticatedUser(user.role);
+  });
 }

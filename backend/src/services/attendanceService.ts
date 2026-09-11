@@ -18,6 +18,7 @@ import {
 } from '../utils/dateHelpers';
 import { LocationPayload } from '../types';
 import { createNotification } from './notificationService';
+import { determineAttendanceStatusForEmployee } from './shiftService';
 import { findActiveAdmins, findActiveManagers } from '../utils/roleHelpers';
 import { resolveLocationAddress } from '../utils/geocoding';
 import { getOfficeHours } from './officeSettingsService';
@@ -256,7 +257,8 @@ export const checkIn = async (
     throw ApiError.conflict('You have already checked in today');
   }
 
-  const { status, lateMinutes } = await determineAttendanceStatus(
+  const { status, lateMinutes } = await determineAttendanceStatusForEmployee(
+    employeeId,
     now,
     deviceTimezoneOffset,
   );
@@ -844,7 +846,10 @@ export const applyAttendanceCorrection = async (
   }
 
   const officeHours = await getOfficeHours();
-  const { status, lateMinutes } = await determineAttendanceStatus(checkIn);
+  const { status, lateMinutes } = await determineAttendanceStatusForEmployee(
+    input.employeeId,
+    checkIn,
+  );
   const breakMinutes = attendance?.totalBreakMinutes ?? 0;
 
   let totalWorkingMinutes = 0;
@@ -908,4 +913,104 @@ export const applyAttendanceCorrection = async (
     await Attendance.findById(attendance._id).populate('employee', employeePopulateFields),
     officeHours.officeEndTime,
   );
+};
+
+function getMonthBounds(month: number, year: number) {
+  const periodStart = startOfDay(new Date(year, month - 1, 1));
+  const periodEnd = endOfDay(new Date(year, month, 0));
+  return { periodStart, periodEnd };
+}
+
+function getMonthLabel(month: number, year: number) {
+  return new Date(year, month - 1, 1).toLocaleString('en-IN', {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+async function computeMonthlyStatsForEmployee(
+  employeeId: string,
+  month: number,
+  year: number,
+) {
+  const { periodStart, periodEnd } = getMonthBounds(month, year);
+  const records = await Attendance.find({
+    employee: employeeId,
+    date: { $gte: periodStart, $lte: periodEnd },
+  });
+
+  let present = 0;
+  let late = 0;
+  let absent = 0;
+  let halfDay = 0;
+  let onLeave = 0;
+  let totalLateMinutes = 0;
+
+  records.forEach(record => {
+    switch (record.attendanceStatus) {
+      case 'present':
+        present += 1;
+        break;
+      case 'late':
+        late += 1;
+        totalLateMinutes += record.lateMinutes || 0;
+        break;
+      case 'absent':
+        absent += 1;
+        break;
+      case 'half_day':
+        halfDay += 1;
+        break;
+      case 'on_leave':
+        onLeave += 1;
+        break;
+      default:
+        break;
+    }
+  });
+
+  let workingDays = 0;
+  const cursor = new Date(periodStart);
+  while (cursor <= periodEnd) {
+    if (!isWeeklyHoliday(cursor)) {
+      workingDays += 1;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return {
+    month,
+    year,
+    label: getMonthLabel(month, year),
+    present,
+    late,
+    absent,
+    halfDay,
+    onLeave,
+    totalMarked: records.length,
+    totalLateMinutes,
+    workingDays,
+  };
+}
+
+export const getMyMonthlyAttendanceSummary = async (employeeId: string) => {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  let previousMonth = currentMonth - 1;
+  let previousYear = currentYear;
+  if (previousMonth < 1) {
+    previousMonth = 12;
+    previousYear -= 1;
+  }
+
+  const [currentMonthStats, previousMonthStats] = await Promise.all([
+    computeMonthlyStatsForEmployee(employeeId, currentMonth, currentYear),
+    computeMonthlyStatsForEmployee(employeeId, previousMonth, previousYear),
+  ]);
+
+  return {
+    currentMonth: currentMonthStats,
+    previousMonth: previousMonthStats,
+  };
 };

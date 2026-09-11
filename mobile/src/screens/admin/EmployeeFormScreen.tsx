@@ -39,6 +39,8 @@ interface EmployeeFormValues {
   address: string;
   accountType: Extract<UserRole, 'employee' | 'hr'>;
   isFieldEmployee: boolean;
+  monthlySalary: string;
+  enableOnboarding: boolean;
 }
 
 export default function EmployeeFormScreen({ navigation, route }: Props) {
@@ -64,6 +66,8 @@ export default function EmployeeFormScreen({ navigation, route }: Props) {
       address: '',
       accountType: defaultRole,
       isFieldEmployee: false,
+      monthlySalary: '',
+      enableOnboarding: true,
     },
   });
   const accountType = useWatch({ control, name: 'accountType' });
@@ -151,6 +155,8 @@ export default function EmployeeFormScreen({ navigation, route }: Props) {
             address: values.address.trim(),
             role: values.accountType,
             isFieldEmployee: values.accountType === 'employee' && values.isFieldEmployee,
+            monthlySalary: values.accountType === 'employee' ? Number(values.monthlySalary) || 0 : 0,
+            enableOnboarding: values.accountType === 'employee' ? values.enableOnboarding : false,
           },
           photo,
         );
@@ -283,6 +289,44 @@ export default function EmployeeFormScreen({ navigation, route }: Props) {
           <Controller control={control} name="address" render={({ field: { onChange, value } }) => (
             <AppInput label="Address" value={value} onChangeText={onChange} multiline numberOfLines={2} />
           )} />
+
+          {!employeeId && accountType === 'employee' ? (
+            <>
+              <Controller
+                control={control}
+                name="monthlySalary"
+                render={({ field: { onChange, value } }) => (
+                  <AppInput
+                    label="Proposed Monthly Salary (INR)"
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    placeholder="e.g. 25000"
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="enableOnboarding"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.fieldToggleCard}>
+                    <View style={styles.fieldToggleTextWrap}>
+                      <Text style={styles.fieldToggleTitle}>Enable Onboarding</Text>
+                      <Text style={styles.fieldToggleHint}>
+                        Employee must upload documents and HR must approve salary before activation.
+                      </Text>
+                    </View>
+                    <Switch
+                      value={value}
+                      onValueChange={onChange}
+                      trackColor={{ false: theme.colors.border, true: theme.colors.primaryLight }}
+                      thumbColor={value ? theme.colors.primary : theme.colors.white}
+                    />
+                  </View>
+                )}
+              />
+            </>
+          ) : null}
 
           {showFieldSalesToggle ? (
             <Controller

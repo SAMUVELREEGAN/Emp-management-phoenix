@@ -29,7 +29,170 @@ export type NotificationType =
   | 'task'
   | 'leave'
   | 'announcement'
-  | 'chat';
+  | 'chat'
+  | 'shift'
+  | 'payroll'
+  | 'onboarding';
+
+export type ShiftChangeRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type ShiftReportStatus = 'submitted' | 'acknowledged';
+
+export interface Shift {
+  _id: string;
+  name: string;
+  code: string;
+  startTime: string;
+  endTime: string;
+  workingDays: number[];
+  graceMinutes: number;
+  breakDurationMinutes: number;
+  description?: string;
+  color: string;
+  isActive: boolean;
+  createdBy?: UserSummary | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShiftStats {
+  totalShifts: number;
+  activeAssignments: number;
+  pendingChangeRequests: number;
+  employeesWithoutShift: number;
+}
+
+export interface ShiftAssignment {
+  _id: string;
+  employee: UserSummary | string;
+  shift: Shift | string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  assignedBy?: UserSummary | string;
+  notes?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShiftChangeRequest {
+  _id: string;
+  employee: UserSummary | string;
+  currentShift: Shift | string;
+  requestedShift: Shift | string;
+  effectiveDate: string;
+  reason: string;
+  status: ShiftChangeRequestStatus;
+  reviewedBy?: UserSummary | string;
+  adminComment?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShiftReportSnapshotItem {
+  shiftId: string;
+  shiftName: string;
+  shiftCode: string;
+  assignedCount: number;
+  present: number;
+  late: number;
+  absent: number;
+  onLeave: number;
+  notCheckedIn: number;
+}
+
+export interface ShiftReportSnapshot {
+  totalShifts: number;
+  activeAssignments: number;
+  employeesWithoutShift: number;
+  pendingChangeRequests: number;
+  shiftAttendance: ShiftReportSnapshotItem[];
+}
+
+export interface ShiftReport {
+  _id: string;
+  submittedBy: UserSummary | string;
+  periodFrom: string;
+  periodTo: string;
+  title: string;
+  notes?: string;
+  snapshot: ShiftReportSnapshot;
+  status: ShiftReportStatus;
+  acknowledgedBy?: UserSummary | string;
+  acknowledgedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmployeeShiftHours {
+  shiftId?: string;
+  shiftName?: string;
+  shiftCode?: string;
+  officeStartTime: string;
+  officeEndTime: string;
+  graceMinutes: number;
+  breakDurationMinutes: number;
+  workingDays: number[];
+  isShiftAssigned: boolean;
+}
+
+export interface ShiftAttendanceEmployee {
+  employee: UserSummary;
+  attendance?: Attendance | null;
+  status: 'present' | 'late' | 'absent' | 'on_leave' | 'not_checked_in';
+}
+
+export interface ShiftAttendanceData {
+  shift: Shift;
+  date: string;
+  summary: {
+    assignedCount: number;
+    present: number;
+    late: number;
+    absent: number;
+    onLeave: number;
+    notCheckedIn: number;
+  };
+  employees: ShiftAttendanceEmployee[];
+}
+
+export interface CreateShiftPayload {
+  name: string;
+  code: string;
+  startTime: string;
+  endTime: string;
+  workingDays: number[];
+  graceMinutes?: number;
+  breakDurationMinutes?: number;
+  description?: string;
+  color?: string;
+}
+
+export interface AssignShiftPayload {
+  shiftId: string;
+  employeeIds: string[];
+  effectiveFrom: string;
+  effectiveTo?: string;
+  notes?: string;
+}
+
+export interface CreateShiftChangeRequestPayload {
+  requestedShiftId: string;
+  effectiveDate: string;
+  reason: string;
+}
+
+export interface ReviewShiftChangeRequestPayload {
+  status: 'approved' | 'rejected';
+  adminComment?: string;
+}
+
+export interface SubmitShiftReportPayload {
+  periodFrom: string;
+  periodTo: string;
+  title: string;
+  notes?: string;
+}
 
 export type AnnouncementAudience = 'all' | 'employees' | 'hr';
 
@@ -313,6 +476,200 @@ export interface CreateEmployeePayload {
   role?: UserRole;
   status?: UserStatus;
   isFieldEmployee?: boolean;
+  monthlySalary?: number;
+  enableOnboarding?: boolean;
+}
+
+export type OnboardingStatus =
+  | 'pending_documents'
+  | 'submitted'
+  | 'hr_review'
+  | 'approved'
+  | 'rejected';
+
+export interface EmployeeOnboarding {
+  _id: string;
+  employee: UserSummary | string;
+  status: OnboardingStatus;
+  proposedMonthlySalary: number;
+  approvedMonthlySalary?: number;
+  bankAccountNumber?: string;
+  bankIfsc?: string;
+  bankName?: string;
+  panNumber?: string;
+  employeeNotes?: string;
+  hrNotes?: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+  reviewedBy?: UserSummary | string;
+  sharedWithAdmin: boolean;
+  sharedWithAdminAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OnboardingDocumentCategory =
+  | 'id_proof'
+  | 'address_proof'
+  | 'bank_proof'
+  | 'education'
+  | 'other';
+
+export interface OnboardingDocument {
+  _id: string;
+  employee: string;
+  category: OnboardingDocumentCategory;
+  title: string;
+  fileUrl: string;
+  originalName: string;
+  mimeType: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewComment?: string;
+  createdAt: string;
+}
+
+export interface PayrollPolicy {
+  standardWorkingDaysPerMonth: number;
+  weeklyOffDays: number[];
+  lateDeductionPerDay: number;
+  lateDeductionPerMinute: number;
+  leaveDeductionEnabled: boolean;
+  halfDayLeaveFactor: number;
+  overtimeEnabled: boolean;
+  overtimeMultiplier: number;
+  overtimeHourlyDivisor: number;
+  proRataJoiningExit: boolean;
+}
+
+export interface EmployeeCompensation {
+  _id: string;
+  employee: string;
+  monthlySalary: number;
+  currency: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  isActive: boolean;
+  notes?: string;
+}
+
+export type PayrollRunStatus = 'draft' | 'finalized';
+
+export interface PayrollRun {
+  _id: string;
+  month: number;
+  year: number;
+  periodStart: string;
+  periodEnd: string;
+  status: PayrollRunStatus;
+  employeeCount: number;
+  totalGross: number;
+  totalDeductions: number;
+  totalNet: number;
+  finalizedAt?: string;
+  createdAt: string;
+}
+
+export interface PayslipLineItem {
+  code: string;
+  label: string;
+  amount: number;
+  source?: string;
+}
+
+export interface Payslip {
+  _id: string;
+  payrollRun: string | PayrollRun;
+  employee: UserSummary | string;
+  periodStart: string;
+  periodEnd: string;
+  month: number;
+  year: number;
+  workingDays: {
+    totalWorkingDays: number;
+    presentDays: number;
+    absentDays: number;
+    leaveDays: number;
+    halfDays: number;
+    holidays: number;
+    payableDays: number;
+  };
+  attendanceSummary: {
+    lateDays: number;
+    totalLateMinutes: number;
+    overtimeMinutes: number;
+  };
+  earnings: PayslipLineItem[];
+  deductions: PayslipLineItem[];
+  grossPay: number;
+  totalDeductions: number;
+  netPay: number;
+  status: 'draft' | 'published';
+  publishedAt?: string;
+}
+
+export interface SalaryRosterItem {
+  employeeId: string;
+  fullName: string;
+  employeeCode: string;
+  department: string;
+  designation: string;
+  monthlySalary: number;
+  sharedWithAdminAt?: string;
+  reviewedAt?: string;
+}
+
+export interface PayrollSummary {
+  activeEmployees: number;
+  employeesWithSalary: number;
+  latestPayrollRun?: PayrollRun | null;
+  pendingOnboardingReviews: number;
+}
+
+export interface MonthlyAttendanceStats {
+  month: number;
+  year: number;
+  label: string;
+  present: number;
+  late: number;
+  absent: number;
+  halfDay: number;
+  onLeave: number;
+  totalMarked: number;
+  totalLateMinutes: number;
+  workingDays: number;
+}
+
+export interface MonthlyAttendanceSummary {
+  currentMonth: MonthlyAttendanceStats;
+  previousMonth: MonthlyAttendanceStats;
+}
+
+export type AssistantQuestionId =
+  | 'leave-balance'
+  | 'check-in-yesterday'
+  | 'hours-this-month'
+  | 'pending-tasks'
+  | 'frequent-late'
+  | 'increasing-absenteeism'
+  | 'low-task-completion'
+  | 'excessive-overtime';
+
+export interface AssistantQuestion {
+  id: AssistantQuestionId;
+  label: string;
+  category: 'employee' | 'hr';
+}
+
+export interface AssistantQuestionsData {
+  category: 'employee' | 'hr';
+  questions: AssistantQuestion[];
+}
+
+export interface AssistantAnswer {
+  questionId: AssistantQuestionId;
+  question: string;
+  answer: string;
+  generatedAt: string;
 }
 
 export interface UpdateEmployeePayload extends Partial<Omit<CreateEmployeePayload, 'password'>> {

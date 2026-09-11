@@ -38,9 +38,9 @@ export default function AdminWorkReportDetailScreen() {
   const { reportId } = route.params;
   const user = useAuthStore(state => state.user);
 
-  const listRoute = navigation.getState().routeNames.includes('HrReportsMain')
+  const listRoute = (navigation.getState().routeNames.includes('HrReportsMain')
     ? 'HrReportsMain'
-    : 'AdminWorkReportList';
+    : 'AdminWorkReportList') as keyof ReportDetailStack;
 
   const { handleBack, isLeaving } = useFabricSafeBack({
     routes: [{ name: listRoute }],
@@ -99,12 +99,12 @@ export default function AdminWorkReportDetailScreen() {
         ? report.employee
         : undefined;
   const isOwnReport = !!user?._id && reportOwnerId === user._id;
+  const isAttendanceSummary = report?.reportType === 'attendance_summary';
+  const isHourlyReport = report?.reportType === 'hourly_work';
   const canReview =
     report?.status === 'submitted' &&
     !(user?.role === 'hr' && isOwnReport) &&
     !isHourlyReport;
-  const isAttendanceSummary = report?.reportType === 'attendance_summary';
-  const isHourlyReport = report?.reportType === 'hourly_work';
   const periodLabel =
     isHourlyReport && report?.reportPeriodStart && report?.reportPeriodEnd
       ? `${formatTime(report.reportPeriodStart)} - ${formatTime(report.reportPeriodEnd)}`

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -417,6 +417,19 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
           }
           showBack={showBack}
           onBack={showBack ? handleBack : undefined}
+          rightAction={
+            !isHr ? (
+              <Pressable
+                onPress={() =>
+                  (navigation as NativeStackNavigationProp<EmployeeAttendanceStackParamList>).navigate(
+                    'MyShift',
+                  )
+                }
+                hitSlop={8}>
+                <MaterialCommunityIcons name="clock-outline" size={26} color={theme.colors.white} />
+              </Pressable>
+            ) : undefined
+          }
         />
       ) : null}
       {loading ? (

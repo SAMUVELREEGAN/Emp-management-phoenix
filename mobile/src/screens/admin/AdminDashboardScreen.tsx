@@ -74,20 +74,22 @@ export default function AdminDashboardScreen() {
   const welcomeLabel = isHr ? 'HR' : 'Admin';
 
   const openQuickAccess = useCallback(
-    (screen: 'Tasks' | 'Leave' | 'Track' | 'Reports' | 'Notifications' | 'Profile') => {
+    (screen: 'Tasks' | 'Leave' | 'Track' | 'Reports' | 'Shifts' | 'Payroll' | 'Notifications' | 'Profile') => {
       if (screen === 'Notifications' && isHr) {
         navigateHomeScreen(rootNavigation, 'Notifications', RETURN_TO_HOME_PARAMS);
         return;
       }
 
       const nestedScreens: Record<
-        'Tasks' | 'Leave' | 'Track' | 'Reports' | 'Notifications' | 'Profile',
+        'Tasks' | 'Leave' | 'Track' | 'Reports' | 'Shifts' | 'Payroll' | 'Notifications' | 'Profile',
         string
       > = {
         Tasks: 'AdminTaskList',
         Leave: 'LeaveApprovalList',
         Track: 'TrackEmployees',
         Reports: 'AdminWorkReportList',
+        Shifts: isHr ? 'HrShiftsHub' : 'ShiftList',
+        Payroll: isHr ? 'HrPayrollHub' : 'AdminSalaryRoster',
         Notifications: 'NotificationsMain',
         Profile: 'ProfileMain',
       };
@@ -137,6 +139,22 @@ export default function AdminDashboardScreen() {
           }),
       },
       {
+        key: 'shifts',
+        label: 'Shifts',
+        icon: 'clock-time-four-outline',
+        color: theme.colors.purple,
+        iconBg: theme.colors.purpleLight,
+        onPress: () => openQuickAccess('Shifts'),
+      },
+      {
+        key: 'payroll',
+        label: 'Payroll',
+        icon: 'cash-multiple',
+        color: theme.colors.success,
+        iconBg: theme.colors.successLight,
+        onPress: () => openQuickAccess('Payroll'),
+      },
+      {
         key: 'reports',
         label: 'Reports',
         icon: 'chart-bar',
@@ -176,7 +194,7 @@ export default function AdminDashboardScreen() {
     ];
 
     if (isHr) {
-      return items.filter(item => !['leave', 'tasks'].includes(item.key));
+      return items.filter(item => !['leave', 'tasks', 'track'].includes(item.key));
     }
 
     return items;

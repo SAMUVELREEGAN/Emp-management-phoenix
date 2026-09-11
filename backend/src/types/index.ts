@@ -19,7 +19,10 @@ export type NotificationType =
   | 'task'
   | 'leave'
   | 'announcement'
-  | 'chat';
+  | 'chat'
+  | 'shift'
+  | 'payroll'
+  | 'onboarding';
 
 export type AnnouncementAudience = 'all' | 'employees' | 'hr';
 

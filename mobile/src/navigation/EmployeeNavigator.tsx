@@ -15,6 +15,10 @@ import { createTabBarScreenOptions } from '../constants/tabBarOptions';
 import EmployeeDashboardScreen from '../screens/employee/EmployeeDashboardScreen';
 import AttendanceScreen from '../screens/employee/AttendanceScreen';
 import AttendanceHistoryScreen from '../screens/employee/AttendanceHistoryScreen';
+import MyShiftScreen from '../screens/employee/MyShiftScreen';
+import ShiftChangeRequestFormScreen from '../screens/employee/ShiftChangeRequestFormScreen';
+import ShiftChangeRequestListScreen from '../screens/employee/ShiftChangeRequestListScreen';
+import EmployeeAttendanceSummaryScreen from '../screens/employee/EmployeeAttendanceSummaryScreen';
 import MyTasksScreen from '../screens/employee/MyTasksScreen';
 import EmployeeTaskDetailScreen from '../screens/employee/EmployeeTaskDetailScreen';
 import LeaveListScreen from '../screens/employee/LeaveListScreen';
@@ -26,10 +30,12 @@ import WorkReportDetailScreen from '../screens/employee/WorkReportDetailScreen';
 import HourlyReportFormScreen from '../screens/employee/HourlyReportFormScreen';
 import NotificationsScreen from '../screens/common/NotificationsScreen';
 import MoreHubScreen from '../screens/common/MoreHubScreen';
+import AiAssistantScreen from '../screens/common/AiAssistantScreen';
 import ProfileScreen from '../screens/common/ProfileScreen';
 import ChangePasswordScreen from '../screens/common/ChangePasswordScreen';
 import EditProfileScreen from '../screens/common/EditProfileScreen';
 import { ChatStackNavigator } from './ChatStackNavigator';
+import { EmployeePayrollStackNavigator } from './EmployeePayrollStackNavigator';
 import { homeTabScreenOptions } from './homeTabOptions';
 import { moreTabScreenOptions } from './moreTabOptions';
 import { useHourlyReportReminder } from '../hooks/useHourlyReportReminder';
@@ -46,7 +52,7 @@ const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const stackScreenOptions = {
   headerShown: false,
   animation: 'none' as const,
-  freezeOnBlur: true,
+  freezeOnBlur: false,
 };
 
 function AttendanceStackNavigator() {
@@ -54,6 +60,10 @@ function AttendanceStackNavigator() {
     <AttendanceStack.Navigator screenOptions={stackScreenOptions}>
       <AttendanceStack.Screen name="AttendanceMain" component={AttendanceScreen} />
       <AttendanceStack.Screen name="AttendanceHistory" component={AttendanceHistoryScreen} />
+      <AttendanceStack.Screen name="AttendanceSummary" component={EmployeeAttendanceSummaryScreen} />
+      <AttendanceStack.Screen name="MyShift" component={MyShiftScreen} />
+      <AttendanceStack.Screen name="ShiftChangeRequestForm" component={ShiftChangeRequestFormScreen} />
+      <AttendanceStack.Screen name="ShiftChangeRequestList" component={ShiftChangeRequestListScreen} />
     </AttendanceStack.Navigator>
   );
 }
@@ -104,6 +114,7 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="Dashboard" component={EmployeeDashboardScreen} />
       <HomeStack.Screen name="Tasks" component={TasksStackNavigator} />
       <HomeStack.Screen name="Leave" component={LeaveStackNavigator} />
+      <HomeStack.Screen name="Payroll" component={EmployeePayrollStackNavigator} />
       <HomeStack.Screen name="Notifications" component={NotificationsScreen} />
       <HomeStack.Screen name="Profile" component={ProfileStackNavigator} />
     </HomeStack.Navigator>
@@ -114,8 +125,10 @@ function MoreStackNavigator() {
   return (
     <MoreStack.Navigator screenOptions={stackScreenOptions} initialRouteName="MoreHub">
       <MoreStack.Screen name="MoreHub" component={MoreHubScreen} />
+      <MoreStack.Screen name="AiAssistant" component={AiAssistantScreen} />
       <MoreStack.Screen name="Tasks" component={TasksStackNavigator} />
       <MoreStack.Screen name="Leave" component={LeaveStackNavigator} />
+      <MoreStack.Screen name="Payroll" component={EmployeePayrollStackNavigator} />
       <MoreStack.Screen name="Notifications" component={NotificationsScreen} />
       <MoreStack.Screen name="Profile" component={ProfileStackNavigator} />
     </MoreStack.Navigator>
@@ -134,7 +147,7 @@ export function EmployeeNavigator() {
   useHourlyReportReminder();
 
   return (
-    <Tab.Navigator screenOptions={createTabBarScreenOptions(employeeTabIcons)}>
+    <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(employeeTabIcons)}>
       <Tab.Screen name="Home" component={HomeStackNavigator} options={homeTabScreenOptions} />
       <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />
       <Tab.Screen name="Chat" component={ChatStackNavigator} options={{ title: 'Chat' }} />

@@ -34,10 +34,13 @@ import EmployeeRouteTrackScreen from '../screens/admin/EmployeeRouteTrackScreen'
 import AnnouncementComposeScreen from '../screens/admin/AnnouncementComposeScreen';
 import NotificationsScreen from '../screens/common/NotificationsScreen';
 import MoreHubScreen from '../screens/common/MoreHubScreen';
+import AiAssistantScreen from '../screens/common/AiAssistantScreen';
 import ProfileScreen from '../screens/common/ProfileScreen';
 import ChangePasswordScreen from '../screens/common/ChangePasswordScreen';
 import EditProfileScreen from '../screens/common/EditProfileScreen';
 import { ChatStackNavigator } from './ChatStackNavigator';
+import { ShiftsStackNavigator } from './ShiftsStackNavigator';
+import { PayrollStackNavigator } from './PayrollStackNavigator';
 import { homeTabScreenOptions } from './homeTabOptions';
 import { moreTabScreenOptions } from './moreTabOptions';
 
@@ -56,7 +59,7 @@ const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const stackScreenOptions = {
   headerShown: false,
   animation: 'none' as const,
-  freezeOnBlur: true,
+  freezeOnBlur: false,
 };
 
 function EmployeesStackNavigator() {
@@ -143,6 +146,8 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="Leave" component={LeaveStackNavigator} />
       <HomeStack.Screen name="Track" component={TrackStackNavigator} />
       <HomeStack.Screen name="Reports" component={ReportsStackNavigator} />
+      <HomeStack.Screen name="Shifts" component={ShiftsStackNavigator} />
+      <HomeStack.Screen name="Payroll" component={PayrollStackNavigator} />
       <HomeStack.Screen name="Notifications" component={NotificationsStackNavigator} />
       <HomeStack.Screen name="Profile" component={ProfileStackNavigator} />
     </HomeStack.Navigator>
@@ -153,10 +158,13 @@ function MoreStackNavigator() {
   return (
     <MoreStack.Navigator screenOptions={stackScreenOptions} initialRouteName="MoreHub">
       <MoreStack.Screen name="MoreHub" component={MoreHubScreen} />
+      <MoreStack.Screen name="AiAssistant" component={AiAssistantScreen} />
       <MoreStack.Screen name="Tasks" component={TasksStackNavigator} />
       <MoreStack.Screen name="Leave" component={LeaveStackNavigator} />
       <MoreStack.Screen name="Track" component={TrackStackNavigator} />
       <MoreStack.Screen name="Reports" component={ReportsStackNavigator} />
+      <MoreStack.Screen name="Shifts" component={ShiftsStackNavigator} />
+      <MoreStack.Screen name="Payroll" component={PayrollStackNavigator} />
       <MoreStack.Screen name="Notifications" component={NotificationsStackNavigator} />
       <MoreStack.Screen name="Profile" component={ProfileStackNavigator} />
     </MoreStack.Navigator>
@@ -173,7 +181,7 @@ const adminTabIcons = {
 
 export function AdminNavigator() {
   return (
-    <Tab.Navigator screenOptions={createTabBarScreenOptions(adminTabIcons)}>
+    <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(adminTabIcons)}>
         <Tab.Screen name="Home" component={HomeStackNavigator} options={homeTabScreenOptions} />
         <Tab.Screen name="Employees" component={EmployeesStackNavigator} />
         <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />

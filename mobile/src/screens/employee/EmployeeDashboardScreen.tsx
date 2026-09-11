@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NavigationProp, ParamListBase } from '@react-navigation/native';
@@ -9,16 +9,19 @@ import {
   DashboardMiniStat,
   ErrorMessage,
   LoadingIndicator,
+  MonthlyAttendanceSummaryCard,
   QuickAccessGrid,
   WorkReportCard,
 } from '../../components';
 import type { QuickAccessItem } from '../../components';
 import { theme } from '../../constants/theme';
+import { attendanceApi } from '../../api/attendanceApi';
 import { dashboardApi } from '../../api/dashboardApi';
+import { onboardingApi } from '../../api/onboardingApi';
 import { useAuthStore } from '../../store/authStore';
 import { useUnreadNotificationCount } from '../../hooks/useUnreadNotificationCount';
 import { getErrorMessage } from '../../utils/errors';
-import type { EmployeeDashboardData } from '../../types';
+import type { EmployeeDashboardData, MonthlyAttendanceSummary } from '../../types';
 import type { EmployeeTabParamList } from '../../navigation/types';
 import { RETURN_TO_HOME_PARAMS, navigateHomeNestedScreen, navigateHomeScreen } from '../../navigation/dashboardNavigation';
 
@@ -28,6 +31,7 @@ export default function EmployeeDashboardScreen() {
   const user = useAuthStore(state => state.user);
   const { unreadCount } = useUnreadNotificationCount();
   const [data, setData] = useState<EmployeeDashboardData | null>(null);
+  const [monthlySummary, setMonthlySummary] = useState<MonthlyAttendanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -40,8 +44,12 @@ export default function EmployeeDashboardScreen() {
     }
     setError('');
     try {
-      const response = await dashboardApi.employeeDashboard();
-      setData(response.data);
+      const [dashboardResponse, monthlyResponse] = await Promise.all([
+        dashboardApi.employeeDashboard(),
+        attendanceApi.myMonthlySummary(),
+      ]);
+      setData(dashboardResponse.data);
+      setMonthlySummary(monthlyResponse.data);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -52,15 +60,30 @@ export default function EmployeeDashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchDashboard();
-    }, [fetchDashboard]),
+      const init = async () => {
+        try {
+          const statusResponse = await onboardingApi.status();
+          if (statusResponse.data.needsOnboarding) {
+            rootNavigation.navigate('Home', {
+              screen: 'Payroll',
+              params: { screen: 'EmployeeOnboarding' },
+            });
+            return;
+          }
+        } catch {
+          // Continue to dashboard if onboarding status cannot be loaded.
+        }
+        fetchDashboard();
+      };
+      void init();
+    }, [fetchDashboard, rootNavigation]),
   );
 
-  const presentCount =
-    data?.attendanceSummary.find(item => item._id === 'present')?.count || 0;
-  const lateCount = data?.attendanceSummary.find(item => item._id === 'late')?.count || 0;
-  const absentCount = data?.attendanceSummary.find(item => item._id === 'absent')?.count || 0;
-  const totalDays = presentCount + lateCount + absentCount;
+  const currentMonth = monthlySummary?.currentMonth;
+  const presentCount = currentMonth?.present ?? 0;
+  const lateCount = currentMonth?.late ?? 0;
+  const absentCount = currentMonth?.absent ?? 0;
+  const totalDays = currentMonth?.totalMarked ?? 0;
 
   const openQuickAccess = useCallback(
     (screen: 'Tasks' | 'Leave' | 'Notifications' | 'Profile') => {
@@ -106,6 +129,21 @@ export default function EmployeeDashboardScreen() {
         color: theme.colors.success,
         iconBg: theme.colors.successLight,
         onPress: () => openQuickAccess('Leave'),
+      },
+      {
+        key: 'payslips',
+        label: 'Payslips',
+        icon: 'cash',
+        color: theme.colors.success,
+        iconBg: theme.colors.successLight,
+        onPress: () =>
+          rootNavigation.navigate('Home', {
+            screen: 'Payroll',
+            params: {
+              screen: 'PayslipList',
+              params: RETURN_TO_HOME_PARAMS,
+            },
+          }),
       },
       {
         key: 'tasks',
@@ -174,7 +212,7 @@ export default function EmployeeDashboardScreen() {
 
           <View style={styles.statsRow}>
             <DashboardMiniStat
-              label="Days"
+              label="This Month"
               value={totalDays}
               icon="calendar-range"
               color={theme.colors.info}
@@ -205,7 +243,27 @@ export default function EmployeeDashboardScreen() {
 
           <QuickAccessGrid items={quickAccessItems} />
 
-          <Text style={styles.sectionTitle}>Today's Attendance</Text>
+          {monthlySummary ? (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Monthly Attendance</Text>
+                <Pressable
+                  onPress={() =>
+                    rootNavigation.navigate('Attendance', {
+                      screen: 'AttendanceSummary',
+                      params: RETURN_TO_HOME_PARAMS,
+                    })
+                  }
+                  hitSlop={8}>
+                  <Text style={styles.viewAll}>View all</Text>
+                </Pressable>
+              </View>
+              <MonthlyAttendanceSummaryCard stats={monthlySummary.currentMonth} highlight />
+              <MonthlyAttendanceSummaryCard stats={monthlySummary.previousMonth} />
+            </>
+          ) : null}
+
+          <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Today's Attendance</Text>
           {data?.todayAttendance ? (
             <AttendanceCard
               attendance={data.todayAttendance}
@@ -217,7 +275,7 @@ export default function EmployeeDashboardScreen() {
             </View>
           )}
 
-          <Text style={styles.sectionTitle}>Today's Report</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Today's Report</Text>
           {data?.todayReport ? (
             <WorkReportCard report={data.todayReport} />
           ) : (
@@ -226,7 +284,7 @@ export default function EmployeeDashboardScreen() {
             </View>
           )}
 
-          <Text style={styles.sectionTitle}>Recent Reports</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Recent Reports</Text>
           {data?.recentReports.length ? (
             data.recentReports.map(report => (
               <WorkReportCard key={report._id} report={report} />
@@ -256,12 +314,26 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     marginTop: -theme.spacing.sm,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+  },
   sectionTitle: {
     fontSize: theme.fonts.sizes.md,
     fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
+  },
+  sectionTitleSpaced: {
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
+  },
+  viewAll: {
+    fontSize: theme.fonts.sizes.sm,
+    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.primary,
   },
   emptyBox: {
     backgroundColor: theme.colors.white,

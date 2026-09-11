@@ -50,6 +50,11 @@ router.get(
   authorize('employee', 'hr'),
   attendanceController.getMyHistory,
 );
+router.get(
+  '/my-monthly-summary',
+  authorize('employee', 'hr'),
+  attendanceController.getMyMonthlySummary,
+);
 router.get('/summary', authorize('admin', 'hr'), attendanceController.getSummary);
 router.get(
   '/breakdown',

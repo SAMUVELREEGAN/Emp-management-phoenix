@@ -2,13 +2,15 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../constants/theme';
 
-export type HrSectionTab = 'left' | 'right';
+export type HrSectionTab = 'left' | 'middle' | 'right';
 
 interface HrSectionTabsProps {
   value: HrSectionTab;
   onChange: (value: HrSectionTab) => void;
   leftLabel: string;
   rightLabel: string;
+  middleLabel?: string;
+  threeTabs?: boolean;
 }
 
 export function HrSectionTabs({
@@ -16,22 +18,42 @@ export function HrSectionTabs({
   onChange,
   leftLabel,
   rightLabel,
+  middleLabel,
+  threeTabs = false,
 }: HrSectionTabsProps) {
+  if (threeTabs && middleLabel) {
+    return (
+      <View style={styles.row}>
+        <Pressable
+          style={[styles.tab, value === 'left' && styles.tabActive]}
+          onPress={() => onChange('left')}>
+          <Text style={[styles.tabText, value === 'left' && styles.tabTextActive]}>{leftLabel}</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, value === 'middle' && styles.tabActive]}
+          onPress={() => onChange('middle')}>
+          <Text style={[styles.tabText, value === 'middle' && styles.tabTextActive]}>{middleLabel}</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, value === 'right' && styles.tabActive]}
+          onPress={() => onChange('right')}>
+          <Text style={[styles.tabText, value === 'right' && styles.tabTextActive]}>{rightLabel}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.row}>
       <Pressable
         style={[styles.tab, value === 'left' && styles.tabActive]}
         onPress={() => onChange('left')}>
-        <Text style={[styles.tabText, value === 'left' && styles.tabTextActive]}>
-          {leftLabel}
-        </Text>
+        <Text style={[styles.tabText, value === 'left' && styles.tabTextActive]}>{leftLabel}</Text>
       </Pressable>
       <Pressable
         style={[styles.tab, value === 'right' && styles.tabActive]}
         onPress={() => onChange('right')}>
-        <Text style={[styles.tabText, value === 'right' && styles.tabTextActive]}>
-          {rightLabel}
-        </Text>
+        <Text style={[styles.tabText, value === 'right' && styles.tabTextActive]}>{rightLabel}</Text>
       </Pressable>
     </View>
   );
