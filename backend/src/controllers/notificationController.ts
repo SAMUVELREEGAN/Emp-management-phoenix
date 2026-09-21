@@ -62,3 +62,10 @@ export const markAllAsRead = asyncHandler(
     return sendSuccess(res, 'All notifications marked as read');
   },
 );
+
+export const deleteAllNotifications = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    await Notification.deleteMany({ recipient: req.user!._id });
+    return sendSuccess(res, 'All notifications deleted');
+  },
+);

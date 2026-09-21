@@ -1,53 +1,44 @@
 import React from 'react';
 import { Platform } from 'react-native';
-import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
-import { TabBarIcon } from '../components/TabBarIcon';
+import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import { FloatingTabBar } from '../components/FloatingTabBar';
 import { theme } from './theme';
 
-export function createTabBarScreenOptions(
-  icons: Record<string, string>,
-): (args: { route: { name: string } }) => BottomTabNavigationOptions {
-  return ({ route }) => ({
+const TAB_BODY_HEIGHT = Platform.OS === 'ios' ? 56 : 50;
+const NOTCH_DEPTH = 22;
+const BOTTOM_INSET = Platform.OS === 'ios' ? 24 : 6;
+
+export const FLOATING_TAB_BAR_HEIGHT = TAB_BODY_HEIGHT + NOTCH_DEPTH + BOTTOM_INSET;
+
+export function createFloatingTabBar(icons: Record<string, string>) {
+  return function FloatingTabBarRenderer(props: BottomTabBarProps) {
+    return React.createElement(FloatingTabBar, { ...props, icons });
+  };
+}
+
+export function createTabBarScreenOptions(): BottomTabNavigationOptions {
+  return {
     headerShown: false,
     lazy: true,
     freezeOnBlur: false,
     detachInactiveScreens: false,
     tabBarHideOnKeyboard: true,
-    tabBarActiveTintColor: theme.colors.primaryDark,
-    tabBarInactiveTintColor: theme.colors.textMuted,
-    tabBarIcon: ({ focused }) =>
-      React.createElement(TabBarIcon, {
-        iconName: icons[route.name] ?? 'circle-outline',
-        focused,
-      }),
-    tabBarLabelStyle: {
-      fontSize: 10,
-      fontWeight: theme.fonts.weights.semibold,
-      marginTop: 2,
-      letterSpacing: 0.2,
-    },
-    tabBarItemStyle: {
-      paddingTop: 4,
-    },
     tabBarStyle: {
+      height: FLOATING_TAB_BAR_HEIGHT,
       backgroundColor: theme.colors.white,
-      borderTopLeftRadius: theme.radii.xl,
-      borderTopRightRadius: theme.radii.xl,
       borderTopWidth: 0,
-      height: Platform.OS === 'ios' ? 88 : 72,
-      paddingBottom: Platform.OS === 'ios' ? 26 : 10,
-      paddingTop: 8,
+      overflow: 'visible',
       ...Platform.select({
         ios: {
           shadowColor: theme.colors.black,
-          shadowOffset: { width: 0, height: -6 },
+          shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.08,
-          shadowRadius: 14,
+          shadowRadius: 10,
         },
         android: {
-          elevation: 16,
+          elevation: 12,
         },
       }),
     },
-  });
+  };
 }

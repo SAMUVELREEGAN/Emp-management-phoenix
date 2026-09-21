@@ -13,6 +13,28 @@ interface HrSectionTabsProps {
   threeTabs?: boolean;
 }
 
+function TabButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[styles.tab, active && styles.tabActive]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}>
+      <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export function HrSectionTabs({
   value,
   onChange,
@@ -23,71 +45,56 @@ export function HrSectionTabs({
 }: HrSectionTabsProps) {
   if (threeTabs && middleLabel) {
     return (
-      <View style={styles.row}>
-        <Pressable
-          style={[styles.tab, value === 'left' && styles.tabActive]}
-          onPress={() => onChange('left')}>
-          <Text style={[styles.tabText, value === 'left' && styles.tabTextActive]}>{leftLabel}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, value === 'middle' && styles.tabActive]}
-          onPress={() => onChange('middle')}>
-          <Text style={[styles.tabText, value === 'middle' && styles.tabTextActive]}>{middleLabel}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, value === 'right' && styles.tabActive]}
-          onPress={() => onChange('right')}>
-          <Text style={[styles.tabText, value === 'right' && styles.tabTextActive]}>{rightLabel}</Text>
-        </Pressable>
+      <View style={styles.shell}>
+        <TabButton label={leftLabel} active={value === 'left'} onPress={() => onChange('left')} />
+        <TabButton
+          label={middleLabel}
+          active={value === 'middle'}
+          onPress={() => onChange('middle')}
+        />
+        <TabButton label={rightLabel} active={value === 'right'} onPress={() => onChange('right')} />
       </View>
     );
   }
 
   return (
-    <View style={styles.row}>
-      <Pressable
-        style={[styles.tab, value === 'left' && styles.tabActive]}
-        onPress={() => onChange('left')}>
-        <Text style={[styles.tabText, value === 'left' && styles.tabTextActive]}>{leftLabel}</Text>
-      </Pressable>
-      <Pressable
-        style={[styles.tab, value === 'right' && styles.tabActive]}
-        onPress={() => onChange('right')}>
-        <Text style={[styles.tabText, value === 'right' && styles.tabTextActive]}>{rightLabel}</Text>
-      </Pressable>
+    <View style={styles.shell}>
+      <TabButton label={leftLabel} active={value === 'left'} onPress={() => onChange('left')} />
+      <TabButton label={rightLabel} active={value === 'right'} onPress={() => onChange('right')} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
+  shell: {
     flexDirection: 'row',
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
+    gap: theme.spacing.xs,
+    backgroundColor: '#EEF0F3',
+    borderRadius: theme.radii.lg,
+    padding: 4,
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
   },
   tab: {
     flex: 1,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm + 2,
+    paddingHorizontal: theme.spacing.xs,
     borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.white,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
   tabActive: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.white,
+    ...theme.shadows.card,
   },
   tabText: {
     fontSize: theme.fonts.sizes.sm,
-    color: theme.colors.textSecondary,
-    fontWeight: theme.fonts.weights.medium,
+    color: theme.colors.textMuted,
+    fontWeight: theme.fonts.weights.semibold,
   },
   tabTextActive: {
-    color: theme.colors.primary,
-    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.accent,
   },
 });

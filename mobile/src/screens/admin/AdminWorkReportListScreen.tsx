@@ -62,6 +62,7 @@ export default function AdminWorkReportListScreen({
 
   const isEmployeeStaff = staffTab === 'employee';
   const isHourly = isEmployeeStaff && reportKind === 'hourly';
+  const canSwitchStaffRole = !embedded && !fixedRole;
 
   const fetchReports = useCallback(
     async (
@@ -74,6 +75,7 @@ export default function AdminWorkReportListScreen({
         setRefreshing(true);
       } else {
         setLoading(true);
+        setReports([]);
       }
       setError('');
       try {
@@ -119,8 +121,6 @@ export default function AdminWorkReportListScreen({
 
   const handleReportKindChange = (kind: ReportKindTab) => {
     setReportKind(kind);
-    setReports([]);
-    void fetchReports(false, filter, staffTab, kind);
   };
 
   const tabLabel = staffTab === 'employee' ? 'Employee' : 'HR';
@@ -130,7 +130,40 @@ export default function AdminWorkReportListScreen({
       ? 'HR Attendance Reports'
       : 'Employee Daily Reports';
 
-  const showInitialLoader = loading && reports.length === 0 && !refreshing;
+  const controlsHeader = (
+    <View style={styles.controlsBlock}>
+      {!embedded && !fixedRole ? (
+        <StaffRoleTabs value={staffTab} onChange={handleStaffTabChange} />
+      ) : null}
+
+      {isEmployeeStaff || canSwitchStaffRole ? (
+        <View style={styles.kindTabsSlot}>
+          {isEmployeeStaff ? (
+            <ReportKindTabs value={reportKind} onChange={handleReportKindChange} />
+          ) : (
+            <View style={styles.kindTabsPlaceholder} />
+          )}
+        </View>
+      ) : null}
+
+      <Text style={styles.listTitle} numberOfLines={1}>
+        {listTitle}
+      </Text>
+
+      <View style={styles.filtersRow}>
+        {FILTERS.map(item => (
+          <Pressable
+            key={item.label}
+            style={[styles.chip, filter === item.value && styles.chipActive]}
+            onPress={() => setFilter(item.value)}>
+            <Text style={[styles.chipText, filter === item.value && styles.chipTextActive]}>
+              {item.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container} collapsable={false}>
@@ -150,113 +183,127 @@ export default function AdminWorkReportListScreen({
       {isLeaving ? (
         <LoadingIndicator fullScreen />
       ) : (
-        <>
-          {!embedded && !fixedRole ? (
-            <StaffRoleTabs value={staffTab} onChange={handleStaffTabChange} />
-          ) : null}
-
-          {isEmployeeStaff ? (
-            <ReportKindTabs value={reportKind} onChange={handleReportKindChange} />
-          ) : null}
-
-          <View style={styles.filters} collapsable={false}>
-            {FILTERS.map(item => (
-              <Pressable
-                key={item.label}
-                style={[styles.chip, filter === item.value && styles.chipActive]}
-                onPress={() => setFilter(item.value)}>
-                <Text style={[styles.chipText, filter === item.value && styles.chipTextActive]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {showInitialLoader ? (
-            <LoadingIndicator fullScreen />
-          ) : error && reports.length === 0 ? (
-            <View style={styles.center}>
-              <ErrorMessage message={error} onRetry={() => fetchReports()} />
-            </View>
-          ) : (
-            <FlatList
-              data={reports}
-              keyExtractor={item => item._id}
-              contentContainerStyle={styles.list}
-              removeClippedSubviews={false}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={() => fetchReports(true)} />
+        <FlatList
+          data={reports}
+          keyExtractor={item => item._id}
+          style={styles.listFlex}
+          contentContainerStyle={styles.list}
+          removeClippedSubviews={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => fetchReports(true)} />
+          }
+          ListHeaderComponent={controlsHeader}
+          ListEmptyComponent={
+            loading && !refreshing ? (
+              <View style={styles.listLoader}>
+                <LoadingIndicator />
+              </View>
+            ) : error ? (
+              <View style={styles.center}>
+                <ErrorMessage message={error} onRetry={() => fetchReports()} />
+              </View>
+            ) : (
+              <EmptyState
+                icon={isHourly ? 'clock-outline' : 'file-search-outline'}
+                title={
+                  isHourly
+                    ? 'No hourly reports found'
+                    : `No ${tabLabel.toLowerCase()} reports found`
+                }
+                message={
+                  isHourly
+                    ? 'Employee hourly reports will appear here after they submit them.'
+                    : staffTab === 'hr'
+                      ? 'HR attendance summary reports will appear here when submitted.'
+                      : 'Try changing the status filter or check back later.'
+                }
+              />
+            )
+          }
+          renderItem={({ item }) => (
+            <WorkReportCard
+              report={item}
+              showEmployee
+              onPress={() =>
+                navigation.navigate('AdminWorkReportDetail', { reportId: item._id })
               }
-              ListHeaderComponent={<Text style={styles.listTitle}>{listTitle}</Text>}
-              ListEmptyComponent={
-                <EmptyState
-                  icon={isHourly ? 'clock-outline' : 'file-search-outline'}
-                  title={
-                    isHourly
-                      ? 'No hourly reports found'
-                      : `No ${tabLabel.toLowerCase()} reports found`
-                  }
-                  message={
-                    isHourly
-                      ? 'Employee hourly reports will appear here after they submit them.'
-                      : staffTab === 'hr'
-                        ? 'HR attendance summary reports will appear here when submitted.'
-                        : 'Try changing the status filter or check back later.'
-                  }
-                />
-              }
-              renderItem={({ item }) => (
-                <WorkReportCard
-                  report={item}
-                  showEmployee
-                  onPress={() =>
-                    navigation.navigate('AdminWorkReportDetail', { reportId: item._id })
-                  }
-                />
-              )}
             />
           )}
-        </>
+        />
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.surface },
-  filters: {
+  container: {
+    flex: 1,
+    backgroundColor: '#F6F7F9',
+  },
+  controlsBlock: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    gap: theme.spacing.sm,
+    ...theme.shadows.card,
+  },
+  kindTabsSlot: {
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  kindTabsPlaceholder: {
+    height: 48,
+  },
+  filtersRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingTop: theme.spacing.xs,
+    minHeight: 76,
+  },
+  listFlex: {
+    flex: 1,
+  },
+  listLoader: {
+    minHeight: 280,
+    justifyContent: 'center',
   },
   chip: {
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs + 2,
+    paddingVertical: theme.spacing.sm,
     borderRadius: theme.radii.full,
-    backgroundColor: theme.colors.white,
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'transparent',
   },
   chipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
   },
   chipText: {
     fontSize: theme.fonts.sizes.xs,
     color: theme.colors.textSecondary,
-    fontWeight: theme.fonts.weights.medium,
+    fontWeight: theme.fonts.weights.semibold,
   },
   chipTextActive: {
-    color: theme.colors.white,
+    color: theme.colors.primary,
   },
-  center: { flex: 1, padding: theme.spacing.md },
-  list: { padding: theme.spacing.md, flexGrow: 1 },
+  center: {
+    flex: 1,
+    padding: theme.spacing.md,
+  },
+  list: {
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl,
+    flexGrow: 1,
+  },
   listTitle: {
     fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.sm,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.text,
+    marginTop: theme.spacing.xs,
   },
 });

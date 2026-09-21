@@ -10,6 +10,14 @@ if (isWindows) {
   process.env.GRADLE_USER_HOME = 'C:\\gradle';
 }
 
+// Forward device localhost:5000 → PC localhost:5000 so the app can use http://localhost:5000/api
+if (isWindows) {
+  spawnSync('adb', ['reverse', 'tcp:5000', 'tcp:5000'], {
+    stdio: 'inherit',
+    env: process.env,
+  });
+}
+
 const reactNativeCli = require.resolve('@react-native-community/cli/build/bin.js');
 const result = spawnSync(process.execPath, [reactNativeCli, 'run-android'], {
   stdio: 'inherit',

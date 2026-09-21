@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { theme } from '../constants/theme';
 import { formatDate, formatTime } from '../utils/dates';
 import type { UserSummary, WorkReport } from '../types';
@@ -32,38 +33,62 @@ export function WorkReportCard({ report, onPress, showEmployee = false }: WorkRe
 
   const content = (
     <>
-      <View style={styles.header}>
-        <Text style={styles.title} numberOfLines={1}>
-          {report.title}
-        </Text>
-        <StatusBadge status={report.status} />
-      </View>
-      {isHourlyReport ? (
-        <View style={styles.kindBadge}>
-          <Text style={styles.kindBadgeText}>{report.attachment ? 'GeoCam Hourly' : 'Hourly'}</Text>
+      <View style={styles.accent} />
+      <View style={styles.body}>
+        <View style={styles.header}>
+          <Text style={styles.title} numberOfLines={2}>
+            {report.title}
+          </Text>
+          <StatusBadge status={report.status} />
         </View>
-      ) : null}
-      {showEmployee ? (
-        <Text style={styles.employee}>{getEmployeeName(report.employee)}</Text>
-      ) : null}
-      <Text style={styles.date}>
-        {formatDate(report.reportDate)}
-        {periodLabel ? ` • ${periodLabel}` : ''}
-      </Text>
-      <Text style={styles.summary} numberOfLines={2}>
-        {summaryLine}
-      </Text>
-      {!isAttendanceSummary ? (
-        <Text style={styles.hours}>
-          {isHourlyReport ? 'Hourly report' : `${report.workingHours} hrs`}
+
+        {isHourlyReport ? (
+          <View style={styles.kindBadge}>
+            <MaterialCommunityIcons name="camera-outline" size={12} color={theme.colors.info} />
+            <Text style={styles.kindBadgeText}>{report.attachment ? 'GeoCam Hourly' : 'Hourly'}</Text>
+          </View>
+        ) : null}
+
+        {showEmployee ? (
+          <View style={styles.employeeRow}>
+            <MaterialCommunityIcons name="account-outline" size={16} color={theme.colors.textMuted} />
+            <Text style={styles.employee}>{getEmployeeName(report.employee)}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.dateRow}>
+          <MaterialCommunityIcons name="calendar-outline" size={15} color={theme.colors.textMuted} />
+          <Text style={styles.date}>
+            {formatDate(report.reportDate)}
+            {periodLabel ? ` • ${periodLabel}` : ''}
+          </Text>
+        </View>
+
+        <Text style={styles.summary} numberOfLines={2}>
+          {summaryLine}
         </Text>
-      ) : null}
+
+        <View style={styles.footer}>
+          {!isAttendanceSummary ? (
+            <Text style={styles.hours}>
+              {isHourlyReport ? 'Hourly report' : `${report.workingHours} hrs`}
+            </Text>
+          ) : (
+            <View />
+          )}
+          {onPress ? (
+            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.colors.textMuted} />
+          ) : null}
+        </View>
+      </View>
     </>
   );
 
   if (onPress) {
     return (
-      <Pressable style={styles.card} onPress={onPress}>
+      <Pressable
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+        onPress={onPress}>
         {content}
       </Pressable>
     );
@@ -74,47 +99,76 @@ export function WorkReportCard({ report, onPress, showEmployee = false }: WorkRe
 
 const styles = StyleSheet.create({
   card: {
+    flexDirection: 'row',
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
-    padding: theme.spacing.md,
+    borderRadius: theme.radii.xl,
     marginBottom: theme.spacing.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(0,0,0,0.06)',
+    overflow: 'hidden',
     ...theme.shadows.card,
+  },
+  cardPressed: {
+    opacity: 0.97,
+  },
+  accent: {
+    width: 4,
+    backgroundColor: theme.colors.primary,
+  },
+  body: {
+    flex: 1,
+    padding: theme.spacing.md,
+    paddingLeft: theme.spacing.md - 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: theme.spacing.sm,
   },
   title: {
     flex: 1,
     fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.semibold,
+    fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
+    lineHeight: 22,
   },
   kindBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    marginTop: theme.spacing.xs,
+    gap: 4,
+    marginTop: theme.spacing.sm,
     backgroundColor: theme.colors.infoLight,
     borderRadius: theme.radii.full,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
   kindBadgeText: {
     fontSize: 10,
-    fontWeight: theme.fonts.weights.semibold,
+    fontWeight: theme.fonts.weights.bold,
     color: theme.colors.info,
+    letterSpacing: 0.2,
+  },
+  employeeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: theme.spacing.sm,
   },
   employee: {
-    marginTop: theme.spacing.xs,
     fontSize: theme.fonts.sizes.sm,
     color: theme.colors.textSecondary,
-    fontWeight: theme.fonts.weights.medium,
+    fontWeight: theme.fonts.weights.semibold,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: theme.spacing.xs,
   },
   date: {
-    marginTop: theme.spacing.xs,
+    flex: 1,
     fontSize: theme.fonts.sizes.sm,
     color: theme.colors.textSecondary,
   },
@@ -124,10 +178,16 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     lineHeight: 20,
   },
-  hours: {
+  footer: {
     marginTop: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  hours: {
     fontSize: theme.fonts.sizes.xs,
-    color: theme.colors.primary,
-    fontWeight: theme.fonts.weights.medium,
+    color: theme.colors.primaryDark,
+    fontWeight: theme.fonts.weights.bold,
+    letterSpacing: 0.2,
   },
 });

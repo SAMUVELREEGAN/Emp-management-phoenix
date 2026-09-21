@@ -21,26 +21,34 @@ interface QuickAccessGridProps {
 export function QuickAccessGrid({ title = 'Quick Access', items }: QuickAccessGridProps) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.grid}>
-        {items.map(item => (
-          <Pressable
-            key={item.key}
-            style={[styles.card, theme.shadows.card]}
-            onPress={item.onPress}
-            accessibilityRole="button"
-            accessibilityLabel={item.label}>
-            <View style={[styles.iconWrap, { backgroundColor: item.iconBg }]}>
-              <MaterialCommunityIcons name={item.icon} size={24} color={item.color} />
-              {item.badge && item.badge > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{item.badge > 9 ? '9+' : item.badge}</Text>
-                </View>
-              ) : null}
-            </View>
-            <Text style={styles.label}>{item.label}</Text>
-          </Pressable>
-        ))}
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <View style={styles.headerAccent} />
+        </View>
+
+        <View style={styles.grid}>
+          {items.map(item => (
+            <Pressable
+              key={item.key}
+              style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+              onPress={item.onPress}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}>
+              <View style={[styles.iconWrap, { backgroundColor: item.iconBg }]}>
+                <MaterialCommunityIcons name={item.icon} size={22} color={item.color} />
+                {item.badge && item.badge > 0 ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.badge > 9 ? '9+' : item.badge}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.label} numberOfLines={2}>
+                {item.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -48,39 +56,68 @@ export function QuickAccessGrid({ title = 'Quick Access', items }: QuickAccessGr
 
 const styles = StyleSheet.create({
   section: {
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+  },
+  container: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.card,
+  },
+  header: {
+    marginBottom: theme.spacing.lg,
   },
   sectionTitle: {
-    fontSize: theme.fonts.sizes.md,
+    fontSize: theme.fonts.sizes.lg,
     fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
+    letterSpacing: -0.3,
+  },
+  headerAccent: {
+    width: 36,
+    height: 3,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.primary,
+    marginTop: theme.spacing.sm,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.sm,
+    justifyContent: 'space-between',
+    rowGap: theme.spacing.md,
   },
-  card: {
-    width: '31%',
-    backgroundColor: theme.colors.white,
+  tile: {
+    width: '31.5%',
+    minHeight: 104,
+    backgroundColor: '#F8FAFC',
     borderRadius: theme.radii.lg,
     paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#EEF2F6',
+  },
+  tilePressed: {
+    backgroundColor: '#F1F5F9',
+    borderColor: theme.colors.border,
+    transform: [{ scale: 0.97 }],
   },
   iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: theme.radii.md,
+    width: 50,
+    height: 50,
+    borderRadius: theme.radii.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: theme.spacing.sm,
   },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -2,
+    right: -2,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -88,6 +125,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: theme.colors.white,
   },
   badgeText: {
     color: theme.colors.white,
@@ -96,8 +135,9 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: theme.fonts.sizes.xs,
-    fontWeight: theme.fonts.weights.medium,
+    fontWeight: theme.fonts.weights.semibold,
     color: theme.colors.text,
     textAlign: 'center',
+    lineHeight: 16,
   },
 });

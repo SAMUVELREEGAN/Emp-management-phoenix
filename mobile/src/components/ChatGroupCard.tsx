@@ -1,7 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { chatTheme } from '../constants/chatTheme';
 import { theme } from '../constants/theme';
 import { formatTime } from '../utils/dates';
 import type { ChatGroup } from '../types';
@@ -31,13 +30,18 @@ export function ChatGroupCard({ group, onPress, onLongPress }: ChatGroupCardProp
       ]}
       onPress={onPress}
       onLongPress={onLongPress}>
-      <View style={[styles.iconWrap, isTeam ? styles.teamIcon : styles.groupIcon]}>
-        <MaterialCommunityIcons
-          name={isTeam ? 'account-group' : 'forum-outline'}
-          size={24}
-          color={isTeam ? chatTheme.accent : chatTheme.ownBubble}
-        />
+      {isTeam ? <View style={styles.teamAccent} /> : null}
+
+      <View style={[styles.iconRing, isTeam ? styles.teamIconRing : styles.groupIconRing]}>
+        <View style={[styles.iconWrap, isTeam ? styles.teamIcon : styles.groupIcon]}>
+          <MaterialCommunityIcons
+            name={isTeam ? 'account-group' : 'forum-outline'}
+            size={22}
+            color={isTeam ? theme.colors.text : theme.colors.primary}
+          />
+        </View>
       </View>
+
       <View style={styles.content}>
         <View style={styles.headerRow}>
           <Text style={styles.title} numberOfLines={1}>
@@ -47,31 +51,28 @@ export function ChatGroupCard({ group, onPress, onLongPress }: ChatGroupCardProp
             <Text style={styles.time}>{formatTime(group.lastMessageAt)}</Text>
           ) : null}
         </View>
-        <View style={styles.metaRow}>
-          <Text style={styles.preview} numberOfLines={1}>
-            {getPreview(group)}
-          </Text>
-          <View style={styles.badgeRow}>
-            {isTeam ? (
-              <View style={styles.teamBadge}>
-                <Text style={styles.teamBadgeText}>Everyone</Text>
-              </View>
-            ) : (
-              <View style={styles.countBadge}>
-                <MaterialCommunityIcons
-                  name="account-multiple-outline"
-                  size={12}
-                  color={chatTheme.otherBubbleMeta}
-                />
+        <Text style={styles.preview} numberOfLines={1}>
+          {getPreview(group)}
+        </Text>
+        <View style={styles.badgeRow}>
+          {isTeam ? (
+            <View style={styles.teamBadge}>
+              <Text style={styles.teamBadgeText}>Everyone</Text>
+            </View>
+          ) : (
+            <View style={styles.countBadge}>
+              <MaterialCommunityIcons
+                name="account-multiple-outline"
+                size={12}
+                color={theme.colors.textSecondary}
+              />
                 <Text style={styles.countBadgeText}>{group.memberCount || 0}</Text>
-              </View>
-            )}
-          </View>
+            </View>
+          )}
         </View>
       </View>
-      <View style={styles.chevronWrap}>
-        <MaterialCommunityIcons name="chevron-right" size={20} color={chatTheme.otherBubbleMeta} />
-      </View>
+
+      <MaterialCommunityIcons name="chevron-right" size={22} color={theme.colors.textMuted} />
     </Pressable>
   );
 }
@@ -80,39 +81,59 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: chatTheme.inputBackground,
-    borderRadius: theme.radii.lg,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.xl,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    ...chatTheme.shadow,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+    ...theme.shadows.card,
   },
   teamCard: {
-    borderColor: 'rgba(184, 134, 11, 0.25)',
-    backgroundColor: chatTheme.accentSoft,
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: '#FFF0B3',
+  },
+  teamAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: theme.colors.primary,
   },
   cardPressed: {
-    opacity: 0.92,
+    opacity: 0.94,
     transform: [{ scale: 0.995 }],
   },
-  iconWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
+  iconRing: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    padding: 2,
     marginRight: theme.spacing.md,
   },
-  teamIcon: {
-    backgroundColor: chatTheme.ownBubble,
+  teamIconRing: {
     borderWidth: 2,
-    borderColor: chatTheme.accent,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.white,
+  },
+  groupIconRing: {
+    borderWidth: 2,
+    borderColor: '#EEF2F6',
+    backgroundColor: '#F8FAFC',
+  },
+  iconWrap: {
+    flex: 1,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teamIcon: {
+    backgroundColor: theme.colors.white,
   },
   groupIcon: {
-    backgroundColor: chatTheme.hubBackground,
-    borderWidth: 1,
-    borderColor: chatTheme.inputBorder,
+    backgroundColor: '#F8FAFC',
   },
   content: {
     flex: 1,
@@ -123,62 +144,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: theme.spacing.sm,
+    marginBottom: 2,
   },
   title: {
     flex: 1,
     fontSize: theme.fonts.sizes.md,
     fontWeight: theme.fonts.weights.bold,
-    color: chatTheme.otherBubbleText,
+    color: theme.colors.text,
+    letterSpacing: -0.2,
   },
   time: {
     fontSize: theme.fonts.sizes.xs,
-    color: chatTheme.otherBubbleMeta,
-    fontWeight: theme.fonts.weights.medium,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 5,
-    gap: theme.spacing.sm,
+    color: theme.colors.textMuted,
+    fontWeight: theme.fonts.weights.semibold,
   },
   preview: {
-    flex: 1,
     fontSize: theme.fonts.sizes.sm,
-    color: chatTheme.otherBubbleMeta,
+    color: theme.colors.textSecondary,
     lineHeight: 18,
+    marginBottom: theme.spacing.sm,
   },
   badgeRow: {
     flexDirection: 'row',
   },
   teamBadge: {
-    backgroundColor: chatTheme.ownBubble,
+    backgroundColor: theme.colors.white,
     borderRadius: theme.radii.full,
-    paddingHorizontal: 8,
+    paddingHorizontal: theme.spacing.sm,
     paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.45)',
   },
   teamBadgeText: {
     fontSize: 10,
     fontWeight: theme.fonts.weights.bold,
-    color: chatTheme.accent,
+    color: theme.colors.text,
     letterSpacing: 0.3,
   },
   countBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: chatTheme.hubBackground,
+    gap: 4,
+    backgroundColor: '#F8FAFC',
     borderRadius: theme.radii.full,
-    paddingHorizontal: 8,
+    paddingHorizontal: theme.spacing.sm,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: chatTheme.inputBorder,
+    borderColor: '#EEF2F6',
   },
   countBadgeText: {
     fontSize: 10,
     fontWeight: theme.fonts.weights.semibold,
-    color: chatTheme.otherBubbleMeta,
-  },
-  chevronWrap: {
-    marginLeft: theme.spacing.xs,
+    color: theme.colors.textSecondary,
   },
 });

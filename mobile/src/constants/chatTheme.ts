@@ -1,13 +1,18 @@
 import { theme } from './theme';
 
 export const chatTheme = {
-  background: '#E9E6E0',
+  background: '#ECE5DD',
+  threadBackground: '#ECE5DD',
   hubBackground: '#F4F2EE',
+  waHeader: '#075E54',
+  waPlayOwn: '#1D7A54',
+  waPlayOther: '#00A884',
+  waSend: '#00A884',
   inputBackground: '#FFFFFF',
   inputBorder: '#E0DDD6',
-  ownBubble: '#1A1A1A',
-  ownBubbleText: '#FFFFFF',
-  ownBubbleMeta: 'rgba(255,255,255,0.72)',
+  ownBubble: '#D9FDD3',
+  ownBubbleText: '#111B21',
+  ownBubbleMeta: 'rgba(17,27,33,0.45)',
   otherBubble: '#FFFFFF',
   otherBubbleText: '#1A1A1A',
   otherBubbleMeta: '#8A857C',

@@ -85,8 +85,8 @@ android {
         applicationId "com.employeemanagement"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
-        versionName "1.5.0"
+        versionCode 7
+        versionName "1.6.0"
         manifestPlaceholders = [
             GOOGLE_MAPS_API_KEY: (project.env.get("GOOGLE_MAPS_API_KEY") ?: "")
         ]

@@ -14,7 +14,7 @@ import type {
   AdminTrackStackParamList,
   ProfileStackParamList,
 } from './types';
-import { createTabBarScreenOptions } from '../constants/tabBarOptions';
+import { createFloatingTabBar, createTabBarScreenOptions } from '../constants/tabBarOptions';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import EmployeeListScreen from '../screens/admin/EmployeeListScreen';
 import EmployeeFormScreen from '../screens/admin/EmployeeFormScreen';
@@ -43,6 +43,7 @@ import { ShiftsStackNavigator } from './ShiftsStackNavigator';
 import { PayrollStackNavigator } from './PayrollStackNavigator';
 import { homeTabScreenOptions } from './homeTabOptions';
 import { moreTabScreenOptions } from './moreTabOptions';
+import { moreStackScreenOptions } from './moreStackOptions';
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
 const HomeStack = createNativeStackNavigator<AdminHomeStackParamList>();
@@ -156,7 +157,7 @@ function HomeStackNavigator() {
 
 function MoreStackNavigator() {
   return (
-    <MoreStack.Navigator screenOptions={stackScreenOptions} initialRouteName="MoreHub">
+    <MoreStack.Navigator screenOptions={moreStackScreenOptions} initialRouteName="MoreHub">
       <MoreStack.Screen name="MoreHub" component={MoreHubScreen} />
       <MoreStack.Screen name="AiAssistant" component={AiAssistantScreen} />
       <MoreStack.Screen name="Tasks" component={TasksStackNavigator} />
@@ -181,7 +182,10 @@ const adminTabIcons = {
 
 export function AdminNavigator() {
   return (
-    <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(adminTabIcons)}>
+    <Tab.Navigator
+      detachInactiveScreens={false}
+      tabBar={createFloatingTabBar(adminTabIcons)}
+      screenOptions={createTabBarScreenOptions()}>
         <Tab.Screen name="Home" component={HomeStackNavigator} options={homeTabScreenOptions} />
         <Tab.Screen name="Employees" component={EmployeesStackNavigator} />
         <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />

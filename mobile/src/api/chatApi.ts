@@ -67,7 +67,9 @@ export const chatApi = {
     options?: { content?: string; messageType?: 'image' | 'file' | 'voice'; voiceDuration?: number },
   ) => {
     const normalizedUri =
-      attachment.uri.startsWith('file://') || attachment.uri.startsWith('http')
+      attachment.uri.startsWith('file://') ||
+      attachment.uri.startsWith('http') ||
+      attachment.uri.startsWith('content://')
         ? attachment.uri
         : `file://${attachment.uri}`;
 
@@ -96,7 +98,9 @@ export const chatApi = {
 
   uploadAsset: async (attachment: { uri: string; type?: string; name?: string }) => {
     const normalizedUri =
-      attachment.uri.startsWith('file://') || attachment.uri.startsWith('http')
+      attachment.uri.startsWith('file://') ||
+      attachment.uri.startsWith('http') ||
+      attachment.uri.startsWith('content://')
         ? attachment.uri
         : `file://${attachment.uri}`;
 

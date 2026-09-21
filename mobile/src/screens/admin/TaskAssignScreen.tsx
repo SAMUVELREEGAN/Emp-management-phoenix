@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import {
   AppButton,
   AppHeader,
   AppInput,
   DatePickerField,
+  EmployeeSelectField,
   ErrorMessage,
   LoadingIndicator,
 } from '../../components';
@@ -69,42 +70,69 @@ export default function TaskAssignScreen() {
       {loadingEmployees ? (
         <LoadingIndicator fullScreen />
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
-          {error ? <ErrorMessage message={error} /> : null}
-          <Text style={styles.label}>Select Employee</Text>
-          {employees.map(emp => (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
+            {error ? <ErrorMessage message={error} /> : null}
+
+            <View style={styles.formCard}>
+              <EmployeeSelectField
+                label="Select Employee"
+                employees={employees}
+                value={assignedTo}
+                onChange={setAssignedTo}
+                loading={loadingEmployees}
+              />
+              <AppInput label="Task Title" value={title} onChangeText={setTitle} />
+              <AppInput
+                label="Description"
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={4}
+              />
+              <DatePickerField label="Due Date" value={dueDate} onChange={setDueDate} />
+            </View>
+
             <AppButton
-              key={emp._id}
-              title={`${emp.fullName} (${emp.employeeId})`}
-              variant={assignedTo === emp._id ? 'primary' : 'outline'}
-              onPress={() => setAssignedTo(emp._id)}
-              style={styles.employeeBtn}
+              title="Assign Task"
+              onPress={handleAssign}
+              loading={submitting}
+              style={styles.submitBtn}
             />
-          ))}
-          <AppInput label="Task Title" value={title} onChangeText={setTitle} />
-          <AppInput
-            label="Description"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={4}
-          />
-          <DatePickerField label="Due Date" value={dueDate} onChange={setDueDate} />
-          <AppButton title="Assign Task" onPress={handleAssign} loading={submitting} />
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  content: { padding: theme.spacing.lg },
-  label: {
-    fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.medium,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.sm,
+  container: {
+    flex: 1,
+    backgroundColor: '#F6F7F9',
   },
-  employeeBtn: { marginBottom: theme.spacing.sm },
+  flex: {
+    flex: 1,
+  },
+  content: {
+    padding: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl,
+  },
+  formCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    marginBottom: theme.spacing.lg,
+    ...theme.shadows.card,
+  },
+  submitBtn: {
+    marginTop: theme.spacing.xs,
+  },
 });

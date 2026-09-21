@@ -426,7 +426,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
                   )
                 }
                 hitSlop={8}>
-                <MaterialCommunityIcons name="clock-outline" size={26} color={theme.colors.white} />
+                <MaterialCommunityIcons name="clock-outline" size={26} color={theme.colors.text} />
               </Pressable>
             ) : undefined
           }
@@ -439,21 +439,38 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
           {error ? <ErrorMessage message={error} onRetry={fetchToday} /> : null}
 
           <View style={styles.officeHoursCard}>
-            <Text style={styles.officeHoursTitle}>Office Hours</Text>
-            <Text style={styles.officeHoursText}>
-              {formatOfficeTime(officeHours.officeStartTime)} -{' '}
-              {formatOfficeTime(officeHours.officeEndTime)}
-            </Text>
+            <View style={styles.officeHoursRow}>
+              <View style={styles.cardIconWrap}>
+                <MaterialCommunityIcons
+                  name="clock-outline"
+                  size={22}
+                  color={theme.colors.primaryDark}
+                />
+              </View>
+              <View style={styles.officeHoursTextBlock}>
+                <Text style={styles.officeHoursTitle}>Office Hours</Text>
+                <Text style={styles.officeHoursText}>
+                  {formatOfficeTime(officeHours.officeStartTime)} -{' '}
+                  {formatOfficeTime(officeHours.officeEndTime)}
+                </Text>
+              </View>
+            </View>
           </View>
 
           {!isHr ? (
             <View style={[styles.wfhCard, isWfhActive && styles.wfhCardActive]}>
               <View style={styles.wfhHeader}>
-                <MaterialCommunityIcons
-                  name="home-account"
-                  size={22}
-                  color={isWfhActive ? theme.colors.info : theme.colors.textSecondary}
-                />
+                <View
+                  style={[
+                    styles.cardIconWrap,
+                    isWfhActive ? styles.cardIconWrapInfo : null,
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="home-account"
+                    size={22}
+                    color={isWfhActive ? theme.colors.info : theme.colors.textSecondary}
+                  />
+                </View>
                 <View style={styles.wfhTextBlock}>
                   <Text style={styles.wfhTitle}>Work From Home</Text>
                   <Text style={styles.wfhSubtitle}>
@@ -489,19 +506,26 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
                 previewGeofenceStatus?.within === true && styles.geofenceCardInside,
               ]}>
               <View style={styles.geofenceHeader}>
-                <MaterialCommunityIcons
-                  name={
-                    previewGeofenceStatus?.within === false
-                      ? 'map-marker-alert-outline'
-                      : 'map-marker-check-outline'
-                  }
-                  size={20}
-                  color={
-                    previewGeofenceStatus?.within === false
-                      ? theme.colors.error
-                      : theme.colors.success
-                  }
-                />
+                <View
+                  style={[
+                    styles.cardIconWrap,
+                    previewGeofenceStatus?.within === false && styles.cardIconWrapDanger,
+                    previewGeofenceStatus?.within === true && styles.cardIconWrapSuccess,
+                  ]}>
+                  <MaterialCommunityIcons
+                    name={
+                      previewGeofenceStatus?.within === false
+                        ? 'map-marker-alert-outline'
+                        : 'map-marker-check-outline'
+                    }
+                    size={20}
+                    color={
+                      previewGeofenceStatus?.within === false
+                        ? theme.colors.error
+                        : theme.colors.success
+                    }
+                  />
+                </View>
                 <Text style={styles.geofenceTitle}>
                   {previewGeofenceStatus?.within === false
                     ? 'You are outside the office area'
@@ -564,11 +588,13 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
           {!geofenceApplies ? (
             <View style={styles.locationCard}>
               <View style={styles.geofenceHeader}>
-                <MaterialCommunityIcons
-                  name="map-marker-outline"
-                  size={20}
-                  color={theme.colors.primary}
-                />
+                <View style={styles.cardIconWrap}>
+                  <MaterialCommunityIcons
+                    name="map-marker-outline"
+                    size={20}
+                    color={theme.colors.primaryDark}
+                  />
+                </View>
                 <Text style={styles.geofenceTitle}>Current Location</Text>
               </View>
               {previewLocation ? (
@@ -648,7 +674,7 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
             />
           ) : null}
 
-          <View style={styles.actions}>
+          <View style={styles.actionsCard}>
             <AppButton
               title={actionLoading ? 'Detecting Location...' : 'Check In'}
               onPress={handleCheckIn}
@@ -709,19 +735,46 @@ export default function AttendanceScreen({ embedded = false }: AttendanceScreenP
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#F6F7F9',
   },
   content: {
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.xxl,
+    gap: theme.spacing.md,
+  },
+  cardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: theme.radii.md + 2,
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardIconWrapInfo: {
+    backgroundColor: theme.colors.infoLight,
+  },
+  cardIconWrapSuccess: {
+    backgroundColor: theme.colors.successLight,
+  },
+  cardIconWrapDanger: {
+    backgroundColor: theme.colors.errorLight,
   },
   officeHoursCard: {
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
+    borderRadius: theme.radii.xl,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(0,0,0,0.05)',
+    ...theme.shadows.card,
+  },
+  officeHoursRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  officeHoursTextBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   officeHoursTitle: {
     fontSize: theme.fonts.sizes.sm,
@@ -730,33 +783,34 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   officeHoursText: {
-    fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.primary,
+    fontSize: theme.fonts.sizes.lg,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.accent,
+    letterSpacing: 0.2,
   },
   geofenceCard: {
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
+    borderRadius: theme.radii.xl,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(0,0,0,0.05)',
+    ...theme.shadows.card,
   },
   geofenceCardInside: {
-    borderColor: theme.colors.success,
-    backgroundColor: theme.colors.successLight,
+    borderColor: 'rgba(40, 167, 69, 0.35)',
+    backgroundColor: '#F8FFF9',
   },
   geofenceCardOutside: {
-    borderColor: theme.colors.error,
-    backgroundColor: theme.colors.errorLight,
+    borderColor: 'rgba(220, 53, 69, 0.35)',
+    backgroundColor: '#FFF8F8',
   },
   locationCard: {
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
+    borderRadius: theme.radii.xl,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(0,0,0,0.05)',
+    ...theme.shadows.card,
   },
   geofenceHeader: {
     flexDirection: 'row',
@@ -766,8 +820,8 @@ const styles = StyleSheet.create({
   },
   geofenceTitle: {
     flex: 1,
-    fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.semibold,
+    fontSize: theme.fonts.sizes.md,
+    fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
   },
   geofenceMeta: {
@@ -809,16 +863,15 @@ const styles = StyleSheet.create({
   },
   wfhCard: {
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
+    borderRadius: theme.radii.xl,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(0,0,0,0.05)',
     ...theme.shadows.card,
   },
   wfhCardActive: {
-    borderColor: theme.colors.info,
-    backgroundColor: theme.colors.infoLight,
+    borderColor: 'rgba(0, 123, 255, 0.35)',
+    backgroundColor: '#F5FAFF',
   },
   wfhHeader: {
     flexDirection: 'row',
@@ -847,33 +900,41 @@ const styles = StyleSheet.create({
   },
   statusCard: {
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
+    borderRadius: theme.radii.xl,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
     ...theme.shadows.card,
   },
   statusLabel: {
     fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.semibold,
+    fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
   },
-  actions: {
-    marginTop: theme.spacing.md,
+  actionsCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    ...theme.shadows.card,
+    gap: theme.spacing.sm,
   },
   button: {
-    marginBottom: theme.spacing.sm,
+    marginBottom: 0,
   },
   recordingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
     backgroundColor: theme.colors.successLight,
-    borderRadius: theme.radii.md,
-    padding: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(40, 167, 69, 0.2)',
   },
   recordingText: {
     flex: 1,
@@ -886,9 +947,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: theme.spacing.sm,
     backgroundColor: theme.colors.warningLight,
-    borderRadius: theme.radii.md,
-    padding: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 152, 0, 0.25)',
   },
   breakText: {
     flex: 1,

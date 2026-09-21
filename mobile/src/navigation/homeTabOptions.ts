@@ -1,5 +1,6 @@
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { EventArg, ParamListBase } from '@react-navigation/native';
+import { scheduleFabricSafeNavigation } from './fabricSafeNavigation';
 
 type TabNavigation = BottomTabNavigationProp<ParamListBase>;
 
@@ -9,7 +10,9 @@ export const homeTabScreenOptions = {
   listeners: ({ navigation }: { navigation: TabNavigation }) => ({
     tabPress: (e: EventArg<'tabPress', true>) => {
       e.preventDefault();
-      navigation.navigate('Home', { screen: 'Dashboard' });
+      scheduleFabricSafeNavigation(() => {
+        navigation.navigate('Home', { screen: 'Dashboard' });
+      });
     },
   }),
 };

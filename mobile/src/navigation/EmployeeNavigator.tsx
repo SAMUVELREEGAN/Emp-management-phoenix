@@ -11,7 +11,7 @@ import type {
   EmployeeTasksStackParamList,
   ProfileStackParamList,
 } from './types';
-import { createTabBarScreenOptions } from '../constants/tabBarOptions';
+import { createFloatingTabBar, createTabBarScreenOptions } from '../constants/tabBarOptions';
 import EmployeeDashboardScreen from '../screens/employee/EmployeeDashboardScreen';
 import AttendanceScreen from '../screens/employee/AttendanceScreen';
 import AttendanceHistoryScreen from '../screens/employee/AttendanceHistoryScreen';
@@ -38,6 +38,7 @@ import { ChatStackNavigator } from './ChatStackNavigator';
 import { EmployeePayrollStackNavigator } from './EmployeePayrollStackNavigator';
 import { homeTabScreenOptions } from './homeTabOptions';
 import { moreTabScreenOptions } from './moreTabOptions';
+import { moreStackScreenOptions } from './moreStackOptions';
 import { useHourlyReportReminder } from '../hooks/useHourlyReportReminder';
 
 const Tab = createBottomTabNavigator<EmployeeTabParamList>();
@@ -123,7 +124,7 @@ function HomeStackNavigator() {
 
 function MoreStackNavigator() {
   return (
-    <MoreStack.Navigator screenOptions={stackScreenOptions} initialRouteName="MoreHub">
+    <MoreStack.Navigator screenOptions={moreStackScreenOptions} initialRouteName="MoreHub">
       <MoreStack.Screen name="MoreHub" component={MoreHubScreen} />
       <MoreStack.Screen name="AiAssistant" component={AiAssistantScreen} />
       <MoreStack.Screen name="Tasks" component={TasksStackNavigator} />
@@ -147,7 +148,10 @@ export function EmployeeNavigator() {
   useHourlyReportReminder();
 
   return (
-    <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(employeeTabIcons)}>
+    <Tab.Navigator
+      detachInactiveScreens={false}
+      tabBar={createFloatingTabBar(employeeTabIcons)}
+      screenOptions={createTabBarScreenOptions()}>
       <Tab.Screen name="Home" component={HomeStackNavigator} options={homeTabScreenOptions} />
       <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />
       <Tab.Screen name="Chat" component={ChatStackNavigator} options={{ title: 'Chat' }} />

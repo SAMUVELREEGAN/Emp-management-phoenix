@@ -11,7 +11,7 @@ import type {
   HrTabParamList,
   ProfileStackParamList,
 } from './types';
-import { createTabBarScreenOptions } from '../constants/tabBarOptions';
+import { createFloatingTabBar, createTabBarScreenOptions } from '../constants/tabBarOptions';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import EmployeeListScreen from '../screens/admin/EmployeeListScreen';
 import EmployeeDetailScreen from '../screens/admin/EmployeeDetailScreen';
@@ -34,6 +34,7 @@ import { ShiftsStackNavigator } from './ShiftsStackNavigator';
 import { PayrollStackNavigator } from './PayrollStackNavigator';
 import { homeTabScreenOptions } from './homeTabOptions';
 import { moreTabScreenOptions } from './moreTabOptions';
+import { moreStackScreenOptions } from './moreStackOptions';
 
 const Tab = createBottomTabNavigator<HrTabParamList>();
 const HomeStack = createNativeStackNavigator<HrHomeStackParamList>();
@@ -114,7 +115,7 @@ function HomeStackNavigator() {
 
 function MoreStackNavigator() {
   return (
-    <MoreStack.Navigator screenOptions={stackScreenOptions} initialRouteName="MoreHub">
+    <MoreStack.Navigator screenOptions={moreStackScreenOptions} initialRouteName="MoreHub">
       <MoreStack.Screen name="MoreHub" component={MoreHubScreen} />
       <MoreStack.Screen name="AiAssistant" component={AiAssistantScreen} />
       <MoreStack.Screen name="Leave" component={LeaveStackNavigator} />
@@ -137,7 +138,10 @@ const hrTabIcons = {
 
 export function HrNavigator() {
   return (
-    <Tab.Navigator detachInactiveScreens={false} screenOptions={createTabBarScreenOptions(hrTabIcons)}>
+    <Tab.Navigator
+      detachInactiveScreens={false}
+      tabBar={createFloatingTabBar(hrTabIcons)}
+      screenOptions={createTabBarScreenOptions()}>
       <Tab.Screen name="Home" component={HomeStackNavigator} options={homeTabScreenOptions} />
       <Tab.Screen name="Employees" component={EmployeesStackNavigator} />
       <Tab.Screen name="Attendance" component={AttendanceStackNavigator} />

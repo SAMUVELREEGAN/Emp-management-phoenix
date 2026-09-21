@@ -1,5 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -8,7 +15,6 @@ import {
   EmptyState,
   ErrorMessage,
   LoadingIndicator,
-  StatusBadge,
 } from '../../components';
 import { theme } from '../../constants/theme';
 import { routeApi } from '../../api/routeApi';
@@ -17,6 +23,18 @@ import { formatDateTime } from '../../utils/dates';
 import type { TrackableEmployee } from '../../types';
 import type { AdminTrackStackParamList } from '../../navigation/types';
 import { useQuickAccessBack } from '../../navigation/safeStackBack';
+
+const AVATAR_PALETTE = [
+  { bg: '#FFF3CD', text: '#7A5C00' },
+  { bg: '#E8F4FD', text: '#1565C0' },
+  { bg: '#E8F5E9', text: '#2E7D32' },
+  { bg: '#F3E5F5', text: '#6A1B9A' },
+];
+
+function avatarColors(name: string) {
+  const code = name.charCodeAt(0) || 0;
+  return AVATAR_PALETTE[code % AVATAR_PALETTE.length];
+}
 
 export default function TrackEmployeesScreen() {
   const navigation =
@@ -108,82 +126,186 @@ function TrackEmployeeRow({
   item: TrackableEmployee;
   onPress: () => void;
 }) {
+  const colors = avatarColors(item.employee.fullName);
+  const statusLine =
+    item.isLive && item.lastRecordedAt
+      ? `Updated ${formatDateTime(item.lastRecordedAt)} • ${item.pointCount} points`
+      : 'Not checked in today';
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, item.isLive && styles.cardLive]}>
+      {item.isLive ? <View style={styles.liveStripe} /> : null}
+
       <View style={styles.cardHeader}>
-        <View style={styles.nameWrap}>
-          <MaterialCommunityIcons
-            name="account-outline"
-            size={22}
-            color={theme.colors.primary}
-          />
-          <View style={styles.nameTextWrap}>
-            <Text style={styles.name}>{item.employee.fullName}</Text>
-            <Text style={styles.meta}>{item.employee.employeeId}</Text>
-          </View>
+        <View style={[styles.avatar, { backgroundColor: colors.bg }]}>
+          <Text style={[styles.avatarText, { color: colors.text }]}>
+            {item.employee.fullName.charAt(0).toUpperCase()}
+          </Text>
         </View>
-        {item.isLive ? <StatusBadge status="active" label="LIVE" /> : null}
+        <View style={styles.nameTextWrap}>
+          <Text style={styles.name}>{item.employee.fullName}</Text>
+          <Text style={styles.employeeId}>{item.employee.employeeId}</Text>
+        </View>
+        {item.isLive ? (
+          <View style={styles.livePill}>
+            <View style={styles.liveDot} />
+            <Text style={styles.livePillText}>LIVE</Text>
+          </View>
+        ) : null}
       </View>
+
       {item.isLive && item.lastAddress ? (
-        <Text style={styles.location} numberOfLines={2}>
-          Last seen: {item.lastAddress}
-        </Text>
+        <View style={styles.infoRow}>
+          <MaterialCommunityIcons name="map-marker-outline" size={16} color={theme.colors.textMuted} />
+          <Text style={styles.location} numberOfLines={2}>
+            Last seen: {item.lastAddress}
+          </Text>
+        </View>
       ) : null}
-      {item.isLive && item.lastRecordedAt ? (
-        <Text style={styles.meta}>
-          Updated {formatDateTime(item.lastRecordedAt)} • {item.pointCount} points
-        </Text>
-      ) : (
-        <Text style={styles.meta}>Not checked in today</Text>
-      )}
-      <Text style={styles.link} onPress={onPress}>
-        View route & history →
-      </Text>
+
+      <View style={styles.infoRow}>
+        <MaterialCommunityIcons name="clock-outline" size={16} color={theme.colors.textMuted} />
+        <Text style={styles.meta}>{statusLine}</Text>
+      </View>
+
+      <Pressable
+        style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+        onPress={onPress}
+        accessibilityRole="button">
+        <Text style={styles.actionText}>View route & history →</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.surface },
-  center: { flex: 1, padding: theme.spacing.md },
-  list: { padding: theme.spacing.md, flexGrow: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#F6F7F9',
+  },
+  center: {
+    flex: 1,
+    padding: theme.spacing.md,
+  },
+  list: {
+    padding: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl,
+    flexGrow: 1,
+    gap: theme.spacing.md,
+  },
   card: {
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(0,0,0,0.06)',
+    overflow: 'hidden',
     ...theme.shadows.card,
+  },
+  cardLive: {
+    borderColor: 'rgba(40, 167, 69, 0.25)',
+  },
+  liveStripe: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: theme.colors.success,
+    borderTopLeftRadius: theme.radii.xl,
+    borderBottomLeftRadius: theme.radii.xl,
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: theme.spacing.sm,
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
-  nameWrap: { flexDirection: 'row', gap: theme.spacing.sm, flex: 1 },
-  nameTextWrap: { flex: 1 },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: theme.fonts.sizes.lg,
+    fontWeight: theme.fonts.weights.bold,
+  },
+  nameTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
   name: {
     fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.semibold,
+    fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
   },
-  meta: {
+  employeeId: {
     fontSize: theme.fonts.sizes.xs,
     color: theme.colors.textMuted,
     marginTop: 2,
+    fontWeight: theme.fonts.weights.medium,
+  },
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.colors.successLight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: theme.radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(40, 167, 69, 0.35)',
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: theme.colors.success,
+  },
+  livePillText: {
+    fontSize: 10,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.success,
+    letterSpacing: 0.6,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
   },
   location: {
+    flex: 1,
     fontSize: theme.fonts.sizes.sm,
     color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.xs,
+    lineHeight: 20,
+  },
+  meta: {
+    flex: 1,
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.textMuted,
     lineHeight: 18,
   },
-  link: {
+  actionBtn: {
     marginTop: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radii.lg,
+    paddingVertical: theme.spacing.sm + 4,
+    paddingHorizontal: theme.spacing.md,
+  },
+  actionBtnPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
+  },
+  actionText: {
     fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.primary,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.accent,
   },
 });

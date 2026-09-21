@@ -4,9 +4,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 import {
-  AttendanceCard,
   DashboardHeader,
-  DashboardMiniStat,
+  DashboardTeamStatsPanel,
   ErrorMessage,
   LiveTrackingCard,
   LoadingIndicator,
@@ -71,7 +70,8 @@ export default function AdminDashboardScreen() {
 
   const summary = data?.summary;
   const employeeSummary = summary?.employees;
-  const welcomeLabel = isHr ? 'HR' : 'Admin';
+  const firstName = user?.fullName?.split(' ')[0] || (isHr ? 'HR' : 'Admin');
+  const dashboardRole = isHr ? 'hr' : 'admin';
 
   const openQuickAccess = useCallback(
     (screen: 'Tasks' | 'Leave' | 'Track' | 'Reports' | 'Shifts' | 'Payroll' | 'Notifications' | 'Profile') => {
@@ -207,7 +207,8 @@ export default function AdminDashboardScreen() {
   return (
     <View style={styles.container}>
       <DashboardHeader
-        welcomeName={welcomeLabel}
+        welcomeName={firstName}
+        role={dashboardRole}
         unreadCount={unreadCount}
         onMenuPress={() => openQuickAccess('Profile')}
         onNotificationsPress={() => openQuickAccess('Notifications')}
@@ -228,39 +229,46 @@ export default function AdminDashboardScreen() {
           }>
           {error ? <ErrorMessage message={error} onRetry={() => fetchDashboard()} /> : null}
 
-          <View style={styles.statsRow}>
-            <DashboardMiniStat
-              label="Employees"
-              value={employeeCount}
-              icon="account-group"
-              color={theme.colors.info}
-              iconBg={theme.colors.infoLight}
-            />
-            <DashboardMiniStat
-              label="Present"
-              value={employeeSummary?.present ?? summary?.presentToday ?? 0}
-              icon="calendar-check"
-              color={theme.colors.success}
-              iconBg={theme.colors.successLight}
-            />
-            <DashboardMiniStat
-              label="Late"
-              value={employeeSummary?.late ?? summary?.lateToday ?? 0}
-              icon="clock-alert-outline"
-              color={theme.colors.warning}
-              iconBg={theme.colors.warningLight}
-            />
-            <DashboardMiniStat
-              label="Absent"
-              value={employeeSummary?.absent ?? summary?.absentToday ?? 0}
-              icon="account-remove-outline"
-              color={theme.colors.error}
-              iconBg={theme.colors.errorLight}
-            />
-          </View>
+          <DashboardTeamStatsPanel
+            headline={{
+              label: 'Employees',
+              value: employeeCount,
+              icon: 'account-group',
+              color: theme.colors.info,
+              iconBg: theme.colors.infoLight,
+            }}
+            metrics={[
+              {
+                label: 'Present',
+                value: employeeSummary?.present ?? summary?.presentToday ?? 0,
+                icon: 'calendar-check',
+                color: theme.colors.success,
+                iconBg: theme.colors.successLight,
+                accentColor: theme.colors.success,
+              },
+              {
+                label: 'Late',
+                value: employeeSummary?.late ?? summary?.lateToday ?? 0,
+                icon: 'clock-alert-outline',
+                color: theme.colors.warning,
+                iconBg: theme.colors.warningLight,
+                accentColor: theme.colors.warning,
+              },
+              {
+                label: 'Absent',
+                value: employeeSummary?.absent ?? summary?.absentToday ?? 0,
+                icon: 'account-remove-outline',
+                color: theme.colors.error,
+                iconBg: theme.colors.errorLight,
+                accentColor: theme.colors.error,
+              },
+            ]}
+          />
 
           {!isHr ? (
-            <LiveTrackingCard onPress={() => openQuickAccess('Track')} />
+            <View style={styles.liveTrackingWrap}>
+              <LiveTrackingCard onPress={() => openQuickAccess('Track')} />
+            </View>
           ) : null}
 
           <QuickAccessGrid items={quickAccessItems} />
@@ -283,22 +291,6 @@ export default function AdminDashboardScreen() {
               onSaved={bumpSettingsRefresh}
             />
           ) : null}
-
-          <Text style={styles.sectionTitle}>Recent Attendance</Text>
-          {data?.recentAttendance.length ? (
-            data.recentAttendance.map(item => (
-              <AttendanceCard
-                key={item._id}
-                attendance={item}
-                showEmployee
-                officeStartTime={data.officeHours?.officeStartTime}
-              />
-            ))
-          ) : (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>No attendance records today</Text>
-            </View>
-          )}
 
           <Text style={styles.sectionTitle}>Recent Reports</Text>
           {data?.recentReports.length ? (
@@ -324,10 +316,8 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.xxl,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginTop: -theme.spacing.sm,
+  liveTrackingWrap: {
+    marginBottom: theme.spacing.xs,
   },
   sectionTitle: {
     fontSize: theme.fonts.sizes.md,

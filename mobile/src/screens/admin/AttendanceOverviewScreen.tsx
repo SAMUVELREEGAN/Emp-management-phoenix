@@ -12,18 +12,20 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   AppHeader,
-  AttendanceCard,
   AttendanceExportModal,
-  DatePickerField,
+  AttendanceOverviewListItem,
+  EmployeeAttendanceFilterBar,
   EmptyState,
   ErrorMessage,
   LoadingIndicator,
   StaffRoleTabs,
   StatCard,
+  type EmployeeFilterValue,
   type StaffRoleTab,
 } from '../../components';
 import { theme } from '../../constants/theme';
 import { attendanceApi } from '../../api/attendanceApi';
+import { employeeApi } from '../../api/employeeApi';
 import { settingsApi } from '../../api/settingsApi';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
@@ -35,6 +37,7 @@ import type {
   AttendanceBreakdownCategory,
   AttendanceRoleSummary,
   AttendanceSummary,
+  User,
 } from '../../types';
 import type {
   AdminAttendanceStackParamList,
@@ -89,7 +92,7 @@ function RoleSummaryCards({
       : undefined;
 
   return (
-    <View style={styles.summaryBlock}>
+    <View style={styles.summaryCard}>
       <View style={styles.statsRow}>
         <StatCard
           title="Present"
@@ -137,13 +140,15 @@ interface AttendanceOverviewScreenProps {
   embedded?: boolean;
   fixedRole?: StaffRoleTab;
   enableDateFilter?: boolean;
+  enableEmployeeFilter?: boolean;
   enableExport?: boolean;
 }
 
 export default function AttendanceOverviewScreen({
   embedded = false,
   fixedRole,
-  enableDateFilter = false,
+  enableDateFilter = true,
+  enableEmployeeFilter = true,
   enableExport = false,
 }: AttendanceOverviewScreenProps) {
   const navigation = useNavigation<NativeStackNavigationProp<AttendanceOverviewStack>>();
@@ -156,6 +161,9 @@ export default function AttendanceOverviewScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [selectedDate, setSelectedDate] = useState(toDateInputValue());
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<EmployeeFilterValue>('all');
+  const [employees, setEmployees] = useState<User[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [officeStartTime, setOfficeStartTime] = useState<string | undefined>();
@@ -166,6 +174,7 @@ export default function AttendanceOverviewScreen({
     setLoading(false);
     setRefreshing(false);
     setSelectedCategory('all');
+    setSelectedEmployeeId('all');
   }, []);
 
   const { showBack, handleBack, leavingRef, isLeaving } = useQuickAccessBack({
@@ -174,8 +183,43 @@ export default function AttendanceOverviewScreen({
   });
   const showRoleTabs = !embedded && !fixedRole;
   const interactiveStats = enableDateFilter;
+  const showEmployeeFilter = enableDateFilter && enableEmployeeFilter;
 
   const activeSummary = staffTab === 'employee' ? summary?.employees : summary?.hr;
+
+  const fetchEmployees = useCallback(async (roleTab: StaffRoleTab) => {
+    if (!showEmployeeFilter) {
+      return;
+    }
+    setLoadingEmployees(true);
+    try {
+      const response = await employeeApi.list({
+        page: 1,
+        limit: 200,
+        role: roleTab,
+        status: 'active',
+      });
+      setEmployees(response.data.items);
+    } catch {
+      setEmployees([]);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  }, [showEmployeeFilter]);
+
+  useEffect(() => {
+    void fetchEmployees(staffTab);
+  }, [fetchEmployees, staffTab]);
+
+  const filterByEmployee = useCallback(
+    (items: Attendance[], employeeId: EmployeeFilterValue) => {
+      if (employeeId === 'all') {
+        return items;
+      }
+      return items.filter(item => getEmployeeId(item) === employeeId);
+    },
+    [],
+  );
 
   const fetchData = useCallback(
     async (
@@ -183,6 +227,7 @@ export default function AttendanceOverviewScreen({
       roleTab: StaffRoleTab = staffTab,
       dateValue: string = selectedDate,
       category: CategoryFilter = selectedCategory,
+      employeeId: EmployeeFilterValue = selectedEmployeeId,
     ) => {
       if (leavingRef.current) {
         return;
@@ -205,15 +250,16 @@ export default function AttendanceOverviewScreen({
             role: roleTab,
             category,
           });
-          listItems = breakdownResponse.data.items;
+          listItems = filterByEmployee(breakdownResponse.data.items, employeeId);
         } else {
           const listParams = {
             page: 1,
-            limit: 50,
+            limit: 100,
             role: roleTab,
             ...(enableDateFilter
               ? { fromDate: dateValue, toDate: dateValue }
               : {}),
+            ...(employeeId !== 'all' ? { employeeId } : {}),
           };
           const listResponse = await attendanceApi.list(listParams);
           listItems = listResponse.data.items;
@@ -234,17 +280,17 @@ export default function AttendanceOverviewScreen({
         }
       }
     },
-    [enableDateFilter, selectedCategory, selectedDate, staffTab],
+    [enableDateFilter, filterByEmployee, selectedCategory, selectedDate, selectedEmployeeId, staffTab],
   );
 
   useEffect(() => {
-    fetchData(false, staffTab, selectedDate, selectedCategory);
-  }, [staffTab, selectedDate, selectedCategory, fetchData]);
+    fetchData(false, staffTab, selectedDate, selectedCategory, selectedEmployeeId);
+  }, [staffTab, selectedDate, selectedCategory, selectedEmployeeId, fetchData]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchData(false, staffTab, selectedDate, selectedCategory);
-    }, [fetchData, staffTab, selectedDate, selectedCategory]),
+      fetchData(false, staffTab, selectedDate, selectedCategory, selectedEmployeeId);
+    }, [fetchData, staffTab, selectedDate, selectedCategory, selectedEmployeeId]),
   );
 
   useEffect(() => {
@@ -299,10 +345,14 @@ export default function AttendanceOverviewScreen({
 
   const tabLabel = staffTab === 'employee' ? 'Employee' : 'HR';
 
+  const selectedEmployee = employees.find(item => item._id === selectedEmployeeId);
+
   const listTitle =
     selectedCategory !== 'all'
       ? `${CATEGORY_LABELS[selectedCategory]} ${tabLabel}s (${records.length})`
-      : `${tabLabel} Records${enableDateFilter ? ` (${formatDate(selectedDate)})` : ''}`;
+      : selectedEmployeeId !== 'all' && selectedEmployee
+        ? `${selectedEmployee.fullName} • ${formatDate(selectedDate)}`
+        : `${tabLabel} Records • ${formatDate(selectedDate)}`;
 
   const emptyMessage =
     selectedCategory === 'absent' && isWeeklyHoliday(selectedDate)
@@ -330,27 +380,36 @@ export default function AttendanceOverviewScreen({
           onChange={tab => {
             setStaffTab(tab);
             setSelectedCategory('all');
+            setSelectedEmployeeId('all');
           }}
         />
       ) : null}
 
       {enableDateFilter ? (
-        <View style={styles.dateFilterWrap}>
-          <DatePickerField
-            label="Select Date"
-            value={selectedDate}
-            onChange={date => {
-              setSelectedDate(date);
-              setSelectedCategory('all');
-            }}
-          />
+        <View style={styles.filtersSection}>
+          {showEmployeeFilter ? (
+            <EmployeeAttendanceFilterBar
+              selectedDate={selectedDate}
+              onDateChange={date => {
+                setSelectedDate(date);
+                setSelectedCategory('all');
+              }}
+              selectedEmployeeId={selectedEmployeeId}
+              onEmployeeChange={employeeId => {
+                setSelectedEmployeeId(employeeId);
+                setSelectedCategory('all');
+              }}
+              employees={employees}
+              loadingEmployees={loadingEmployees}
+            />
+          ) : null}
           {enableExport ? (
             <Pressable
               style={styles.exportButton}
               onPress={() => setExportModalVisible(true)}
               accessibilityRole="button"
               accessibilityLabel="Export attendance report">
-              <MaterialCommunityIcons name="file-export-outline" size={20} color={theme.colors.white} />
+              <MaterialCommunityIcons name="file-export-outline" size={20} color={theme.colors.text} />
               <Text style={styles.exportButtonText}>Export Excel</Text>
             </Pressable>
           ) : null}
@@ -380,10 +439,10 @@ export default function AttendanceOverviewScreen({
           }
           ListHeaderComponent={
             <View style={styles.summary}>
-              <Text style={styles.sectionTitle}>
-                {tabLabel} Attendance Summary
-                {enableDateFilter ? ` • ${formatDate(selectedDate)}` : ''}
-              </Text>
+              <View style={styles.summaryHeader}>
+                <Text style={styles.sectionTitle}>{tabLabel} Attendance Summary</Text>
+                <View style={styles.headerAccent} />
+              </View>
               <RoleSummaryCards
                 summary={activeSummary}
                 interactive={interactiveStats}
@@ -392,9 +451,13 @@ export default function AttendanceOverviewScreen({
               />
               <View style={styles.listTitleRow}>
                 <Text style={styles.listTitle}>{listTitle}</Text>
-                {selectedCategory !== 'all' ? (
-                  <Pressable onPress={() => setSelectedCategory('all')}>
-                    <Text style={styles.clearFilter}>Show all</Text>
+                {selectedCategory !== 'all' || selectedEmployeeId !== 'all' ? (
+                  <Pressable
+                    onPress={() => {
+                      setSelectedCategory('all');
+                      setSelectedEmployeeId('all');
+                    }}>
+                    <Text style={styles.clearFilter}>Clear filters</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -414,31 +477,12 @@ export default function AttendanceOverviewScreen({
           renderItem={({ item }) => {
             const isAbsent = item._id.startsWith('absent-');
             return (
-              <View style={styles.recordItem}>
-                <AttendanceCard
-                  attendance={item}
-                  showEmployee
-                  officeStartTime={officeStartTime}
-                  onPress={isAbsent ? undefined : () => openDetail(item._id)}
-                />
-                <Pressable
-                  style={styles.correctionButton}
-                  onPress={() => openCorrection(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    isAbsent ? 'Mark attendance for absent employee' : 'Correct attendance'
-                  }
-                >
-                  <MaterialCommunityIcons
-                    name={isAbsent ? 'account-check-outline' : 'calendar-edit'}
-                    size={18}
-                    color={theme.colors.primaryDark}
-                  />
-                  <Text style={styles.correctionButtonText}>
-                    {isAbsent ? 'Mark Attendance' : 'Correct Attendance'}
-                  </Text>
-                </Pressable>
-              </View>
+              <AttendanceOverviewListItem
+                attendance={item}
+                officeStartTime={officeStartTime}
+                onPress={isAbsent ? undefined : () => openDetail(item._id)}
+                onCorrect={() => openCorrection(item)}
+              />
             );
           }}
         />
@@ -450,9 +494,8 @@ export default function AttendanceOverviewScreen({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.surface },
   center: { flex: 1, padding: theme.spacing.md },
-  dateFilterWrap: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
+  filtersSection: {
+    paddingBottom: theme.spacing.xs,
   },
   exportButton: {
     flexDirection: 'row',
@@ -460,44 +503,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: theme.spacing.sm,
     backgroundColor: theme.colors.primary,
-    borderRadius: theme.radii.md,
-    paddingVertical: theme.spacing.sm + 2,
+    borderRadius: theme.radii.lg,
+    paddingVertical: theme.spacing.md,
+    marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
   },
   exportButtonText: {
-    color: theme.colors.white,
+    color: theme.colors.text,
     fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.semibold,
+    fontWeight: theme.fonts.weights.bold,
   },
-  list: { padding: theme.spacing.md, flexGrow: 1 },
-  recordItem: {
-    marginBottom: theme.spacing.sm,
-  },
-  correctionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.xs,
-    marginTop: -theme.spacing.xs,
-    marginBottom: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radii.md,
-    backgroundColor: theme.colors.primaryLight,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.35)',
-  },
-  correctionButtonText: {
-    fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.primaryDark,
+  list: {
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.xl,
+    flexGrow: 1,
   },
   summary: { marginBottom: theme.spacing.sm },
-  summaryBlock: { marginBottom: theme.spacing.md },
+  summaryCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.card,
+  },
+  summaryHeader: {
+    marginBottom: theme.spacing.xs,
+  },
   sectionTitle: {
     fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.semibold,
+    fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
+  },
+  headerAccent: {
+    width: 28,
+    height: 2,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.primary,
+    marginTop: theme.spacing.xs,
   },
   tapHint: {
     fontSize: theme.fonts.sizes.xs,
@@ -512,9 +556,9 @@ const styles = StyleSheet.create({
   },
   listTitle: {
     flex: 1,
-    fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.textSecondary,
+    fontSize: theme.fonts.sizes.md,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.text,
   },
   clearFilter: {
     fontSize: theme.fonts.sizes.sm,
@@ -522,5 +566,5 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     marginLeft: theme.spacing.sm,
   },
-  statsRow: { flexDirection: 'row', gap: theme.spacing.md, marginBottom: theme.spacing.sm },
+  statsRow: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.xs },
 });

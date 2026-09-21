@@ -7,6 +7,8 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', notificationController.getNotifications);
+router.post('/clear-all', notificationController.deleteAllNotifications);
+router.delete('/', notificationController.deleteAllNotifications);
 router.patch('/read-all', notificationController.markAllAsRead);
 router.patch('/:id/read', notificationController.markAsRead);
 

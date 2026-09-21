@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AppButton } from './AppButton';
 import { AppInput } from './AppInput';
 import { theme } from '../constants/theme';
@@ -71,6 +72,21 @@ export function HourlyReportReminderSettingsCard({
     }, [fetchSettings]),
   );
 
+  const remindersEnabled = settings.hourlyReportReminderEnabled !== false;
+
+  const previewText = useMemo(() => {
+    if (!remindersEnabled) {
+      return 'Reminders are turned off';
+    }
+
+    const intervalMinutes = displayValueToMinutes(intervalValue, intervalUnit);
+    if (!intervalMinutes) {
+      return 'Set a valid reminder interval';
+    }
+
+    return `Repeats every ${formatReminderIntervalLabel(intervalMinutes)}`;
+  }, [intervalUnit, intervalValue, remindersEnabled]);
+
   const handleSave = async () => {
     const intervalMinutes = displayValueToMinutes(intervalValue, intervalUnit);
     if (!intervalMinutes) {
@@ -108,12 +124,19 @@ export function HourlyReportReminderSettingsCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Hourly Report Reminder</Text>
-      <Text style={styles.subtitle}>
-        Checked-in employees receive reminders to send hourly work reports to Admin and HR.
-      </Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Hourly Report Reminder</Text>
+        <View style={styles.headerAccent} />
+      </View>
 
-      <View style={styles.toggleRow}>
+      <View style={styles.toggleCard}>
+        <View style={styles.toggleIconWrap}>
+          <MaterialCommunityIcons
+            name="bell-ring-outline"
+            size={18}
+            color={theme.colors.primary}
+          />
+        </View>
         <View style={styles.toggleText}>
           <Text style={styles.toggleLabel}>Enable reminders</Text>
           <Text style={styles.toggleHint}>
@@ -121,45 +144,59 @@ export function HourlyReportReminderSettingsCard({
           </Text>
         </View>
         <Switch
-          value={settings.hourlyReportReminderEnabled !== false}
+          value={remindersEnabled}
           onValueChange={enabled =>
             setSettings(current => ({ ...current, hourlyReportReminderEnabled: enabled }))
           }
           trackColor={{ false: theme.colors.border, true: theme.colors.primaryLight }}
-          thumbColor={
-            settings.hourlyReportReminderEnabled !== false
-              ? theme.colors.primary
-              : theme.colors.textMuted
-          }
+          thumbColor={remindersEnabled ? theme.colors.primary : theme.colors.textMuted}
         />
       </View>
 
-      <Text style={styles.intervalLabel}>Reminder interval</Text>
-      <View style={styles.intervalInputRow}>
-        <AppInput
-          label="Enter value"
-          value={intervalValue}
-          onChangeText={setIntervalValue}
-          keyboardType="decimal-pad"
-          placeholder={intervalUnit === 'hours' ? '1' : '60'}
-        />
-        <View style={styles.unitRow}>
-          {(['minutes', 'hours'] as const).map(unit => {
-            const selected = intervalUnit === unit;
-            return (
-              <Pressable
-                key={unit}
-                style={[styles.unitChip, selected && styles.unitChipSelected]}
-                onPress={() => setIntervalUnit(unit)}>
-                <Text style={[styles.unitChipText, selected && styles.unitChipTextSelected]}>
-                  {unit === 'minutes' ? 'Minutes' : 'Hours'}
-                </Text>
-              </Pressable>
-            );
-          })}
+      <View style={styles.intervalSection}>
+        <Text style={styles.intervalLabel}>Reminder interval</Text>
+        <View style={styles.intervalRow}>
+          <View style={styles.valueInputWrap}>
+            <AppInput
+              label="Enter value"
+              value={intervalValue}
+              onChangeText={setIntervalValue}
+              keyboardType="decimal-pad"
+              placeholder={intervalUnit === 'hours' ? '1' : '60'}
+            />
+          </View>
+          <View style={styles.unitRow}>
+            {(['minutes', 'hours'] as const).map(unit => {
+              const selected = intervalUnit === unit;
+              return (
+                <Pressable
+                  key={unit}
+                  style={[styles.unitChip, selected && styles.unitChipSelected]}
+                  onPress={() => setIntervalUnit(unit)}>
+                  <Text style={[styles.unitChipText, selected && styles.unitChipTextSelected]}>
+                    {unit === 'minutes' ? 'Minutes' : 'Hours'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+        <Text style={styles.intervalHint}>{getReminderIntervalHint(intervalUnit)}</Text>
+      </View>
+
+      <View style={styles.previewCard}>
+        <View style={styles.previewIconWrap}>
+          <MaterialCommunityIcons
+            name="timer-outline"
+            size={18}
+            color={theme.colors.primary}
+          />
+        </View>
+        <View style={styles.previewContent}>
+          <Text style={styles.previewLabel}>Reminder schedule</Text>
+          <Text style={styles.previewValue}>{previewText}</Text>
         </View>
       </View>
-      <Text style={styles.intervalHint}>{getReminderIntervalHint(intervalUnit)}</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -177,31 +214,47 @@ export function HourlyReportReminderSettingsCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     ...theme.shadows.card,
   },
+  header: {
+    marginBottom: theme.spacing.lg,
+  },
   title: {
-    fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.semibold,
+    fontSize: theme.fonts.sizes.lg,
+    fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    letterSpacing: -0.3,
   },
-  subtitle: {
-    fontSize: theme.fonts.sizes.sm,
-    color: theme.colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: theme.spacing.md,
+  headerAccent: {
+    width: 36,
+    height: 3,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.primary,
+    marginTop: theme.spacing.sm,
   },
-  toggleRow: {
+  toggleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    backgroundColor: '#F8FAFC',
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: '#EEF2F6',
+  },
+  toggleIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   toggleText: {
     flex: 1,
@@ -217,28 +270,34 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
+  intervalSection: {
+    marginBottom: theme.spacing.md,
+  },
   intervalLabel: {
     fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.medium,
+    fontWeight: theme.fonts.weights.semibold,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.sm,
   },
-  intervalInputRow: {
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.xs,
+  intervalRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: theme.spacing.md,
+  },
+  valueInputWrap: {
+    flex: 1,
   },
   unitRow: {
-    flexDirection: 'row',
+    width: 108,
     gap: theme.spacing.sm,
   },
   unitChip: {
-    flex: 1,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.radii.md,
+    borderRadius: theme.radii.lg,
     paddingVertical: theme.spacing.sm,
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.white,
   },
   unitChipSelected: {
     borderColor: theme.colors.primary,
@@ -250,13 +309,49 @@ const styles = StyleSheet.create({
     fontWeight: theme.fonts.weights.medium,
   },
   unitChipTextSelected: {
-    color: theme.colors.primary,
+    color: theme.colors.text,
     fontWeight: theme.fonts.weights.semibold,
   },
   intervalHint: {
     fontSize: theme.fonts.sizes.xs,
     color: theme.colors.textMuted,
-    marginBottom: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+    lineHeight: 16,
+  },
+  previewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primaryLight,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: '#FFF0B3',
+  },
+  previewIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.md,
+  },
+  previewContent: {
+    flex: 1,
+  },
+  previewLabel: {
+    fontSize: theme.fonts.sizes.xs,
+    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  previewValue: {
+    fontSize: theme.fonts.sizes.md,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.text,
   },
   error: {
     color: theme.colors.error,

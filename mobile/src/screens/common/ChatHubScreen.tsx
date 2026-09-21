@@ -13,7 +13,6 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AppHeader, ChatGroupCard, EmptyState, ErrorMessage, LoadingIndicator } from '../../components';
-import { chatTheme } from '../../constants/chatTheme';
 import { theme } from '../../constants/theme';
 import { chatApi } from '../../api/chatApi';
 import { useAuthStore } from '../../store/authStore';
@@ -27,6 +26,24 @@ interface ActiveThread {
   groupId: string;
   groupName: string;
   isTeamChat: boolean;
+}
+
+function SectionHeader({
+  title,
+  action,
+}: {
+  title: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionHeaderLeft}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <View style={styles.sectionAccent} />
+      </View>
+      {action}
+    </View>
+  );
 }
 
 export default function ChatHubScreen() {
@@ -126,6 +143,16 @@ export default function ChatHubScreen() {
     navigation.navigate('CreateChatGroup', { groupId: group._id });
   };
 
+  const newGroupButton = isAdmin ? (
+    <Pressable
+      style={styles.createBtn}
+      onPress={() => navigation.navigate('CreateChatGroup')}
+      accessibilityRole="button">
+      <MaterialCommunityIcons name="plus" size={16} color={theme.colors.text} />
+      <Text style={styles.createBtnText}>New Group</Text>
+    </Pressable>
+  ) : null;
+
   if (activeThread) {
     return (
       <ChatThreadPanel
@@ -152,8 +179,12 @@ export default function ChatHubScreen() {
             <Pressable
               onPress={() => navigation.navigate('CreateChatGroup')}
               hitSlop={8}
-              style={styles.headerAction}>
-              <MaterialCommunityIcons name="plus-circle-outline" size={26} color={theme.colors.white} />
+              style={styles.headerAction}
+              accessibilityRole="button"
+              accessibilityLabel="Create chat group">
+              <View style={styles.headerActionCircle}>
+                <MaterialCommunityIcons name="plus" size={22} color={theme.colors.text} />
+              </View>
             </Pressable>
           ) : undefined
         }
@@ -170,6 +201,7 @@ export default function ChatHubScreen() {
           data={groupChats}
           keyExtractor={item => item._id}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           removeClippedSubviews={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => fetchGroups(true)} />
@@ -177,59 +209,39 @@ export default function ChatHubScreen() {
           ListHeaderComponent={
             <View>
               <View style={styles.sectionCard}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionIconWrap}>
-                    <MaterialCommunityIcons
-                      name="account-voice"
-                      size={16}
-                      color={chatTheme.accent}
-                    />
-                  </View>
-                  <Text style={styles.sectionTitle}>Team Chat</Text>
-                </View>
+                <SectionHeader title="Team Chat" />
                 {teamChat ? (
                   <ChatGroupCard group={teamChat} onPress={() => openThread(teamChat)} />
                 ) : (
-                  <EmptyState
-                    icon="account-group-outline"
-                    title="Team chat loading"
-                    message="Pull to refresh if team chat does not appear."
-                  />
+                  <View style={styles.inlineEmpty}>
+                    <MaterialCommunityIcons
+                      name="account-group-outline"
+                      size={28}
+                      color={theme.colors.textMuted}
+                    />
+                    <Text style={styles.inlineEmptyTitle}>Team chat loading</Text>
+                    <Text style={styles.inlineEmptyText}>Pull to refresh if team chat does not appear.</Text>
+                  </View>
                 )}
               </View>
 
-              <View style={styles.sectionCard}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionIconWrap}>
-                    <MaterialCommunityIcons
-                      name="forum-outline"
-                      size={16}
-                      color={chatTheme.accent}
-                    />
-                  </View>
-                  <Text style={styles.sectionTitle}>Group Chats</Text>
-                  {isAdmin ? (
-                    <Pressable
-                      style={styles.createInlineBtn}
-                      onPress={() => navigation.navigate('CreateChatGroup')}>
-                      <MaterialCommunityIcons name="plus" size={16} color={chatTheme.ownBubble} />
-                      <Text style={styles.createInlineText}>New Group</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
+              <View style={styles.groupSectionHeader}>
+                <SectionHeader title="Group Chats" action={newGroupButton} />
               </View>
             </View>
           }
           ListEmptyComponent={
-            <EmptyState
-              icon="chat-outline"
-              title="No group chats yet"
-              message={
-                isAdmin
-                  ? 'Create a group and add employees or HR members.'
-                  : 'Your admin has not added you to a group yet.'
-              }
-            />
+            <View style={styles.emptyCard}>
+              <EmptyState
+                icon="chat-outline"
+                title="No group chats yet"
+                message={
+                  isAdmin
+                    ? 'Create a group and add employees or HR members.'
+                    : 'Your admin has not added you to a group yet.'
+                }
+              />
+            </View>
           }
           renderItem={({ item }) => (
             <ChatGroupCard
@@ -256,7 +268,7 @@ export default function ChatHubScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: chatTheme.hubBackground,
+    backgroundColor: theme.colors.surface,
   },
   center: {
     flex: 1,
@@ -265,50 +277,99 @@ const styles = StyleSheet.create({
   headerAction: {
     marginLeft: theme.spacing.sm,
   },
+  headerActionCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+  },
   list: {
-    padding: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xl,
     flexGrow: 1,
   },
   sectionCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.lg,
     marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.card,
+  },
+  groupSectionHeader: {
+    marginBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
-    paddingHorizontal: 2,
+    marginBottom: theme.spacing.md,
   },
-  sectionIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: chatTheme.ownBubble,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: chatTheme.accent,
+  sectionHeaderLeft: {
+    flex: 1,
   },
   sectionTitle: {
-    flex: 1,
-    fontSize: theme.fonts.sizes.sm,
+    fontSize: theme.fonts.sizes.lg,
     fontWeight: theme.fonts.weights.bold,
-    color: chatTheme.otherBubbleText,
-    letterSpacing: 0.4,
+    color: theme.colors.text,
+    letterSpacing: -0.3,
   },
-  createInlineBtn: {
+  sectionAccent: {
+    width: 36,
+    height: 3,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.primary,
+    marginTop: theme.spacing.sm,
+  },
+  createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: chatTheme.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
     borderRadius: theme.radii.full,
-    ...chatTheme.shadow,
+    marginTop: 2,
   },
-  createInlineText: {
+  createBtnText: {
     fontSize: theme.fonts.sizes.xs,
-    color: chatTheme.ownBubble,
+    color: theme.colors.text,
     fontWeight: theme.fonts.weights.bold,
+  },
+  inlineEmpty: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.lg,
+    gap: theme.spacing.xs,
+    backgroundColor: '#F8FAFC',
+    borderRadius: theme.radii.lg,
+    borderWidth: 1,
+    borderColor: '#EEF2F6',
+  },
+  inlineEmptyTitle: {
+    fontSize: theme.fonts.sizes.sm,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.text,
+  },
+  inlineEmptyText: {
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: theme.spacing.lg,
+  },
+  emptyCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.card,
   },
 });

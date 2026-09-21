@@ -196,6 +196,7 @@ export default function EmployeeDashboardScreen() {
     <View style={styles.container}>
       <DashboardHeader
         welcomeName={firstName}
+        role="employee"
         unreadCount={unreadCount}
         onMenuPress={() => openQuickAccess('Profile')}
         onNotificationsPress={() => openQuickAccess('Notifications')}

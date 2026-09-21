@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   AppButton,
   AppHeader,
@@ -17,6 +17,34 @@ const AUDIENCE_OPTIONS: Array<{ value: AnnouncementAudience; label: string }> = 
   { value: 'employees', label: 'Employees' },
   { value: 'hr', label: 'HR' },
 ];
+
+function AudienceSegment({
+  value,
+  onChange,
+}: {
+  value: AnnouncementAudience;
+  onChange: (value: AnnouncementAudience) => void;
+}) {
+  return (
+    <View style={styles.audienceShell}>
+      {AUDIENCE_OPTIONS.map(option => {
+        const active = value === option.value;
+        return (
+          <Pressable
+            key={option.value}
+            style={[styles.audienceTab, active && styles.audienceTabActive]}
+            onPress={() => onChange(option.value)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}>
+            <Text style={[styles.audienceTabText, active && styles.audienceTabTextActive]} numberOfLines={1}>
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 export default function AnnouncementComposeScreen() {
   const [audience, setAudience] = useState<AnnouncementAudience>('all');
@@ -64,39 +92,42 @@ export default function AnnouncementComposeScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <AppHeader
-        title="Send Announcement"
-        showBack
-        onBack={handleBack}
-      />
-      <ScrollView contentContainerStyle={styles.content}>
-        {error ? <ErrorMessage message={error} /> : null}
+    <View style={styles.container} collapsable={false}>
+      <AppHeader title="Send Announcement" showBack onBack={handleBack} />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.formCard}>
+          {error ? (
+            <View style={styles.errorWrap}>
+              <ErrorMessage message={error} />
+            </View>
+          ) : null}
 
-        <Text style={styles.label}>Send to</Text>
-        <View style={styles.audienceRow}>
-          {AUDIENCE_OPTIONS.map(option => (
-            <AppButton
-              key={option.value}
-              title={option.label}
-              variant={audience === option.value ? 'primary' : 'outline'}
-              onPress={() => setAudience(option.value)}
-              style={styles.audienceBtn}
-            />
-          ))}
+          <Text style={styles.label}>Send to</Text>
+          <AudienceSegment value={audience} onChange={setAudience} />
+
+          <AppInput
+            label="Title"
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Announcement title"
+            labelStyle={styles.fieldLabel}
+          />
+          <AppInput
+            label="Message"
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Write your announcement..."
+            multiline
+            numberOfLines={6}
+            labelStyle={styles.fieldLabel}
+            style={styles.messageInput}
+          />
+
+          <AppButton title="Send Announcement" onPress={handleSend} loading={submitting} style={styles.sendBtn} />
         </View>
-
-        <AppInput label="Title" value={title} onChangeText={setTitle} placeholder="Announcement title" />
-        <AppInput
-          label="Message"
-          value={message}
-          onChangeText={setMessage}
-          placeholder="Write your announcement..."
-          multiline
-          numberOfLines={6}
-        />
-
-        <AppButton title="Send Announcement" onPress={handleSend} loading={submitting} />
       </ScrollView>
     </View>
   );
@@ -105,23 +136,68 @@ export default function AnnouncementComposeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#F6F7F9',
   },
   content: {
+    padding: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl,
+  },
+  formCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.xl,
     padding: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    ...theme.shadows.card,
+  },
+  errorWrap: {
+    marginBottom: theme.spacing.md,
   },
   label: {
     fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.medium,
+    fontWeight: theme.fonts.weights.semibold,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.sm,
   },
-  audienceRow: {
+  fieldLabel: {
+    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.textSecondary,
+  },
+  audienceShell: {
     flexDirection: 'row',
-    gap: theme.spacing.sm,
+    gap: theme.spacing.xs,
+    backgroundColor: '#EEF0F3',
+    borderRadius: theme.radii.lg,
+    padding: 4,
     marginBottom: theme.spacing.lg,
   },
-  audienceBtn: {
+  audienceTab: {
     flex: 1,
+    paddingVertical: theme.spacing.sm + 2,
+    paddingHorizontal: theme.spacing.xs,
+    borderRadius: theme.radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  audienceTabActive: {
+    backgroundColor: theme.colors.white,
+    ...theme.shadows.card,
+  },
+  audienceTabText: {
+    fontSize: theme.fonts.sizes.sm,
+    color: theme.colors.textMuted,
+    fontWeight: theme.fonts.weights.semibold,
+  },
+  audienceTabTextActive: {
+    color: theme.colors.accent,
+  },
+  messageInput: {
+    minHeight: 148,
+    textAlignVertical: 'top',
+    paddingTop: theme.spacing.sm,
+  },
+  sendBtn: {
+    marginTop: theme.spacing.md,
   },
 });

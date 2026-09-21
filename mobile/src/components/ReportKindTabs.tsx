@@ -16,7 +16,7 @@ export function ReportKindTabs({ value, onChange, showHourly = true }: ReportKin
   }
 
   return (
-    <View style={styles.row}>
+    <View style={styles.shell}>
       <Pressable
         style={[styles.tab, value === 'daily' && styles.tabActive]}
         onPress={() => onChange('daily')}>
@@ -32,34 +32,29 @@ export function ReportKindTabs({ value, onChange, showHourly = true }: ReportKin
 }
 
 const styles = StyleSheet.create({
-  row: {
+  shell: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#EEF0F3',
+    borderRadius: theme.radii.lg,
+    padding: 4,
   },
   tab: {
     flex: 1,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm + 2,
     borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.white,
     alignItems: 'center',
   },
   tabActive: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.white,
+    ...theme.shadows.card,
   },
   tabText: {
     fontSize: theme.fonts.sizes.sm,
-    color: theme.colors.textSecondary,
-    fontWeight: theme.fonts.weights.medium,
+    color: theme.colors.textMuted,
+    fontWeight: theme.fonts.weights.semibold,
   },
   tabTextActive: {
-    color: theme.colors.primary,
-    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.accent,
   },
 });

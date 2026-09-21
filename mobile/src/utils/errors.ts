@@ -15,6 +15,10 @@ export function getErrorMessage(error: unknown, fallback = 'Something went wrong
     }
 
     if (!axiosError.response) {
+      if (__DEV__) {
+        const { API_BASE_URL } = require('../constants/config');
+        return `Cannot reach API at ${API_BASE_URL}. Check that the backend is running and your phone can access it.`;
+      }
       return 'Network error. Check your internet connection.';
     }
 

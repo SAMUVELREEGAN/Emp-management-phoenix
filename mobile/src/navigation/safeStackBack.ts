@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { BackHandler, InteractionManager } from 'react-native';
 import { CommonActions, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigationProp, ParamListBase, RouteProp } from '@react-navigation/native';
+import { scheduleFabricSafeNavigation } from './fabricSafeNavigation';
 
 type ResetRoute = {
   name: string;
@@ -74,6 +75,10 @@ function useFabricSafeBackInternal(
         return;
       }
       const resetRoutes = routesRef.current;
+      if (resetRoutes.length === 1 && navigation.canGoBack()) {
+        navigation.goBack();
+        return;
+      }
       navigation.dispatch(
         CommonActions.reset({
           index: indexRef.current ?? resetRoutes.length - 1,
@@ -166,7 +171,7 @@ export function useTabBack(
     setIsLeaving(true);
     onBeforeBackRef.current?.();
 
-    void waitForUiUnmount(delayRef.current).then(() => {
+    scheduleFabricSafeNavigation(() => {
       if (!enabledRef.current) {
         return;
       }
@@ -179,7 +184,7 @@ export function useTabBack(
         return;
       }
       tabNavigation.navigate(tabName);
-    });
+    }, delayRef.current);
   }, [tabNavigation, tabName]);
 
   useFocusEffect(

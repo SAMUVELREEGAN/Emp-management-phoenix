@@ -49,7 +49,7 @@ export default function HrAttendanceHubScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#F6F7F9',
   },
   content: {
     flex: 1,

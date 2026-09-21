@@ -7,11 +7,14 @@ import { UPLOADS_BASE_URL } from '../constants/config';
 import { formatTime } from '../utils/dates';
 import { getChatAvatarColors, getChatSenderName } from '../utils/chat';
 import type { ChatMessage } from '../types';
+import type { VoicePlaybackState } from '../hooks/useVoiceRecorder';
+import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 
 interface MessageBubbleProps {
   message: ChatMessage;
   isOwn: boolean;
-  onPlayVoice?: (uri: string) => void;
+  onPlayVoice?: (uri: string, durationSeconds?: number) => void;
+  playback?: VoicePlaybackState | null;
   showMedia?: boolean;
 }
 
@@ -29,17 +32,34 @@ function getAttachmentUrl(path?: string): string | undefined {
   return `${UPLOADS_BASE_URL}${path}`;
 }
 
-export function MessageBubble({ message, isOwn, onPlayVoice, showMedia = true }: MessageBubbleProps) {
+function isPdfAttachment(message: ChatMessage): boolean {
+  const name = message.attachmentName?.toLowerCase() || '';
+  const mime = message.attachmentMimeType?.toLowerCase() || '';
+  return mime.includes('pdf') || name.endsWith('.pdf');
+}
+
+export function MessageBubble({
+  message,
+  isOwn,
+  onPlayVoice,
+  playback,
+  showMedia = true,
+}: MessageBubbleProps) {
   const attachmentUrl = getAttachmentUrl(message.attachmentUrl);
   const senderName = getSenderName(message.sender);
   const avatarColors = getChatAvatarColors(senderName);
   const timeLabel = formatTime(message.createdAt);
+  const isPdf = message.messageType === 'file' && isPdfAttachment(message);
 
   const openAttachment = () => {
     if (attachmentUrl) {
       void Linking.openURL(attachmentUrl);
     }
   };
+
+  const voiceActive = Boolean(
+    attachmentUrl && playback?.uri && playback.uri === attachmentUrl,
+  );
 
   return (
     <View style={[styles.row, isOwn ? styles.rowOwn : styles.rowOther]}>
@@ -73,20 +93,23 @@ export function MessageBubble({ message, isOwn, onPlayVoice, showMedia = true }:
 
           {message.messageType === 'file' && attachmentUrl ? (
             <Pressable
-              style={[styles.fileCard, isOwn ? styles.fileCardOwn : styles.fileCardOther]}
+              style={[styles.fileCard, isPdf && styles.pdfCard]}
               onPress={openAttachment}>
-              <View style={[styles.fileIconWrap, isOwn && styles.fileIconWrapOwn]}>
+              <View style={[styles.fileIconWrap, isPdf ? styles.pdfIconWrap : styles.docIconWrap]}>
                 <MaterialCommunityIcons
-                  name="file-document-outline"
-                  size={22}
-                  color={isOwn ? chatTheme.ownBubbleText : chatTheme.senderName}
+                  name={isPdf ? 'file-pdf-box' : 'file-document-outline'}
+                  size={isPdf ? 28 : 24}
+                  color={isPdf ? '#FFFFFF' : chatTheme.waPlayOther}
                 />
               </View>
               <View style={styles.fileMeta}>
                 <Text
                   style={[styles.fileName, isOwn ? styles.textOwn : styles.textOther]}
                   numberOfLines={2}>
-                  {message.attachmentName || 'Attachment'}
+                  {message.attachmentName || (isPdf ? 'Document.pdf' : 'Attachment')}
+                </Text>
+                <Text style={[styles.fileSub, isOwn ? styles.captionOwn : styles.captionOther]}>
+                  {isPdf ? 'PDF • Tap to open' : 'Tap to download'}
                 </Text>
                 {message.content ? (
                   <Text style={[styles.caption, isOwn ? styles.captionOwn : styles.captionOther]}>
@@ -98,29 +121,27 @@ export function MessageBubble({ message, isOwn, onPlayVoice, showMedia = true }:
           ) : null}
 
           {message.messageType === 'voice' && attachmentUrl ? (
-            <Pressable
-              style={[styles.voiceCard, isOwn ? styles.voiceCardOwn : styles.voiceCardOther]}
-              onPress={() => onPlayVoice?.(attachmentUrl)}>
-              <MaterialCommunityIcons
-                name="play-circle"
-                size={34}
-                color={isOwn ? chatTheme.accent : chatTheme.senderName}
-              />
-              <View style={styles.fileMeta}>
-                <Text style={[styles.fileName, isOwn ? styles.textOwn : styles.textOther]}>
-                  Voice message
-                </Text>
-                {message.voiceDuration ? (
-                  <Text style={[styles.caption, isOwn ? styles.captionOwn : styles.captionOther]}>
-                    {message.voiceDuration}s
-                  </Text>
-                ) : null}
-              </View>
-            </Pressable>
+            <VoiceMessagePlayer
+              isOwn={isOwn}
+              durationSeconds={message.voiceDuration || 1}
+              attachmentUrl={attachmentUrl}
+              isActive={voiceActive}
+              isPlaying={voiceActive && Boolean(playback?.isPlaying)}
+              positionMs={voiceActive ? playback?.positionMs || 0 : 0}
+              durationMs={
+                voiceActive && playback?.durationMs
+                  ? playback.durationMs
+                  : (message.voiceDuration || 1) * 1000
+              }
+              onPress={() => onPlayVoice?.(attachmentUrl, message.voiceDuration)}
+            />
           ) : null}
 
-          <Text style={[styles.time, isOwn ? styles.timeOwn : styles.timeOther]}>{timeLabel}</Text>
+          <View style={styles.metaRow}>
+            <Text style={[styles.time, isOwn ? styles.timeOwn : styles.timeOther]}>{timeLabel}</Text>
+          </View>
         </View>
+        {isOwn ? <View style={styles.tailOwn} /> : <View style={styles.tailOther} />}
       </View>
     </View>
   );
@@ -129,8 +150,8 @@ export function MessageBubble({ message, isOwn, onPlayVoice, showMedia = true }:
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    marginBottom: theme.spacing.sm + 2,
-    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm + 2,
   },
   rowOwn: {
     justifyContent: 'flex-end',
@@ -139,54 +160,80 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: theme.spacing.sm,
-    marginTop: 2,
+    marginTop: 4,
   },
   avatarText: {
     fontWeight: theme.fonts.weights.bold,
-    fontSize: theme.fonts.sizes.sm,
+    fontSize: theme.fonts.sizes.xs,
   },
   bubbleWrap: {
-    maxWidth: '80%',
+    maxWidth: '82%',
+    position: 'relative',
   },
   bubbleWrapOwn: {
     alignItems: 'flex-end',
+    paddingRight: 6,
   },
   bubbleWrapOther: {
     alignItems: 'flex-start',
+    paddingLeft: 6,
   },
   bubble: {
-    borderRadius: 18,
-    paddingVertical: theme.spacing.sm + 2,
-    paddingHorizontal: theme.spacing.md,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     minWidth: 72,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 1.5,
+    elevation: 1,
   },
   bubbleOwn: {
     backgroundColor: chatTheme.ownBubble,
-    borderBottomRightRadius: 6,
-    ...chatTheme.shadow,
+    borderTopRightRadius: 0,
   },
   bubbleOther: {
     backgroundColor: chatTheme.otherBubble,
-    borderBottomLeftRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.04)',
-    ...chatTheme.shadow,
+    borderTopLeftRadius: 0,
+  },
+  tailOwn: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+    borderTopWidth: 8,
+    borderTopColor: chatTheme.ownBubble,
+    borderLeftWidth: 8,
+    borderLeftColor: 'transparent',
+  },
+  tailOther: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+    borderTopWidth: 8,
+    borderTopColor: chatTheme.otherBubble,
+    borderRightWidth: 8,
+    borderRightColor: 'transparent',
   },
   sender: {
     fontSize: theme.fonts.sizes.xs,
     fontWeight: theme.fonts.weights.bold,
-    color: chatTheme.senderName,
-    marginBottom: 4,
+    color: chatTheme.waPlayOther,
+    marginBottom: 2,
   },
   text: {
     fontSize: theme.fonts.sizes.md,
-    lineHeight: 22,
+    lineHeight: 21,
   },
   textOwn: {
     color: chatTheme.ownBubbleText,
@@ -197,7 +244,7 @@ const styles = StyleSheet.create({
   caption: {
     marginTop: 4,
     fontSize: theme.fonts.sizes.sm,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   captionOwn: {
     color: chatTheme.ownBubbleMeta,
@@ -205,10 +252,13 @@ const styles = StyleSheet.create({
   captionOther: {
     color: chatTheme.otherBubbleMeta,
   },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 2,
+  },
   time: {
-    marginTop: 6,
     fontSize: 10,
-    alignSelf: 'flex-end',
   },
   timeOwn: {
     color: chatTheme.ownBubbleMeta,
@@ -218,59 +268,49 @@ const styles = StyleSheet.create({
   },
   mediaBlock: {
     overflow: 'hidden',
-    borderRadius: theme.radii.md,
+    borderRadius: 6,
+    marginBottom: 2,
   },
   image: {
-    width: 228,
-    height: 168,
-    borderRadius: theme.radii.md,
+    width: 240,
+    height: 180,
+    borderRadius: 6,
     backgroundColor: chatTheme.background,
   },
   fileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
-    borderRadius: theme.radii.md,
-    padding: theme.spacing.xs,
-    minWidth: 180,
+    borderRadius: 8,
+    paddingVertical: 4,
+    minWidth: 220,
   },
-  fileCardOwn: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  fileCardOther: {
-    backgroundColor: chatTheme.hubBackground,
+  pdfCard: {
+    paddingVertical: 6,
   },
   fileIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: chatTheme.accentSoft,
   },
-  fileIconWrapOwn: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
+  pdfIconWrap: {
+    backgroundColor: '#E53935',
   },
-  voiceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    minWidth: 168,
-    borderRadius: theme.radii.md,
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-  },
-  voiceCardOwn: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  voiceCardOther: {
-    backgroundColor: chatTheme.hubBackground,
+  docIconWrap: {
+    backgroundColor: '#E7EDF2',
   },
   fileMeta: {
     flex: 1,
+    minWidth: 0,
   },
   fileName: {
     fontSize: theme.fonts.sizes.sm,
-    fontWeight: theme.fonts.weights.medium,
+    fontWeight: theme.fonts.weights.semibold,
+  },
+  fileSub: {
+    fontSize: 11,
+    marginTop: 2,
   },
 });

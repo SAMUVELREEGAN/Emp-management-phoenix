@@ -3,24 +3,42 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
+import {
+  ILLUSTRATION_HEIGHT,
+  ILLUSTRATION_WIDTH,
+  WorkingIllustration,
+} from './WorkingIllustration';
+import type { UserRole } from '../types';
 
 interface DashboardHeaderProps {
-  title?: string;
   welcomeName?: string;
+  role?: UserRole;
   unreadCount?: number;
   onMenuPress?: () => void;
   onNotificationsPress?: () => void;
 }
 
+function getWelcomeSubtitle(role: UserRole): string {
+  switch (role) {
+    case 'admin':
+      return 'Manage your team and daily operations.';
+    case 'hr':
+      return 'Review attendance, payroll, and reports.';
+    case 'employee':
+    default:
+      return 'Track your attendance and work day.';
+  }
+}
+
 export function DashboardHeader({
-  title = 'Dashboard',
   welcomeName = 'User',
+  role = 'employee',
   unreadCount = 0,
   onMenuPress,
   onNotificationsPress,
 }: DashboardHeaderProps) {
   const insets = useSafeAreaInsets();
-  const roleLabel = welcomeName.trim() || 'User';
+  const displayName = welcomeName.trim() || 'User';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + theme.spacing.sm }]}>
@@ -47,10 +65,18 @@ export function DashboardHeader({
           ) : null}
         </Pressable>
       </View>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.welcome}>
-        Welcome, {roleLabel} 👋
-      </Text>
+
+      <View style={styles.welcomeCard}>
+        <View style={styles.textColumn}>
+          <Text style={styles.welcomeTitle} numberOfLines={2}>
+            Welcome, {displayName}!
+          </Text>
+          <Text style={styles.welcomeSubtitle}>{getWelcomeSubtitle(role)}</Text>
+        </View>
+        <View style={styles.illustrationColumn}>
+          <WorkingIllustration />
+        </View>
+      </View>
     </View>
   );
 }
@@ -59,7 +85,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
   },
   topRow: {
     flexDirection: 'row',
@@ -90,14 +116,44 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: theme.fonts.weights.bold,
   },
-  title: {
+  welcomeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.lg,
+    overflow: 'hidden',
+    minHeight: ILLUSTRATION_HEIGHT + theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    paddingLeft: theme.spacing.lg,
+    paddingRight: theme.spacing.xs,
+    ...theme.shadows.card,
+  },
+  textColumn: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: theme.spacing.sm,
+    zIndex: 1,
+  },
+  welcomeTitle: {
     fontSize: theme.fonts.sizes.xl,
     fontWeight: theme.fonts.weights.bold,
-    color: theme.colors.text,
+    color: theme.colors.accent,
+    lineHeight: 28,
+    letterSpacing: -0.2,
   },
-  welcome: {
+  welcomeSubtitle: {
+    marginTop: theme.spacing.sm,
     fontSize: theme.fonts.sizes.sm,
     color: theme.colors.textSecondary,
-    marginTop: theme.spacing.xs,
+    lineHeight: 20,
+    paddingRight: theme.spacing.xs,
+  },
+  illustrationColumn: {
+    width: ILLUSTRATION_WIDTH,
+    height: ILLUSTRATION_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    backgroundColor: 'transparent',
   },
 });

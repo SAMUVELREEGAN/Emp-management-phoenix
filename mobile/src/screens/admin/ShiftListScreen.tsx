@@ -9,7 +9,6 @@ import {
   ErrorMessage,
   LoadingIndicator,
   ShiftCard,
-  StatCard,
 } from '../../components';
 import { theme } from '../../constants/theme';
 import { shiftApi } from '../../api/shiftApi';
@@ -21,6 +20,38 @@ import { useQuickAccessBack } from '../../navigation/safeStackBack';
 
 interface Props {
   embedded?: boolean;
+}
+
+function ShiftHubStatTile({
+  title,
+  value,
+  icon,
+  onPress,
+}: {
+  title: string;
+  value: number;
+  icon: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <View style={styles.statTile}>
+      <View style={styles.statIconWrap}>
+        <MaterialCommunityIcons name={icon} size={20} color={theme.colors.accent} />
+      </View>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statTitle}>{title}</Text>
+    </View>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable style={({ pressed }) => [styles.statPressable, pressed && styles.statPressed]} onPress={onPress}>
+        {content}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.statPressable}>{content}</View>;
 }
 
 export default function ShiftListScreen({ embedded = false }: Props) {
@@ -87,28 +118,37 @@ export default function ShiftListScreen({ embedded = false }: Props) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} />}
           ListHeaderComponent={
             stats ? (
-              <View>
-                <View style={styles.statsRow}>
-                  <StatCard title="Active Shifts" value={stats.totalShifts} icon="clock-outline" />
-                  <StatCard title="Assignments" value={stats.activeAssignments} icon="account-switch" />
-                  <Pressable onPress={() => navigation.navigate('ShiftChangeRequestList')}>
-                    <StatCard
-                      title="Pending Requests"
-                      value={stats.pendingChangeRequests}
-                      icon="swap-horizontal"
-                    />
-                  </Pressable>
+              <View style={styles.headerBlock}>
+                <View style={styles.statsPanel}>
+                  <ShiftHubStatTile
+                    title="Active Shifts"
+                    value={stats.totalShifts}
+                    icon="clock-outline"
+                  />
+                  <ShiftHubStatTile
+                    title="Assignments"
+                    value={stats.activeAssignments}
+                    icon="account-switch"
+                  />
+                  <ShiftHubStatTile
+                    title="Pending Requests"
+                    value={stats.pendingChangeRequests}
+                    icon="swap-horizontal"
+                    onPress={() => navigation.navigate('ShiftChangeRequestList')}
+                  />
                 </View>
                 {!embedded && role === 'admin' ? (
                   <View style={styles.adminLinks}>
                     <Pressable
-                      style={styles.adminLink}
+                      style={({ pressed }) => [styles.adminLink, styles.adminLinkPrimary, pressed && styles.linkPressed]}
                       onPress={() => navigation.navigate('ShiftChangeRequestList')}>
+                      <MaterialCommunityIcons name="swap-horizontal" size={20} color={theme.colors.accent} />
                       <Text style={styles.adminLinkText}>Review Change Requests</Text>
                     </Pressable>
                     <Pressable
-                      style={styles.adminLink}
+                      style={({ pressed }) => [styles.adminLink, pressed && styles.linkPressed]}
                       onPress={() => navigation.navigate('ShiftReportList')}>
+                      <MaterialCommunityIcons name="file-chart-outline" size={20} color={theme.colors.accent} />
                       <Text style={styles.adminLinkText}>HR Shift Reports</Text>
                     </Pressable>
                   </View>
@@ -130,23 +170,95 @@ export default function ShiftListScreen({ embedded = false }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.surface },
-  center: { flex: 1, justifyContent: 'center', padding: theme.spacing.md },
-  list: { padding: theme.spacing.md, paddingBottom: theme.spacing.xxl },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: theme.spacing.md },
-  adminLinks: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.md },
-  adminLink: {
+  container: {
     flex: 1,
+    backgroundColor: '#F6F7F9',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: theme.spacing.md,
+  },
+  list: {
+    padding: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl,
+  },
+  headerBlock: {
+    marginBottom: theme.spacing.md,
+  },
+  statsPanel: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  statPressable: {
+    flexGrow: 1,
+    flexBasis: '30%',
+    minWidth: 100,
+  },
+  statPressed: {
+    opacity: 0.94,
+  },
+  statTile: {
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.md,
+    borderRadius: theme.radii.lg,
     padding: theme.spacing.md,
     borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'flex-start',
+    ...theme.shadows.card,
+  },
+  statIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  statValue: {
+    fontSize: theme.fonts.sizes.xl,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.primaryDark,
+  },
+  statTitle: {
+    fontSize: theme.fonts.sizes.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+    fontWeight: theme.fonts.weights.medium,
+  },
+  adminLinks: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  adminLink: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.lg,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
+    borderWidth: 1,
     borderColor: theme.colors.border,
+    ...theme.shadows.card,
+  },
+  adminLinkPrimary: {
+    borderColor: 'rgba(255, 215, 0, 0.55)',
+    backgroundColor: '#FFFCF5',
+  },
+  linkPressed: {
+    opacity: 0.95,
   },
   adminLinkText: {
+    flex: 1,
     fontSize: theme.fonts.sizes.sm,
     fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.primary,
+    color: theme.colors.accent,
     textAlign: 'center',
   },
 });

@@ -17,6 +17,13 @@ const androidAudioSet = {
   AudioChannelsAndroid: 1,
 };
 
+export type VoicePlaybackState = {
+  uri: string;
+  isPlaying: boolean;
+  positionMs: number;
+  durationMs: number;
+};
+
 async function requestMicPermission(): Promise<boolean> {
   if (Platform.OS !== 'android') {
     return true;
@@ -41,9 +48,12 @@ export function useVoiceRecorder() {
   const audioRecorderPlayer = useMemo(() => new AudioRecorderPlayer(), []);
   const [isRecording, setIsRecording] = useState(false);
   const [recordDuration, setRecordDuration] = useState(0);
+  const [playback, setPlayback] = useState<VoicePlaybackState | null>(null);
   const recordPathRef = useRef('');
   const durationMsRef = useRef(0);
   const recordingRef = useRef(false);
+  const playingUriRef = useRef('');
+  const isPlayingRef = useRef(false);
 
   const cleanup = useCallback(async () => {
     try {
@@ -63,8 +73,11 @@ export function useVoiceRecorder() {
     recordingRef.current = false;
     recordPathRef.current = '';
     durationMsRef.current = 0;
+    playingUriRef.current = '';
+    isPlayingRef.current = false;
     setIsRecording(false);
     setRecordDuration(0);
+    setPlayback(null);
   }, [audioRecorderPlayer]);
 
   useEffect(() => {
@@ -131,15 +144,62 @@ export function useVoiceRecorder() {
   }, [cleanup]);
 
   const playVoice = useCallback(
-    async (uri: string) => {
+    async (uri: string, knownDurationSeconds?: number) => {
+      const normalized = normalizeFileUri(uri);
+
+      if (playingUriRef.current === normalized && isPlayingRef.current) {
+        await audioRecorderPlayer.pausePlayer();
+        isPlayingRef.current = false;
+        setPlayback(current =>
+          current ? { ...current, isPlaying: false } : current,
+        );
+        return;
+      }
+
+      if (playingUriRef.current === normalized && !isPlayingRef.current) {
+        await audioRecorderPlayer.resumePlayer();
+        isPlayingRef.current = true;
+        setPlayback(current =>
+          current ? { ...current, isPlaying: true } : current,
+        );
+        return;
+      }
+
       await audioRecorderPlayer.stopPlayer();
       audioRecorderPlayer.removePlayBackListener();
-      await audioRecorderPlayer.startPlayer(uri);
+
+      playingUriRef.current = normalized;
+      isPlayingRef.current = true;
+      const fallbackDurationMs = (knownDurationSeconds || 1) * 1000;
+
+      setPlayback({
+        uri: normalized,
+        isPlaying: true,
+        positionMs: 0,
+        durationMs: fallbackDurationMs,
+      });
+
+      await audioRecorderPlayer.startPlayer(normalized);
       audioRecorderPlayer.addPlayBackListener(meta => {
-        if (meta.isFinished || (meta.duration > 0 && meta.currentPosition >= meta.duration)) {
+        const durationMs = meta.duration > 0 ? meta.duration : fallbackDurationMs;
+        const finished =
+          meta.isFinished || (durationMs > 0 && meta.currentPosition >= durationMs);
+
+        if (finished) {
           void audioRecorderPlayer.stopPlayer();
           audioRecorderPlayer.removePlayBackListener();
+          playingUriRef.current = '';
+          isPlayingRef.current = false;
+          setPlayback(null);
+          return;
         }
+
+        setPlayback({
+          uri: normalized,
+          isPlaying: true,
+          positionMs: meta.currentPosition,
+          durationMs,
+        });
       });
     },
     [audioRecorderPlayer],
@@ -148,11 +208,15 @@ export function useVoiceRecorder() {
   const stopPlayback = useCallback(async () => {
     await audioRecorderPlayer.stopPlayer();
     audioRecorderPlayer.removePlayBackListener();
+    playingUriRef.current = '';
+    isPlayingRef.current = false;
+    setPlayback(null);
   }, [audioRecorderPlayer]);
 
   return {
     isRecording,
     recordDuration,
+    playback,
     startRecording,
     stopRecording,
     cancelRecording,
@@ -160,4 +224,4 @@ export function useVoiceRecorder() {
     stopPlayback,
     cleanup,
   };
-}
+};

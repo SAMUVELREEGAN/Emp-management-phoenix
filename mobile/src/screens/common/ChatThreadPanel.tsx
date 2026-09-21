@@ -10,7 +10,16 @@ import {
 } from 'react-native';
 import { launchImageLibrary, type ImagePickerResponse } from 'react-native-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
-import { AppHeader, ChatInputBar, EmptyState, ErrorMessage, LoadingIndicator, MessageBubble } from '../../components';
+import {
+  AppHeader,
+  ChatAttachmentSheet,
+  ChatInputBar,
+  EmptyState,
+  ErrorMessage,
+  LoadingIndicator,
+  MessageBubble,
+} from '../../components';
+import { pickChatDocument } from '../../utils/pickChatDocument';
 import { chatTheme } from '../../constants/chatTheme';
 import { theme } from '../../constants/theme';
 import { chatApi } from '../../api/chatApi';
@@ -34,11 +43,13 @@ export function ChatThreadPanel({ groupId, groupName, isTeamChat, onBack }: Chat
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [draft, setDraft] = useState('');
+  const [attachSheetVisible, setAttachSheetVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const activeRef = useRef(true);
   const {
     isRecording,
     recordDuration,
+    playback,
     startRecording,
     stopRecording,
     cancelRecording,
@@ -170,22 +181,34 @@ export function ChatThreadPanel({ groupId, groupName, isTeamChat, onBack }: Chat
     });
   };
 
-  const handlePickAttachment = () => {
-    launchImageLibrary({ mediaType: 'mixed', quality: 1 }, (response: ImagePickerResponse) => {
+  const handlePickGallery = () => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.92 }, (response: ImagePickerResponse) => {
       const asset = response.assets?.[0];
       if (response.didCancel || !asset?.uri) {
         return;
       }
-      const isImage = (asset.type || '').startsWith('image/');
       void uploadAttachment(
         {
           uri: asset.uri,
-          type: asset.type || 'application/octet-stream',
-          name: asset.fileName || 'attachment',
+          type: asset.type || 'image/jpeg',
+          name: asset.fileName || 'photo.jpg',
         },
-        isImage ? 'image' : 'file',
+        'image',
       );
     });
+  };
+
+  const handlePickDocument = async () => {
+    try {
+      const file = await pickChatDocument();
+      if (!file) {
+        return;
+      }
+      const isImage = file.type.startsWith('image/');
+      void uploadAttachment(file, isImage ? 'image' : 'file');
+    } catch (err) {
+      Alert.alert('Document', getErrorMessage(err));
+    }
   };
 
   const handleStartVoice = async () => {
@@ -245,8 +268,9 @@ export function ChatThreadPanel({ groupId, groupName, isTeamChat, onBack }: Chat
                   key={item._id}
                   message={item}
                   isOwn={getChatSenderId(item.sender) === currentUserId}
-                  onPlayVoice={uri => {
-                    void playVoice(uri);
+                  playback={playback}
+                  onPlayVoice={(uri, durationSeconds) => {
+                    void playVoice(uri, durationSeconds);
                   }}
                 />
               ))
@@ -259,7 +283,7 @@ export function ChatThreadPanel({ groupId, groupName, isTeamChat, onBack }: Chat
           onChangeText={setDraft}
           onSend={handleSendText}
           onPickPhoto={handlePickPhoto}
-          onPickAttachment={handlePickAttachment}
+          onPickAttachment={() => setAttachSheetVisible(true)}
           onStartVoice={handleStartVoice}
           onStopVoice={handleStopVoice}
           onCancelVoice={cancelRecording}
@@ -268,6 +292,15 @@ export function ChatThreadPanel({ groupId, groupName, isTeamChat, onBack }: Chat
           recordDuration={recordDuration}
         />
       </KeyboardAvoidingView>
+
+      <ChatAttachmentSheet
+        visible={attachSheetVisible}
+        onClose={() => setAttachSheetVisible(false)}
+        onPickGallery={handlePickGallery}
+        onPickDocument={() => {
+          void handlePickDocument();
+        }}
+      />
     </View>
   );
 }
@@ -275,7 +308,7 @@ export function ChatThreadPanel({ groupId, groupName, isTeamChat, onBack }: Chat
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: chatTheme.background,
+    backgroundColor: chatTheme.threadBackground,
   },
   flex: {
     flex: 1,

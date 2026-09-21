@@ -11,6 +11,7 @@ import {
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { chatTheme } from '../constants/chatTheme';
 import { theme } from '../constants/theme';
+import { formatVoiceDuration } from '../utils/voiceDuration';
 
 interface ChatInputBarProps {
   value: string;
@@ -44,18 +45,17 @@ export function ChatInputBar({
   if (isRecording) {
     return (
       <View style={styles.wrapper}>
-        <View style={[styles.recordingBar, chatTheme.inputShadow]}>
+        <View style={styles.recordingBar}>
           <Pressable onPress={onCancelVoice} hitSlop={8} style={styles.cancelBtn}>
-            <MaterialCommunityIcons name="close" size={22} color={theme.colors.error} />
+            <MaterialCommunityIcons name="delete-outline" size={24} color={theme.colors.error} />
           </Pressable>
           <View style={styles.recordingCenter}>
-            <View style={styles.recordingPulse}>
-              <View style={styles.recordingDot} />
-            </View>
-            <Text style={styles.recordingText}>Recording {recordDuration}s</Text>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingText}>{formatVoiceDuration(recordDuration)}</Text>
+            <Text style={styles.recordingHint}>Slide to cancel • Release to send</Text>
           </View>
           <Pressable onPress={onStopVoice} hitSlop={8} style={styles.sendVoiceBtn}>
-            <MaterialCommunityIcons name="send" size={20} color={chatTheme.ownBubble} />
+            <MaterialCommunityIcons name="send" size={20} color="#FFFFFF" />
           </Pressable>
         </View>
       </View>
@@ -64,42 +64,40 @@ export function ChatInputBar({
 
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.container, chatTheme.inputShadow]}>
-        <View style={styles.toolsRow}>
-          <Pressable onPress={onPickPhoto} hitSlop={6} style={styles.toolBtn}>
-            <MaterialCommunityIcons name="image-outline" size={22} color={chatTheme.senderName} />
-          </Pressable>
-          <Pressable onPress={onPickAttachment} hitSlop={6} style={styles.toolBtn}>
-            <MaterialCommunityIcons name="paperclip" size={22} color={chatTheme.senderName} />
-          </Pressable>
-        </View>
+      <View style={styles.container}>
+        <Pressable onPress={onPickAttachment} hitSlop={6} style={styles.sideBtn}>
+          <MaterialCommunityIcons name="plus" size={26} color={chatTheme.otherBubbleMeta} />
+        </Pressable>
 
         <View style={styles.inputWrap}>
           <TextInput
             style={styles.input}
             value={value}
             onChangeText={onChangeText}
-            placeholder="Message..."
+            placeholder="Message"
             placeholderTextColor={chatTheme.otherBubbleMeta}
             multiline
             maxLength={2000}
           />
+          <Pressable onPress={onPickPhoto} hitSlop={6} style={styles.inlineIcon}>
+            <MaterialCommunityIcons name="camera-outline" size={22} color={chatTheme.otherBubbleMeta} />
+          </Pressable>
         </View>
 
         {canSend ? (
           <Pressable
-            style={[styles.sendBtn, sending && styles.sendBtnDisabled]}
+            style={[styles.actionBtn, sending && styles.actionBtnDisabled]}
             onPress={onSend}
             disabled={sending}>
             {sending ? (
-              <ActivityIndicator size="small" color={chatTheme.ownBubble} />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <MaterialCommunityIcons name="send" size={20} color={chatTheme.ownBubble} />
+              <MaterialCommunityIcons name="send" size={20} color="#FFFFFF" />
             )}
           </Pressable>
         ) : (
-          <Pressable onPress={onStartVoice} hitSlop={6} style={styles.micBtn}>
-            <MaterialCommunityIcons name="microphone" size={22} color={chatTheme.ownBubbleText} />
+          <Pressable onPress={onStartVoice} hitSlop={6} style={styles.actionBtn}>
+            <MaterialCommunityIcons name="microphone" size={22} color="#FFFFFF" />
           </Pressable>
         )}
       </View>
@@ -109,80 +107,73 @@ export function ChatInputBar({
 
 const styles = StyleSheet.create({
   wrapper: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.md,
-    backgroundColor: chatTheme.background,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: theme.spacing.sm,
+    paddingTop: theme.spacing.xs,
+    paddingBottom: theme.spacing.sm,
+    backgroundColor: '#F0F2F5',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.08)',
   },
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: chatTheme.inputBackground,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: chatTheme.inputBorder,
-    paddingLeft: theme.spacing.xs,
-    paddingRight: theme.spacing.xs,
-    paddingVertical: theme.spacing.xs,
-    gap: 2,
+    gap: theme.spacing.xs,
   },
-  toolsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 6,
-  },
-  toolBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  sideBtn: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 2,
   },
   inputWrap: {
     flex: 1,
-    minHeight: 40,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    paddingLeft: theme.spacing.md,
+    paddingRight: theme.spacing.xs,
+    minHeight: 44,
   },
   input: {
+    flex: 1,
     maxHeight: 120,
-    paddingHorizontal: theme.spacing.xs,
     paddingVertical: Platform.OS === 'ios' ? 10 : 8,
     fontSize: theme.fonts.sizes.md,
     color: chatTheme.otherBubbleText,
     lineHeight: 22,
   },
-  sendBtn: {
-    width: 40,
+  inlineIcon: {
+    width: 36,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: chatTheme.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
   },
-  sendBtnDisabled: {
+  actionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: chatTheme.waSend,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 0,
+  },
+  actionBtnDisabled: {
     opacity: 0.6,
-  },
-  micBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: chatTheme.ownBubble,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
   },
   recordingBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: chatTheme.inputBackground,
+    backgroundColor: '#FFFFFF',
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: theme.colors.errorLight,
+    borderColor: 'rgba(0,0,0,0.06)',
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.sm,
   },
   cancelBtn: {
     width: 40,
@@ -190,39 +181,34 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.errorLight,
   },
   recordingCenter: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.sm,
-  },
-  recordingPulse: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: theme.colors.errorLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 2,
   },
   recordingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: theme.colors.error,
+    marginBottom: 2,
   },
   recordingText: {
-    fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.semibold,
+    fontSize: theme.fonts.sizes.lg,
+    fontWeight: theme.fonts.weights.bold,
     color: chatTheme.otherBubbleText,
   },
+  recordingHint: {
+    fontSize: 10,
+    color: chatTheme.otherBubbleMeta,
+  },
   sendVoiceBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: chatTheme.accent,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: chatTheme.waSend,
     alignItems: 'center',
     justifyContent: 'center',
   },

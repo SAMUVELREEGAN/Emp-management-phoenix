@@ -110,21 +110,23 @@ export default function EmployeeListScreen() {
       />
 
       {isAdmin ? (
-        <View style={styles.segmentRow}>
-          <Pressable
-            style={[styles.segment, listMode === 'employee' && styles.segmentActive]}
-            onPress={() => setListMode('employee')}>
-            <Text style={[styles.segmentText, listMode === 'employee' && styles.segmentTextActive]}>
-              Employees
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.segment, listMode === 'hr' && styles.segmentActive]}
-            onPress={() => setListMode('hr')}>
-            <Text style={[styles.segmentText, listMode === 'hr' && styles.segmentTextActive]}>
-              HR Staff
-            </Text>
-          </Pressable>
+        <View style={styles.segmentShell}>
+          <View style={styles.segmentRow}>
+            <Pressable
+              style={[styles.segment, listMode === 'employee' && styles.segmentActive]}
+              onPress={() => setListMode('employee')}>
+              <Text style={[styles.segmentText, listMode === 'employee' && styles.segmentTextActive]}>
+                Employees
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.segment, listMode === 'hr' && styles.segmentActive]}
+              onPress={() => setListMode('hr')}>
+              <Text style={[styles.segmentText, listMode === 'hr' && styles.segmentTextActive]}>
+                HR Staff
+              </Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
 
@@ -137,6 +139,9 @@ export default function EmployeeListScreen() {
           onSubmitEditing={() => fetchEmployees(false, search)}
           returnKeyType="search"
           style={styles.searchInput}
+          leadingIcon={
+            <MaterialCommunityIcons name="magnify" size={22} color={theme.colors.textMuted} />
+          }
         />
       </View>
 
@@ -151,6 +156,8 @@ export default function EmployeeListScreen() {
           data={employees}
           keyExtractor={item => item._id}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => fetchEmployees(true)} />
           }
@@ -184,47 +191,58 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.surface,
   },
+  segmentShell: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+  },
   segmentRow: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.card,
   },
   segment: {
     flex: 1,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.white,
+    paddingVertical: theme.spacing.sm + 2,
+    borderRadius: theme.radii.lg,
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   segmentActive: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.primary,
   },
   segmentText: {
     fontSize: theme.fonts.sizes.sm,
     color: theme.colors.textSecondary,
-    fontWeight: theme.fonts.weights.medium,
+    fontWeight: theme.fonts.weights.semibold,
   },
   segmentTextActive: {
-    color: theme.colors.primary,
-    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.text,
+    fontWeight: theme.fonts.weights.bold,
   },
   searchWrap: {
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
   },
   searchInput: {
     marginBottom: 0,
+  },
+  listSeparator: {
+    height: theme.spacing.xs,
   },
   center: {
     flex: 1,
     padding: theme.spacing.md,
   },
   list: {
-    padding: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xl,
     flexGrow: 1,
   },
 });

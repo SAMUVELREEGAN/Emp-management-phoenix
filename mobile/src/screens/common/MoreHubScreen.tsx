@@ -1,23 +1,16 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import React, { useCallback } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { AppHeader } from '../../components';
+import { AppHeader, MoreHubAiFeatureCard, MoreHubMenuItem } from '../../components';
+import type { MoreHubMenuItemData } from '../../components/MoreHubMenuItem';
 import { theme } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { useUnreadNotificationCount } from '../../hooks/useUnreadNotificationCount';
 import { useTabBack } from '../../navigation/safeStackBack';
 
-interface MoreMenuItem {
-  key: string;
-  label: string;
-  subtitle: string;
-  icon: string;
-  color: string;
-  iconBg: string;
+interface MoreMenuItem extends MoreHubMenuItemData {
   screen: string;
-  badge?: number;
 }
 
 export default function MoreHubScreen() {
@@ -230,72 +223,51 @@ export default function MoreHubScreen() {
   const items = role === 'employee' ? employeeItems : role === 'hr' ? hrItems : adminItems;
   const isHrMode = role === 'hr' || role === 'admin';
 
+  const handleItemPress = useCallback(
+    (item: MoreMenuItem) => {
+      if (item.key === 'my-shift' && role === 'employee') {
+        navigation.getParent()?.navigate('Attendance', { screen: 'MyShift' });
+        return;
+      }
+      if (item.key === 'attendance-summary' && role === 'employee') {
+        navigation.getParent()?.navigate('Attendance', { screen: 'AttendanceSummary' });
+        return;
+      }
+      if ((item.key === 'onboarding' || item.key === 'payslips') && role === 'employee') {
+        navigation.navigate('Payroll', { screen: item.screen });
+        return;
+      }
+      navigation.navigate(item.screen);
+    },
+    [navigation, role],
+  );
+
   return (
     <View style={styles.container} collapsable={false}>
       <AppHeader title="More" subtitle="All features" />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Pressable
-          style={[styles.aiCard, theme.shadows.card]}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
+        <MoreHubAiFeatureCard
+          title={isHrMode ? 'AI HR Analytics' : 'AI Employee Assistant'}
+          subtitle={
+            isHrMode
+              ? 'Late arrivals, absenteeism, tasks & overtime insights'
+              : 'Ask about leaves, check-in, hours worked & tasks'
+          }
+          variant={isHrMode ? 'analytics' : 'assistant'}
           onPress={() => navigation.navigate('AiAssistant')}
-          accessibilityRole="button">
-          <View style={styles.aiIconWrap}>
-            <MaterialCommunityIcons
-              name={isHrMode ? 'chart-timeline-variant' : 'robot-outline'}
-              size={28}
-              color={theme.colors.primary}
-            />
-          </View>
-          <View style={styles.aiTextWrap}>
-            <Text style={styles.aiTitle}>
-              {isHrMode ? 'AI HR Analytics' : 'AI Employee Assistant'}
-            </Text>
-            <Text style={styles.aiSubtitle}>
-              {isHrMode
-                ? 'Late arrivals, absenteeism, tasks & overtime insights'
-                : 'Ask about leaves, check-in, hours worked & tasks'}
-            </Text>
-          </View>
-          <View style={styles.aiBadge}>
-            <Text style={styles.aiBadgeText}>AI</Text>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color={theme.colors.textMuted} />
-        </Pressable>
+        />
 
-        {items.map(item => (
-          <Pressable
-            key={item.key}
-            style={[styles.row, theme.shadows.card]}
-            onPress={() => {
-              if (item.key === 'my-shift' && role === 'employee') {
-                navigation.getParent()?.navigate('Attendance', { screen: 'MyShift' });
-                return;
-              }
-              if (item.key === 'attendance-summary' && role === 'employee') {
-                navigation.getParent()?.navigate('Attendance', { screen: 'AttendanceSummary' });
-                return;
-              }
-              if ((item.key === 'onboarding' || item.key === 'payslips') && role === 'employee') {
-                navigation.navigate('Payroll', { screen: item.screen });
-                return;
-              }
-              navigation.navigate(item.screen);
-            }}
-            accessibilityRole="button">
-            <View style={[styles.iconWrap, { backgroundColor: item.iconBg }]}>
-              <MaterialCommunityIcons name={item.icon} size={24} color={item.color} />
-            </View>
-            <View style={styles.textWrap}>
-              <Text style={styles.label}>{item.label}</Text>
-              <Text style={styles.subtitle}>{item.subtitle}</Text>
-            </View>
-            {item.badge && item.badge > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.badge > 9 ? '9+' : item.badge}</Text>
-              </View>
-            ) : null}
-            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.colors.textMuted} />
-          </Pressable>
-        ))}
+        <View style={styles.menuList}>
+          {items.map(item => (
+            <MoreHubMenuItem
+              key={item.key}
+              item={item}
+              onPress={() => handleItemPress(item)}
+            />
+          ))}
+        </View>
       </ScrollView>
     </View>
   );
@@ -304,99 +276,14 @@ export default function MoreHubScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#F6F7F9',
   },
   content: {
-    padding: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.xxl,
-    gap: theme.spacing.sm,
   },
-  aiCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
-    padding: theme.spacing.md,
-    gap: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.primaryLight,
-    marginBottom: theme.spacing.sm,
-  },
-  aiIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: theme.radii.md,
-    backgroundColor: theme.colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  aiTextWrap: {
-    flex: 1,
-  },
-  aiTitle: {
-    fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.bold,
-    color: theme.colors.text,
-  },
-  aiSubtitle: {
-    fontSize: theme.fonts.sizes.sm,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 18,
-  },
-  aiBadge: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radii.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginRight: theme.spacing.xs,
-  },
-  aiBadgeText: {
-    fontSize: 10,
-    fontWeight: theme.fonts.weights.bold,
-    color: theme.colors.accent,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
-    padding: theme.spacing.md,
-    gap: theme.spacing.md,
-  },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: theme.radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textWrap: {
-    flex: 1,
-  },
-  label: {
-    fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.text,
-  },
-  subtitle: {
-    fontSize: theme.fonts.sizes.sm,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  badge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: theme.colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-    marginRight: theme.spacing.xs,
-  },
-  badgeText: {
-    color: theme.colors.white,
-    fontSize: 11,
-    fontWeight: theme.fonts.weights.bold,
+  menuList: {
+    gap: 10,
   },
 });

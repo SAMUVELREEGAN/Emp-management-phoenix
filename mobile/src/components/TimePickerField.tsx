@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { theme } from '../constants/theme';
@@ -26,6 +28,8 @@ interface TimePickerFieldProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  containerStyle?: StyleProp<ViewStyle>;
+  variant?: 'default' | 'surface';
 }
 
 function WheelColumn<T extends number | string>({
@@ -69,6 +73,8 @@ export function TimePickerField({
   value,
   onChange,
   disabled = false,
+  containerStyle,
+  variant = 'default',
 }: TimePickerFieldProps) {
   const [visible, setVisible] = useState(false);
   const [hour12, setHour12] = useState(9);
@@ -84,6 +90,12 @@ export function TimePickerField({
     setMinute(parts.minute);
     setPeriod(parts.period);
   }, [visible, value]);
+
+  useEffect(() => {
+    return () => {
+      setVisible(false);
+    };
+  }, []);
 
   const openPicker = () => {
     if (disabled) {
@@ -102,10 +114,14 @@ export function TimePickerField({
   };
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, containerStyle]}>
       <Text style={styles.label}>{label}</Text>
       <Pressable
-        style={[styles.field, disabled && styles.fieldDisabled]}
+        style={[
+          styles.field,
+          variant === 'surface' && styles.fieldSurface,
+          disabled && styles.fieldDisabled,
+        ]}
         onPress={openPicker}
         accessibilityRole="button"
         accessibilityLabel={`Select ${label}`}>
@@ -114,7 +130,12 @@ export function TimePickerField({
         <MaterialCommunityIcons name="chevron-down" size={20} color={theme.colors.textMuted} />
       </Pressable>
 
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={closePicker}>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={closePicker}
+        statusBarTranslucent>
         <Pressable style={styles.overlay} onPress={closePicker}>
           <Pressable style={styles.sheet} onPress={event => event.stopPropagation()}>
             <Text style={styles.sheetTitle}>{label}</Text>
@@ -177,6 +198,12 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm + 2,
+  },
+  fieldSurface: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#EEF2F6',
+    borderRadius: theme.radii.lg,
+    paddingVertical: theme.spacing.md,
   },
   fieldDisabled: {
     opacity: 0.6,

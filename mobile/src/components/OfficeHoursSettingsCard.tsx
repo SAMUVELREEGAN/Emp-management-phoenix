@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AppButton } from './AppButton';
 import { TimePickerField } from './TimePickerField';
 import { theme } from '../constants/theme';
@@ -88,39 +89,53 @@ export function OfficeHoursSettingsCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Office Hours</Text>
-      <Text style={styles.subtitle}>
-        Tap to select start and end times in 12-hour format. Check-in after start time is marked
-        late. Early check-out requires a remark.
-      </Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Office Hours</Text>
+        <View style={styles.headerAccent} />
+      </View>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      <TimePickerField
-        label="Office Start Time"
-        value={officeHours.officeStartTime}
-        onChange={officeStartTime =>
-          setOfficeHours(current => ({ ...current, officeStartTime }))
-        }
-        disabled={disabled}
-      />
-      <TimePickerField
-        label="Office End Time"
-        value={officeHours.officeEndTime}
-        onChange={officeEndTime => setOfficeHours(current => ({ ...current, officeEndTime }))}
-        disabled={disabled}
-      />
+      <View style={styles.timeRow}>
+        <TimePickerField
+          label="Office Start Time"
+          value={officeHours.officeStartTime}
+          onChange={officeStartTime =>
+            setOfficeHours(current => ({ ...current, officeStartTime }))
+          }
+          disabled={disabled}
+          variant="surface"
+          containerStyle={styles.timeField}
+        />
+        <TimePickerField
+          label="Office End Time"
+          value={officeHours.officeEndTime}
+          onChange={officeEndTime => setOfficeHours(current => ({ ...current, officeEndTime }))}
+          disabled={disabled}
+          variant="surface"
+          containerStyle={styles.timeField}
+        />
+      </View>
 
-      <Text style={styles.preview}>
-        Current schedule: {formatOfficeTime12Hour(officeHours.officeStartTime)} to{' '}
-        {formatOfficeTime12Hour(officeHours.officeEndTime)}
-      </Text>
+      <View style={styles.previewCard}>
+        <View style={styles.previewIconWrap}>
+          <MaterialCommunityIcons name="clock-time-four-outline" size={18} color={theme.colors.primary} />
+        </View>
+        <View style={styles.previewContent}>
+          <Text style={styles.previewLabel}>Current schedule</Text>
+          <Text style={styles.previewValue}>
+            {formatOfficeTime12Hour(officeHours.officeStartTime)} –{' '}
+            {formatOfficeTime12Hour(officeHours.officeEndTime)}
+          </Text>
+        </View>
+      </View>
 
       <AppButton
         title={saving ? 'Saving...' : 'Save Office Hours'}
         onPress={handleSave}
         loading={saving}
         disabled={loading}
+        style={styles.saveButton}
       />
     </View>
   );
@@ -129,34 +144,79 @@ export function OfficeHoursSettingsCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    borderRadius: theme.radii.xl,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     ...theme.shadows.card,
   },
+  header: {
+    marginBottom: theme.spacing.lg,
+  },
   title: {
-    fontSize: theme.fonts.sizes.md,
-    fontWeight: theme.fonts.weights.semibold,
+    fontSize: theme.fonts.sizes.lg,
+    fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    letterSpacing: -0.3,
   },
-  subtitle: {
-    fontSize: theme.fonts.sizes.sm,
+  headerAccent: {
+    width: 36,
+    height: 3,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.primary,
+    marginTop: theme.spacing.sm,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  timeField: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  previewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primaryLight,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: '#FFF0B3',
+  },
+  previewIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.md,
+  },
+  previewContent: {
+    flex: 1,
+  },
+  previewLabel: {
+    fontSize: theme.fonts.sizes.xs,
+    fontWeight: theme.fonts.weights.semibold,
     color: theme.colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: theme.spacing.md,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
   },
-  preview: {
-    fontSize: theme.fonts.sizes.sm,
-    color: theme.colors.primary,
-    fontWeight: theme.fonts.weights.medium,
-    marginBottom: theme.spacing.md,
+  previewValue: {
+    fontSize: theme.fonts.sizes.md,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.text,
+  },
+  saveButton: {
+    marginTop: theme.spacing.xs,
   },
   errorText: {
     color: theme.colors.error,
     fontSize: theme.fonts.sizes.sm,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
 });

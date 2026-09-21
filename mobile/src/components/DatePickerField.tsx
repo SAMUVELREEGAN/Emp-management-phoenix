@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { theme } from '../constants/theme';
@@ -25,6 +27,8 @@ interface DatePickerFieldProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  variant?: 'default' | 'compact';
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 function WheelColumn<T extends number | string>({
@@ -68,7 +72,10 @@ export function DatePickerField({
   value,
   onChange,
   disabled = false,
+  variant = 'default',
+  containerStyle,
 }: DatePickerFieldProps) {
+  const isCompact = variant === 'compact';
   const [visible, setVisible] = useState(false);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -121,25 +128,40 @@ export function DatePickerField({
   const isToday = value === toDateInputValue();
 
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.label}>{label}</Text>
+    <View style={[styles.wrap, isCompact && styles.wrapCompact, containerStyle]}>
+      {!isCompact && label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={styles.row}>
         <Pressable
-          style={[styles.field, disabled && styles.fieldDisabled]}
+          style={[
+            styles.field,
+            isCompact && styles.fieldCompact,
+            disabled && styles.fieldDisabled,
+          ]}
           onPress={openPicker}
           accessibilityRole="button"
           accessibilityLabel={`Select ${label}`}>
           <MaterialCommunityIcons
             name="calendar-month-outline"
-            size={20}
+            size={isCompact ? 18 : 20}
             color={theme.colors.primary}
           />
-          <Text style={styles.value}>{formatDate(value)}</Text>
-          <MaterialCommunityIcons name="chevron-down" size={20} color={theme.colors.textMuted} />
+          <Text style={[styles.value, isCompact && styles.valueCompact]} numberOfLines={1}>
+            {formatDate(value)}
+          </Text>
+          <MaterialCommunityIcons name="chevron-down" size={18} color={theme.colors.textMuted} />
         </Pressable>
         {!isToday ? (
-          <Pressable style={styles.todayButton} onPress={setToday} disabled={disabled}>
-            <Text style={styles.todayText}>Today</Text>
+          <Pressable
+            style={[styles.todayButton, isCompact && styles.todayButtonCompact]}
+            onPress={setToday}
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel="Jump to today">
+            {isCompact ? (
+              <Text style={styles.todayTextCompact}>Today</Text>
+            ) : (
+              <Text style={styles.todayText}>Today</Text>
+            )}
           </Pressable>
         ) : null}
       </View>
@@ -186,6 +208,11 @@ const styles = StyleSheet.create({
   wrap: {
     marginBottom: theme.spacing.md,
   },
+  wrapCompact: {
+    marginBottom: 0,
+    flex: 1,
+    minWidth: 0,
+  },
   label: {
     fontSize: theme.fonts.sizes.sm,
     fontWeight: theme.fonts.weights.medium,
@@ -209,6 +236,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm + 2,
   },
+  fieldCompact: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#EEF2F6',
+    borderRadius: theme.radii.lg,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    minWidth: 0,
+  },
   fieldDisabled: {
     opacity: 0.6,
   },
@@ -218,6 +253,10 @@ const styles = StyleSheet.create({
     fontWeight: theme.fonts.weights.medium,
     color: theme.colors.text,
   },
+  valueCompact: {
+    fontSize: theme.fonts.sizes.xs,
+    fontWeight: theme.fonts.weights.semibold,
+  },
   todayButton: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm + 2,
@@ -226,9 +265,19 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     backgroundColor: theme.colors.primaryLight,
   },
+  todayButtonCompact: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radii.lg,
+  },
   todayText: {
     fontSize: theme.fonts.sizes.sm,
     fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.primary,
+  },
+  todayTextCompact: {
+    fontSize: theme.fonts.sizes.xs,
+    fontWeight: theme.fonts.weights.bold,
     color: theme.colors.primary,
   },
   overlay: {
